@@ -1,0 +1,60 @@
+2025-10-14 10:15:32 INFO Starting data processing pipeline
+2025-10-14 10:15:33 INFO Loading configuration from config.yaml
+2025-10-14 10:15:34 INFO Connecting to database at postgres://localhost:5432/app_db
+2025-10-14 10:15:35 INFO Database connection established
+2025-10-14 10:15:36 INFO Processing batch 1 of 50
+2025-10-14 10:15:37 ERROR Failed to process record
+Traceback (most recent call last):
+  File "/app/processors/data_processor.py", line 145, in process_record
+    result = self.transform_data(record)
+  File "/app/processors/data_processor.py", line 89, in transform_data
+    return data['user']['profile']['email'].lower()
+KeyError: 'profile'
+2025-10-14 10:15:38 WARN Retrying record processing (attempt 1/3)
+2025-10-14 10:15:39 INFO Processing batch 2 of 50
+2025-10-14 10:15:42 INFO Processing batch 3 of 50
+2025-10-14 10:15:45 ERROR Unexpected error in batch processor
+Traceback (most recent call last):
+  File "/app/main.py", line 234, in run_batch
+    processor.execute(batch_data)
+  File "/app/processors/batch_processor.py", line 67, in execute
+    self.validate_schema(data)
+  File "/app/processors/batch_processor.py", line 102, in validate_schema
+    schema_validator.validate(data)
+  File "/usr/local/lib/python3.11/site-packages/jsonschema/validators.py", line 456, in validate
+    raise ValidationError(message)
+jsonschema.exceptions.ValidationError: 'timestamp' is a required property
+
+Failed validating 'required' in schema:
+    {'properties': {'timestamp': {'type': 'string'},
+                    'user_id': {'type': 'integer'}},
+     'required': ['timestamp', 'user_id'],
+     'type': 'object'}
+
+On instance:
+    {'user_id': 12345}
+2025-10-14 10:15:46 INFO Skipping invalid batch
+2025-10-14 10:15:47 INFO Processing batch 4 of 50
+2025-10-14 10:16:12 ERROR Database connection lost
+Traceback (most recent call last):
+  File "/app/db/connection.py", line 178, in execute_query
+    cursor.execute(query, params)
+psycopg2.OperationalError: server closed the connection unexpectedly
+	This probably means the server terminated abnormally
+	before or while processing the request.
+2025-10-14 10:16:13 INFO Attempting to reconnect to database
+2025-10-14 10:16:14 INFO Database reconnection successful
+2025-10-14 10:16:15 ERROR Type mismatch in calculation
+Traceback (most recent call last):
+  File "/app/analytics/calculator.py", line 56, in calculate_metrics
+    total = sum(values) / len(values)
+  File "/app/analytics/calculator.py", line 45, in <lambda>
+    values = [int(x) for x in raw_values]
+TypeError: int() argument must be a string or a real number, not 'NoneType'
+2025-10-14 10:16:16 WARN Skipping metric calculation for missing data
+2025-10-14 10:16:20 ERROR AttributeError in user service
+Traceback (most recent call last):
+  File "/app/services/user_service.py", line 223, in get_user_details
+    return user.get_profile_data()
+AttributeError: 'NoneType' object has no attribute 'get_profile_data'
+2025-10-14 10:16:21 INFO Pipeline completed with 3 errors, 47 successful batches

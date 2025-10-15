@@ -1,0 +1,41 @@
+{"timestamp":"2025-10-14T14:00:00.000Z","level":"INFO","service":"api-gateway","message":"Service starting up","version":"2.4.1"}
+{"timestamp":"2025-10-14T14:00:00.123Z","level":"INFO","service":"api-gateway","message":"Loading configuration","config_path":"/etc/app/config.yaml"}
+{"timestamp":"2025-10-14T14:00:00.456Z","level":"INFO","service":"api-gateway","message":"Registered routes","count":24}
+{"timestamp":"2025-10-14T14:00:01.234Z","level":"INFO","service":"auth-service","message":"Authentication service initialized","port":8081}
+{"timestamp":"2025-10-14T14:00:01.789Z","level":"INFO","service":"database","message":"Connection pool created","min_size":5,"max_size":20}
+{"timestamp":"2025-10-14T14:00:02.012Z","level":"INFO","service":"cache","message":"Redis connection established","host":"redis.internal","port":6379}
+{"timestamp":"2025-10-14T14:00:05.345Z","level":"INFO","service":"api-gateway","message":"Health check endpoint ready","path":"/health"}
+{"timestamp":"2025-10-14T14:00:10.567Z","level":"INFO","service":"api-gateway","message":"Request received","method":"GET","path":"/api/users","request_id":"req-abc-123"}
+{"timestamp":"2025-10-14T14:00:10.789Z","level":"DEBUG","service":"auth-service","message":"Validating JWT token","request_id":"req-abc-123"}
+{"timestamp":"2025-10-14T14:00:10.890Z","level":"INFO","service":"auth-service","message":"Token validated successfully","user_id":1042,"request_id":"req-abc-123"}
+{"timestamp":"2025-10-14T14:00:11.123Z","level":"INFO","service":"user-service","message":"Fetching user list","limit":50,"offset":0,"request_id":"req-abc-123"}
+{"timestamp":"2025-10-14T14:00:11.456Z","level":"INFO","service":"database","message":"Query executed","query":"SELECT * FROM users LIMIT 50","duration_ms":23,"request_id":"req-abc-123"}
+{"timestamp":"2025-10-14T14:00:11.678Z","level":"INFO","service":"api-gateway","message":"Request completed","status":200,"duration_ms":111,"request_id":"req-abc-123"}
+{"timestamp":"2025-10-14T14:00:15.234Z","level":"INFO","service":"api-gateway","message":"Request received","method":"POST","path":"/api/orders","request_id":"req-def-456"}
+{"timestamp":"2025-10-14T14:00:15.567Z","level":"DEBUG","service":"order-service","message":"Validating order payload","request_id":"req-def-456"}
+{"timestamp":"2025-10-14T14:00:15.890Z","level":"ERROR","service":"order-service","message":"Order validation failed","error":"Missing required field: customer_id","request_id":"req-def-456"}
+{"timestamp":"2025-10-14T14:00:15.901Z","level":"ERROR","service":"api-gateway","message":"Request failed","status":400,"error":"Bad Request","request_id":"req-def-456"}
+{"timestamp":"2025-10-14T14:00:20.345Z","level":"INFO","service":"api-gateway","message":"Request received","method":"GET","path":"/api/products/12345","request_id":"req-ghi-789"}
+{"timestamp":"2025-10-14T14:00:20.678Z","level":"INFO","service":"product-service","message":"Fetching product","product_id":12345,"request_id":"req-ghi-789"}
+{"timestamp":"2025-10-14T14:00:20.901Z","level":"WARN","service":"cache","message":"Cache miss","key":"product:12345","request_id":"req-ghi-789"}
+{"timestamp":"2025-10-14T14:00:21.234Z","level":"INFO","service":"database","message":"Query executed","query":"SELECT * FROM products WHERE id = 12345","duration_ms":45,"request_id":"req-ghi-789"}
+{"timestamp":"2025-10-14T14:00:21.456Z","level":"INFO","service":"cache","message":"Cache updated","key":"product:12345","ttl_seconds":3600,"request_id":"req-ghi-789"}
+{"timestamp":"2025-10-14T14:00:21.567Z","level":"INFO","service":"api-gateway","message":"Request completed","status":200,"duration_ms":122,"request_id":"req-ghi-789"}
+{"timestamp":"2025-10-14T14:00:28.890Z","level":"WARN","service":"rate-limiter","message":"Rate limit approaching","client_ip":"192.168.1.105","current":85,"limit":100,"window_seconds":60}
+{"timestamp":"2025-10-14T14:00:35.123Z","level":"INFO","service":"api-gateway","message":"Request received","method":"PUT","path":"/api/users/1042","request_id":"req-jkl-012"}
+{"timestamp":"2025-10-14T14:00:35.456Z","level":"INFO","service":"user-service","message":"Updating user profile","user_id":1042,"request_id":"req-jkl-012"}
+{"timestamp":"2025-10-14T14:00:35.789Z","level":"ERROR","service":"database","message":"Database constraint violation","error":"unique_violation: email already exists","table":"users","constraint":"users_email_key","request_id":"req-jkl-012"}
+{"timestamp":"2025-10-14T14:00:35.890Z","level":"ERROR","service":"user-service","message":"Failed to update user","user_id":1042,"error":"Email address already in use","request_id":"req-jkl-012"}
+{"timestamp":"2025-10-14T14:00:35.901Z","level":"ERROR","service":"api-gateway","message":"Request failed","status":409,"error":"Conflict","request_id":"req-jkl-012"}
+{"timestamp":"2025-10-14T14:00:42.234Z","level":"INFO","service":"background-worker","message":"Starting scheduled task","task":"send_daily_reports","worker_id":"worker-3"}
+{"timestamp":"2025-10-14T14:00:45.567Z","level":"INFO","service":"report-service","message":"Generating daily report","date":"2025-10-14","users_count":1523}
+{"timestamp":"2025-10-14T14:00:52.890Z","level":"ERROR","service":"email-service","message":"Failed to send email","recipient":"admin@example.com","error":"SMTP connection timeout","smtp_host":"smtp.sendgrid.net"}
+{"timestamp":"2025-10-14T14:00:52.901Z","level":"WARN","service":"background-worker","message":"Task failed, will retry","task":"send_daily_reports","attempt":1,"max_attempts":3,"retry_in_seconds":300}
+{"timestamp":"2025-10-14T14:01:05.123Z","level":"INFO","service":"metrics-collector","message":"System metrics","cpu_usage_percent":45.2,"memory_usage_mb":2048,"active_connections":127}
+{"timestamp":"2025-10-14T14:01:15.456Z","level":"WARN","service":"api-gateway","message":"Slow request detected","method":"GET","path":"/api/search","duration_ms":3456,"threshold_ms":1000,"request_id":"req-mno-345"}
+{"timestamp":"2025-10-14T14:01:20.789Z","level":"ERROR","service":"search-service","message":"Elasticsearch query failed","error":"timeout after 3000ms","query_type":"multi_match","request_id":"req-mno-345"}
+{"timestamp":"2025-10-14T14:01:30.012Z","level":"INFO","service":"monitoring","message":"Alert triggered","alert":"high_error_rate","threshold_percent":5.0,"current_percent":7.3,"window_minutes":5}
+{"timestamp":"2025-10-14T14:01:35.345Z","level":"INFO","service":"api-gateway","message":"Request received","method":"DELETE","path":"/api/sessions/xyz789","request_id":"req-pqr-678"}
+{"timestamp":"2025-10-14T14:01:35.678Z","level":"INFO","service":"auth-service","message":"Session revoked","session_id":"xyz789","user_id":1042,"request_id":"req-pqr-678"}
+{"timestamp":"2025-10-14T14:01:35.789Z","level":"INFO","service":"api-gateway","message":"Request completed","status":204,"duration_ms":44,"request_id":"req-pqr-678"}
+{"timestamp":"2025-10-14T14:01:45.012Z","level":"INFO","service":"health-check","message":"All services healthy","checked_services":["api-gateway","auth-service","user-service","order-service","product-service","database","cache"]}

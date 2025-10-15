@@ -1,0 +1,62 @@
+[2025-10-14T10:30:15.123Z] INFO: Server starting on port 3000
+[2025-10-14T10:30:15.456Z] INFO: Database connection pool initialized
+[2025-10-14T10:30:15.789Z] INFO: Express middleware configured
+[2025-10-14T10:30:16.012Z] INFO: Server listening on http://localhost:3000
+[2025-10-14T10:30:22.345Z] INFO: GET /api/users - 200 - 45ms
+[2025-10-14T10:30:28.567Z] ERROR: Unhandled promise rejection
+UnhandledPromiseRejectionWarning: Error: Failed to fetch user data
+    at UserController.getUser (/app/controllers/userController.js:45:15)
+    at processTicksAndRejections (node:internal/process/task_queues:96:5)
+    at async /app/middleware/asyncHandler.js:12:9
+[2025-10-14T10:30:28.568Z] WARN: Possible unhandled promise rejection detected
+[2025-10-14T10:30:35.890Z] INFO: POST /api/orders - 201 - 123ms
+[2025-10-14T10:30:42.123Z] ERROR: TypeError in payment processing
+TypeError: Cannot read property 'amount' of undefined
+    at PaymentService.processPayment (/app/services/paymentService.js:78:32)
+    at OrderController.createOrder (/app/controllers/orderController.js:156:24)
+    at Layer.handle [as handle_request] (/app/node_modules/express/lib/router/layer.js:95:5)
+    at next (/app/node_modules/express/lib/router/route.js:137:13)
+    at Route.dispatch (/app/node_modules/express/lib/router/route.js:112:3)
+    at Layer.handle [as handle_request] (/app/node_modules/express/lib/router/layer.js:95:5)
+    at /app/node_modules/express/lib/router/index.js:281:22
+    at Function.process_params (/app/node_modules/express/lib/router/index.js:341:12)
+    at next (/app/node_modules/express/lib/router/index.js:275:10)
+    at authMiddleware (/app/middleware/auth.js:34:5)
+[2025-10-14T10:30:42.125Z] ERROR: POST /api/orders - 500 - 156ms
+[2025-10-14T10:31:05.234Z] INFO: GET /api/products?category=electronics - 200 - 67ms
+[2025-10-14T10:31:18.456Z] ERROR: ReferenceError in analytics module
+ReferenceError: analytics is not defined
+    at trackEvent (/app/utils/analytics.js:23:5)
+    at ProductController.listProducts (/app/controllers/productController.js:89:9)
+    at Layer.handle [as handle_request] (/app/node_modules/express/lib/router/layer.js:95:5)
+    at next (/app/node_modules/express/lib/router/route.js:137:13)
+    at Route.dispatch (/app/node_modules/express/lib/router/route.js:112:3)
+[2025-10-14T10:31:25.678Z] WARN: Deprecated API usage detected: req.body.user_id
+[2025-10-14T10:31:30.901Z] INFO: WebSocket connection established: client-id-abc123
+[2025-10-14T10:31:45.234Z] ERROR: Database query failed
+Error: Connection terminated unexpectedly
+    at Connection.parseE (/app/node_modules/pg/lib/connection.js:614:13)
+    at Connection.parseMessage (/app/node_modules/pg/lib/connection.js:413:19)
+    at Socket.<anonymous> (/app/node_modules/pg/lib/connection.js:129:22)
+    at Socket.emit (node:events:390:28)
+    at addChunk (node:internal/streams/readable:324:12)
+    at readableAddChunk (node:internal/streams/readable:297:9)
+    at Socket.Readable.push (node:internal/streams/readable:234:10)
+    at TCP.onStreamRead (node:internal/stream_base_commons:190:23)
+[2025-10-14T10:31:45.456Z] INFO: Attempting database reconnection
+[2025-10-14T10:31:46.789Z] INFO: Database reconnected successfully
+[2025-10-14T10:32:10.012Z] ERROR: Validation error in user registration
+ValidationError: "email" must be a valid email
+    at Object.validate (/app/node_modules/joi/lib/index.js:145:21)
+    at UserService.validateUser (/app/services/userService.js:34:28)
+    at UserController.register (/app/controllers/userController.js:112:45)
+    at processTicksAndRejections (node:internal/process/task_queues:96:5)
+[2025-10-14T10:32:15.345Z] INFO: Cache hit for key: products:electronics:page-1
+[2025-10-14T10:32:20.678Z] ERROR: ENOENT: no such file or directory
+Error: ENOENT: no such file or directory, open '/tmp/uploads/missing-file.jpg'
+    at Object.openSync (node:fs:590:3)
+    at Object.readFileSync (node:fs:458:35)
+    at FileService.processUpload (/app/services/fileService.js:67:23)
+    at UploadController.handleUpload (/app/controllers/uploadController.js:89:34)
+[2025-10-14T10:32:25.901Z] WARN: High memory usage detected: 1.2GB / 2GB
+[2025-10-14T10:32:30.234Z] INFO: Graceful shutdown initiated

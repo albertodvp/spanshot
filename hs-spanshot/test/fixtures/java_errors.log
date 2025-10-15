@@ -1,0 +1,74 @@
+2025-10-14 11:00:05.123 [main] INFO  com.example.Application - Starting application
+2025-10-14 11:00:05.456 [main] INFO  com.example.config.DatabaseConfig - Initializing database connection pool
+2025-10-14 11:00:06.789 [main] INFO  com.example.Application - Application started successfully on port 8080
+2025-10-14 11:00:12.345 [http-nio-8080-exec-1] INFO  com.example.controller.UserController - Received GET request for /api/users/123
+2025-10-14 11:00:15.678 [http-nio-8080-exec-2] ERROR com.example.service.UserService - Failed to fetch user details
+java.lang.NullPointerException: Cannot invoke "com.example.model.User.getProfile()" because "user" is null
+	at com.example.service.UserService.getUserDetails(UserService.java:145)
+	at com.example.controller.UserController.getUser(UserController.java:67)
+	at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+	at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:77)
+	at java.base/jdk.internal.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:568)
+	at org.springframework.web.method.support.InvocableHandlerMethod.doInvoke(InvocableHandlerMethod.java:205)
+	at org.springframework.web.method.support.InvocableHandlerMethod.invokeForRequest(InvocableHandlerMethod.java:150)
+	at org.springframework.web.servlet.mvc.method.annotation.ServletInvocableHandlerMethod.invokeAndHandle(ServletInvocableHandlerMethod.java:117)
+	at org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter.invokeHandlerMethod(RequestMappingHandlerAdapter.java:895)
+	at org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter.handleInternal(RequestMappingHandlerAdapter.java:808)
+	at org.springframework.web.servlet.mvc.method.AbstractHandlerMethodAdapter.handle(AbstractHandlerMethodAdapter.java:87)
+2025-10-14 11:00:15.890 [http-nio-8080-exec-2] ERROR com.example.controller.ErrorHandler - Handling NullPointerException in request
+2025-10-14 11:00:23.234 [http-nio-8080-exec-3] INFO  com.example.controller.OrderController - Processing order creation request
+2025-10-14 11:00:25.567 [http-nio-8080-exec-3] ERROR com.example.service.PaymentService - Payment processing failed
+java.lang.IllegalArgumentException: Payment amount must be positive
+	at com.example.service.PaymentService.validateAmount(PaymentService.java:89)
+	at com.example.service.PaymentService.processPayment(PaymentService.java:134)
+	at com.example.service.OrderService.createOrder(OrderService.java:201)
+	at com.example.controller.OrderController.placeOrder(OrderController.java:78)
+	at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+	at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:77)
+2025-10-14 11:00:25.789 [http-nio-8080-exec-3] WARN  com.example.controller.OrderController - Order creation rolled back due to payment failure
+2025-10-14 11:00:34.012 [scheduled-task-1] INFO  com.example.jobs.DataSyncJob - Starting scheduled data synchronization
+2025-10-14 11:00:38.345 [scheduled-task-1] ERROR com.example.jobs.DataSyncJob - Database connection error during sync
+java.sql.SQLException: Connection is closed
+	at org.postgresql.jdbc.PgConnection.checkClosed(PgConnection.java:856)
+	at org.postgresql.jdbc.PgConnection.createStatement(PgConnection.java:1612)
+	at com.zaxxer.hikari.pool.ProxyConnection.createStatement(ProxyConnection.java:321)
+	at com.example.repository.ProductRepository.findAll(ProductRepository.java:45)
+	at com.example.jobs.DataSyncJob.syncProducts(DataSyncJob.java:89)
+	at com.example.jobs.DataSyncJob.run(DataSyncJob.java:56)
+	at java.base/java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:539)
+	at java.base/java.util.concurrent.FutureTask.runAndReset(FutureTask.java:305)
+	at java.base/java.util.concurrent.ScheduledThreadPoolExecutor$ScheduledFutureTask.run(ScheduledThreadPoolExecutor.java:305)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1136)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:635)
+	at java.base/java.lang.Thread.run(Thread.java:833)
+2025-10-14 11:00:38.567 [scheduled-task-1] INFO  com.example.jobs.DataSyncJob - Attempting to reconnect to database
+2025-10-14 11:00:39.890 [scheduled-task-1] INFO  com.example.jobs.DataSyncJob - Database reconnection successful
+2025-10-14 11:00:45.123 [http-nio-8080-exec-5] ERROR com.example.util.JsonParser - JSON parsing failed
+com.fasterxml.jackson.core.JsonParseException: Unexpected character ('}' (code 125)): was expecting double-quote to start field name
+ at [Source: (String)"{"name": "Product", "price": 29.99, }"; line: 1, column: 40]
+	at com.fasterxml.jackson.core.JsonParser._constructError(JsonParser.java:2337)
+	at com.fasterxml.jackson.core.base.ParserMinimalBase._reportError(ParserMinimalBase.java:720)
+	at com.fasterxml.jackson.core.json.UTF8StreamJsonParser._handleUnexpectedValue(UTF8StreamJsonParser.java:2686)
+	at com.fasterxml.jackson.core.json.UTF8StreamJsonParser._nextFieldName(UTF8StreamJsonParser.java:1024)
+	at com.fasterxml.jackson.databind.deser.BeanDeserializer.deserialize(BeanDeserializer.java:180)
+	at com.example.util.JsonParser.parse(JsonParser.java:34)
+	at com.example.controller.ProductController.createProduct(ProductController.java:112)
+2025-10-14 11:00:52.456 [http-nio-8080-exec-7] INFO  com.example.controller.ProductController - Fetching product catalog
+2025-10-14 11:01:05.789 [async-executor-2] ERROR com.example.service.EmailService - Failed to send notification email
+javax.mail.MessagingException: Could not connect to SMTP host: mail.example.com, port: 587
+	at com.sun.mail.smtp.SMTPTransport.openServer(SMTPTransport.java:2212)
+	at com.sun.mail.smtp.SMTPTransport.protocolConnect(SMTPTransport.java:740)
+	at javax.mail.Service.connect(Service.java:388)
+	at com.example.service.EmailService.sendEmail(EmailService.java:78)
+	at com.example.service.NotificationService.notifyUser(NotificationService.java:45)
+	at java.base/java.util.concurrent.CompletableFuture$AsyncSupply.run(CompletableFuture.java:1768)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1136)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:635)
+Caused by: java.net.ConnectException: Connection refused
+	at java.base/sun.nio.ch.Net.pollConnect(Native Method)
+	at java.base/sun.nio.ch.Net.pollConnectNow(Net.java:672)
+	at java.base/sun.nio.ch.SocketChannelImpl.finishConnect(SocketChannelImpl.java:946)
+	... 8 more
+2025-10-14 11:01:06.012 [async-executor-2] WARN  com.example.service.NotificationService - Email notification failed, will retry later
+2025-10-14 11:01:15.345 [http-nio-8080-exec-9] INFO  com.example.Application - Health check: OK

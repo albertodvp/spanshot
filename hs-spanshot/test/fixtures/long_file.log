@@ -1,0 +1,1133 @@
+2025-10-14T09:00:01.000Z DEBUG [sql] Query plan cached: hash=312456
+2025-10-14T09:00:02.000Z DEBUG [main] com.example.util.ConfigLoader: Configuration parameter: max_connections=155
+2025-10-14T09:00:03.000Z DEBUG [sql] Query plan cached: hash=785285
+2025-10-14T09:00:04.000Z INFO [http-4] com.example.app.Controller: Task scheduled - ID: req-4 duration: 113ms
+2025-10-14T09:00:05.000Z INFO [http-5] com.example.app.Controller: Metric recorded - ID: req-5 duration: 186ms
+2025-10-14T09:00:06.000Z INFO [http-6] com.example.app.Controller: Event published - ID: req-6 duration: 181ms
+2025-10-14T09:00:07.000Z WARN [scheduler] Task execution delayed by 1859ms
+2025-10-14T09:00:08.000Z WARN [scheduler] Task execution delayed by 787ms
+2025-10-14T09:00:09.000Z INFO [http-9] com.example.app.Controller: Validation passed - ID: req-9 duration: 302ms
+2025-10-14T09:00:10.000Z INFO [http-10] com.example.app.Controller: Request processed - ID: req-10 duration: 182ms
+2025-10-14T09:00:11.000Z INFO [http-11] com.example.app.Controller: Database query completed - ID: req-11 duration: 214ms
+2025-10-14T09:00:12.000Z WARN [scheduler] Task execution delayed by 2241ms
+2025-10-14T09:00:13.000Z WARN [scheduler] Task execution delayed by 273ms
+2025-10-14T09:00:14.000Z INFO [http-14] com.example.app.Controller: Cache hit - ID: req-14 duration: 140ms
+2025-10-14T09:00:15.000Z INFO [http-15] com.example.app.Controller: Task scheduled - ID: req-15 duration: 508ms
+2025-10-14T09:00:16.000Z INFO [http-16] com.example.app.Controller: Session created - ID: req-16 duration: 379ms
+2025-10-14T09:00:17.000Z INFO [http-17] com.example.app.Controller: Validation passed - ID: req-17 duration: 465ms
+2025-10-14T09:00:18.000Z INFO [http-18] com.example.app.Controller: Cache hit - ID: req-18 duration: 352ms
+2025-10-14T09:00:19.000Z INFO [http-19] com.example.app.Controller: Task scheduled - ID: req-19 duration: 365ms
+2025-10-14T09:00:20.000Z INFO [http-0] com.example.app.Controller: Task scheduled - ID: req-20 duration: 431ms
+2025-10-14T09:00:21.000Z INFO [http-1] com.example.app.Controller: Event published - ID: req-21 duration: 452ms
+2025-10-14T09:00:22.000Z INFO [http-2] com.example.app.Controller: Request processed - ID: req-22 duration: 182ms
+2025-10-14T09:00:23.000Z WARN [cache-monitor] Cache eviction rate high: 54% capacity
+2025-10-14T09:00:24.000Z WARN [cache-monitor] Cache eviction rate high: 64% capacity
+2025-10-14T09:00:25.000Z WARN [thread-5] com.example.monitor.HealthCheck: Service degradation detected - response time: 893ms
+2025-10-14T09:00:26.000Z WARN [thread-6] com.example.monitor.HealthCheck: Service degradation detected - response time: 1470ms
+2025-10-14T09:00:27.000Z WARN [thread-7] com.example.monitor.HealthCheck: Service degradation detected - response time: 1803ms
+2025-10-14T09:00:28.000Z ERROR [http-8] Database connection pool exhausted
+org.postgresql.util.PSQLException: Connection has been closed.
+	at org.postgresql.jdbc.PgConnection.checkClosed(PgConnection.java:856)
+2025-10-14T09:00:29.000Z INFO [http-9] com.example.app.Controller: Request processed - ID: req-29 duration: 134ms
+2025-10-14T09:00:30.000Z INFO [http-10] com.example.app.Controller: Validation passed - ID: req-30 duration: 475ms
+2025-10-14T09:00:31.000Z WARN [thread-1] com.example.monitor.HealthCheck: Service degradation detected - response time: 1663ms
+2025-10-14T09:00:32.000Z DEBUG [sql] Query plan cached: hash=418211
+2025-10-14T09:00:33.000Z INFO [http-13] com.example.app.Controller: Request processed - ID: req-33 duration: 53ms
+2025-10-14T09:00:34.000Z ERROR [worker-4] com.example.service.DataProcessor: Processing failed for batch 34
+java.lang.RuntimeException: Unexpected error processing record
+	at com.example.service.DataProcessor.process(DataProcessor.java:138)
+	at com.example.worker.BatchWorker.run(BatchWorker.java:134)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1136)
+Caused by: java.net.SocketTimeoutException: Read timed out
+	at java.base/java.net.SocketInputStream.socketRead0(Native Method)
+2025-10-14T09:00:35.000Z INFO [http-15] com.example.app.Controller: Validation passed - ID: req-35 duration: 289ms
+2025-10-14T09:00:36.000Z INFO [http-16] com.example.app.Controller: Metric recorded - ID: req-36 duration: 434ms
+2025-10-14T09:00:37.000Z INFO [http-17] com.example.app.Controller: Session created - ID: req-37 duration: 253ms
+2025-10-14T09:00:38.000Z WARN [thread-8] com.example.monitor.HealthCheck: Service degradation detected - response time: 624ms
+2025-10-14T09:00:39.000Z WARN [scheduler] Task execution delayed by 1048ms
+2025-10-14T09:00:40.000Z INFO [http-0] com.example.app.Controller: Metric recorded - ID: req-40 duration: 321ms
+2025-10-14T09:00:41.000Z WARN [cache-monitor] Cache eviction rate high: 83% capacity
+2025-10-14T09:00:42.000Z DEBUG [main] com.example.util.ConfigLoader: Configuration parameter: max_connections=93
+2025-10-14T09:00:43.000Z DEBUG [security] JWT token validated for user_id=1660
+2025-10-14T09:00:44.000Z INFO [http-4] com.example.app.Controller: Cache hit - ID: req-44 duration: 210ms
+2025-10-14T09:00:45.000Z INFO [http-5] com.example.app.Controller: Validation passed - ID: req-45 duration: 441ms
+2025-10-14T09:00:46.000Z WARN [thread-6] com.example.monitor.HealthCheck: Service degradation detected - response time: 1529ms
+2025-10-14T09:00:47.000Z INFO [http-7] com.example.app.Controller: Metric recorded - ID: req-47 duration: 122ms
+2025-10-14T09:00:48.000Z INFO [http-8] com.example.app.Controller: Event published - ID: req-48 duration: 101ms
+2025-10-14T09:00:49.000Z INFO [http-9] com.example.app.Controller: Validation passed - ID: req-49 duration: 163ms
+2025-10-14T09:00:50.000Z INFO [http-10] com.example.app.Controller: Cache hit - ID: req-50 duration: 80ms
+2025-10-14T09:00:51.000Z INFO [http-11] com.example.app.Controller: Task scheduled - ID: req-51 duration: 111ms
+2025-10-14T09:00:52.000Z INFO [http-12] com.example.app.Controller: Request processed - ID: req-52 duration: 38ms
+2025-10-14T09:00:53.000Z INFO [http-13] com.example.app.Controller: Validation passed - ID: req-53 duration: 281ms
+2025-10-14T09:00:54.000Z INFO [http-14] com.example.app.Controller: Cache hit - ID: req-54 duration: 142ms
+2025-10-14T09:00:55.000Z INFO [http-15] com.example.app.Controller: Database query completed - ID: req-55 duration: 32ms
+2025-10-14T09:00:56.000Z INFO [http-16] com.example.app.Controller: Metric recorded - ID: req-56 duration: 289ms
+2025-10-14T09:00:57.000Z WARN [thread-7] com.example.monitor.HealthCheck: Service degradation detected - response time: 1503ms
+2025-10-14T09:00:58.000Z INFO [http-18] com.example.app.Controller: Task scheduled - ID: req-58 duration: 235ms
+2025-10-14T09:00:59.000Z INFO [http-19] com.example.app.Controller: Metric recorded - ID: req-59 duration: 28ms
+2025-10-14T09:01:00.000Z INFO [http-0] com.example.app.Controller: Cache hit - ID: req-60 duration: 316ms
+2025-10-14T09:01:01.000Z WARN [scheduler] Task execution delayed by 2893ms
+2025-10-14T09:01:02.000Z WARN [cache-monitor] Cache eviction rate high: 61% capacity
+2025-10-14T09:01:03.000Z INFO [http-3] com.example.app.Controller: Task scheduled - ID: req-63 duration: 335ms
+2025-10-14T09:01:04.000Z INFO [http-4] com.example.app.Controller: Metric recorded - ID: req-64 duration: 66ms
+2025-10-14T09:01:05.000Z INFO [http-5] com.example.app.Controller: Request processed - ID: req-65 duration: 430ms
+2025-10-14T09:01:06.000Z INFO [http-6] com.example.app.Controller: Task scheduled - ID: req-66 duration: 447ms
+2025-10-14T09:01:07.000Z INFO [http-7] com.example.app.Controller: Metric recorded - ID: req-67 duration: 416ms
+2025-10-14T09:01:08.000Z INFO [http-8] com.example.app.Controller: Cache hit - ID: req-68 duration: 282ms
+2025-10-14T09:01:09.000Z INFO [http-9] com.example.app.Controller: Task scheduled - ID: req-69 duration: 461ms
+2025-10-14T09:01:10.000Z INFO [http-10] com.example.app.Controller: Session created - ID: req-70 duration: 455ms
+2025-10-14T09:01:11.000Z DEBUG [security] JWT token validated for user_id=1840
+2025-10-14T09:01:12.000Z INFO [http-12] com.example.app.Controller: Request processed - ID: req-72 duration: 312ms
+2025-10-14T09:01:13.000Z INFO [http-13] com.example.app.Controller: Request processed - ID: req-73 duration: 379ms
+2025-10-14T09:01:14.000Z INFO [http-14] com.example.app.Controller: Metric recorded - ID: req-74 duration: 336ms
+2025-10-14T09:01:15.000Z INFO [http-15] com.example.app.Controller: Cache hit - ID: req-75 duration: 360ms
+2025-10-14T09:01:16.000Z DEBUG [main] com.example.util.ConfigLoader: Configuration parameter: max_connections=118
+2025-10-14T09:01:17.000Z DEBUG [sql] Query plan cached: hash=393581
+2025-10-14T09:01:18.000Z ERROR [http-18] Database connection pool exhausted
+org.postgresql.util.PSQLException: Connection has been closed.
+	at org.postgresql.jdbc.PgConnection.checkClosed(PgConnection.java:856)
+2025-10-14T09:01:19.000Z DEBUG [sql] Query plan cached: hash=864906
+2025-10-14T09:01:20.000Z DEBUG [sql] Query plan cached: hash=404470
+2025-10-14T09:01:21.000Z INFO [http-1] com.example.app.Controller: Metric recorded - ID: req-81 duration: 66ms
+2025-10-14T09:01:22.000Z INFO [http-2] com.example.app.Controller: Event published - ID: req-82 duration: 400ms
+2025-10-14T09:01:23.000Z ERROR [worker-3] com.example.service.DataProcessor: Processing failed for batch 83
+java.lang.RuntimeException: Unexpected error processing record
+	at com.example.service.DataProcessor.process(DataProcessor.java:232)
+	at com.example.worker.BatchWorker.run(BatchWorker.java:75)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1136)
+Caused by: java.net.SocketTimeoutException: Read timed out
+	at java.base/java.net.SocketInputStream.socketRead0(Native Method)
+2025-10-14T09:01:24.000Z WARN [thread-4] com.example.monitor.HealthCheck: Service degradation detected - response time: 1969ms
+2025-10-14T09:01:25.000Z DEBUG [security] JWT token validated for user_id=7956
+2025-10-14T09:01:26.000Z DEBUG [sql] Query plan cached: hash=207068
+2025-10-14T09:01:27.000Z ERROR [worker-2] com.example.service.DataProcessor: Processing failed for batch 87
+java.lang.RuntimeException: Unexpected error processing record
+	at com.example.service.DataProcessor.process(DataProcessor.java:210)
+	at com.example.worker.BatchWorker.run(BatchWorker.java:106)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1136)
+Caused by: java.net.SocketTimeoutException: Read timed out
+	at java.base/java.net.SocketInputStream.socketRead0(Native Method)
+2025-10-14T09:01:28.000Z INFO [http-8] com.example.app.Controller: Event published - ID: req-88 duration: 499ms
+2025-10-14T09:01:29.000Z DEBUG [security] JWT token validated for user_id=7583
+2025-10-14T09:01:30.000Z DEBUG [main] com.example.util.ConfigLoader: Configuration parameter: max_connections=196
+2025-10-14T09:01:31.000Z INFO [http-11] com.example.app.Controller: Event published - ID: req-91 duration: 138ms
+2025-10-14T09:01:32.000Z WARN [cache-monitor] Cache eviction rate high: 93% capacity
+2025-10-14T09:01:33.000Z INFO [http-13] com.example.app.Controller: Session created - ID: req-93 duration: 327ms
+2025-10-14T09:01:34.000Z INFO [http-14] com.example.app.Controller: Task scheduled - ID: req-94 duration: 118ms
+2025-10-14T09:01:35.000Z INFO [http-15] com.example.app.Controller: Cache hit - ID: req-95 duration: 66ms
+2025-10-14T09:01:36.000Z INFO [http-16] com.example.app.Controller: Metric recorded - ID: req-96 duration: 257ms
+2025-10-14T09:01:37.000Z INFO [http-17] com.example.app.Controller: Metric recorded - ID: req-97 duration: 113ms
+2025-10-14T09:01:38.000Z INFO [http-18] com.example.app.Controller: Session created - ID: req-98 duration: 138ms
+2025-10-14T09:01:39.000Z INFO [http-19] com.example.app.Controller: Database query completed - ID: req-99 duration: 254ms
+2025-10-14T09:01:40.000Z INFO [http-0] com.example.app.Controller: Request processed - ID: req-100 duration: 241ms
+2025-10-14T09:01:41.000Z INFO [http-1] com.example.app.Controller: Request processed - ID: req-101 duration: 427ms
+2025-10-14T09:01:42.000Z INFO [http-2] com.example.app.Controller: Metric recorded - ID: req-102 duration: 250ms
+2025-10-14T09:01:43.000Z INFO [http-3] com.example.app.Controller: Database query completed - ID: req-103 duration: 133ms
+2025-10-14T09:01:44.000Z INFO [http-4] com.example.app.Controller: Session created - ID: req-104 duration: 438ms
+2025-10-14T09:01:45.000Z INFO [http-5] com.example.app.Controller: Validation passed - ID: req-105 duration: 297ms
+2025-10-14T09:01:46.000Z ERROR [http-6] Database connection pool exhausted
+org.postgresql.util.PSQLException: Connection has been closed.
+	at org.postgresql.jdbc.PgConnection.checkClosed(PgConnection.java:856)
+2025-10-14T09:01:47.000Z INFO [http-7] com.example.app.Controller: Cache hit - ID: req-107 duration: 224ms
+2025-10-14T09:01:48.000Z INFO [http-8] com.example.app.Controller: Cache hit - ID: req-108 duration: 449ms
+2025-10-14T09:01:49.000Z INFO [http-9] com.example.app.Controller: Validation passed - ID: req-109 duration: 437ms
+2025-10-14T09:01:50.000Z DEBUG [sql] Query plan cached: hash=714884
+2025-10-14T09:01:51.000Z INFO [http-11] com.example.app.Controller: Event published - ID: req-111 duration: 228ms
+2025-10-14T09:01:52.000Z DEBUG [security] JWT token validated for user_id=8678
+2025-10-14T09:01:53.000Z INFO [http-13] com.example.app.Controller: Request processed - ID: req-113 duration: 225ms
+2025-10-14T09:01:54.000Z DEBUG [sql] Query plan cached: hash=359358
+2025-10-14T09:01:55.000Z DEBUG [sql] Query plan cached: hash=987027
+2025-10-14T09:01:56.000Z INFO [http-16] com.example.app.Controller: Database query completed - ID: req-116 duration: 266ms
+2025-10-14T09:01:57.000Z DEBUG [sql] Query plan cached: hash=778430
+2025-10-14T09:01:58.000Z INFO [http-18] com.example.app.Controller: Request processed - ID: req-118 duration: 362ms
+2025-10-14T09:01:59.000Z INFO [http-19] com.example.app.Controller: Metric recorded - ID: req-119 duration: 207ms
+2025-10-14T09:02:00.000Z DEBUG [main] com.example.util.ConfigLoader: Configuration parameter: max_connections=104
+2025-10-14T09:02:01.000Z INFO [http-1] com.example.app.Controller: Session created - ID: req-121 duration: 15ms
+2025-10-14T09:02:02.000Z WARN [cache-monitor] Cache eviction rate high: 72% capacity
+2025-10-14T09:02:03.000Z WARN [thread-3] com.example.monitor.HealthCheck: Service degradation detected - response time: 763ms
+2025-10-14T09:02:04.000Z DEBUG [sql] Query plan cached: hash=498771
+2025-10-14T09:02:05.000Z INFO [http-5] com.example.app.Controller: Database query completed - ID: req-125 duration: 86ms
+2025-10-14T09:02:06.000Z INFO [http-6] com.example.app.Controller: Validation passed - ID: req-126 duration: 25ms
+2025-10-14T09:02:07.000Z WARN [thread-7] com.example.monitor.HealthCheck: Service degradation detected - response time: 2215ms
+2025-10-14T09:02:08.000Z INFO [http-8] com.example.app.Controller: Event published - ID: req-128 duration: 115ms
+2025-10-14T09:02:09.000Z INFO [http-9] com.example.app.Controller: Session created - ID: req-129 duration: 448ms
+2025-10-14T09:02:10.000Z INFO [http-10] com.example.app.Controller: Request processed - ID: req-130 duration: 147ms
+2025-10-14T09:02:11.000Z INFO [http-11] com.example.app.Controller: Session created - ID: req-131 duration: 404ms
+2025-10-14T09:02:12.000Z DEBUG [security] JWT token validated for user_id=4697
+2025-10-14T09:02:13.000Z INFO [http-13] com.example.app.Controller: Validation passed - ID: req-133 duration: 182ms
+2025-10-14T09:02:14.000Z INFO [http-14] com.example.app.Controller: Validation passed - ID: req-134 duration: 432ms
+2025-10-14T09:02:15.000Z INFO [http-15] com.example.app.Controller: Validation passed - ID: req-135 duration: 51ms
+2025-10-14T09:02:16.000Z INFO [http-16] com.example.app.Controller: Metric recorded - ID: req-136 duration: 420ms
+2025-10-14T09:02:17.000Z INFO [http-17] com.example.app.Controller: Session created - ID: req-137 duration: 83ms
+2025-10-14T09:02:18.000Z INFO [http-18] com.example.app.Controller: Request processed - ID: req-138 duration: 17ms
+2025-10-14T09:02:19.000Z DEBUG [sql] Query plan cached: hash=313401
+2025-10-14T09:02:20.000Z INFO [http-0] com.example.app.Controller: Metric recorded - ID: req-140 duration: 52ms
+2025-10-14T09:02:21.000Z INFO [http-1] com.example.app.Controller: Validation passed - ID: req-141 duration: 240ms
+2025-10-14T09:02:22.000Z DEBUG [main] com.example.util.ConfigLoader: Configuration parameter: max_connections=180
+2025-10-14T09:02:23.000Z DEBUG [main] com.example.util.ConfigLoader: Configuration parameter: max_connections=112
+2025-10-14T09:02:24.000Z INFO [http-4] com.example.app.Controller: Session created - ID: req-144 duration: 438ms
+2025-10-14T09:02:25.000Z DEBUG [security] JWT token validated for user_id=9196
+2025-10-14T09:02:26.000Z DEBUG [main] com.example.util.ConfigLoader: Configuration parameter: max_connections=54
+2025-10-14T09:02:27.000Z INFO [http-7] com.example.app.Controller: Session created - ID: req-147 duration: 435ms
+2025-10-14T09:02:28.000Z INFO [http-8] com.example.app.Controller: Metric recorded - ID: req-148 duration: 444ms
+2025-10-14T09:02:29.000Z INFO [http-9] com.example.app.Controller: Session created - ID: req-149 duration: 285ms
+2025-10-14T09:02:30.000Z DEBUG [security] JWT token validated for user_id=1783
+2025-10-14T09:02:31.000Z INFO [http-11] com.example.app.Controller: Event published - ID: req-151 duration: 244ms
+2025-10-14T09:02:32.000Z INFO [http-12] com.example.app.Controller: Validation passed - ID: req-152 duration: 456ms
+2025-10-14T09:02:33.000Z INFO [http-13] com.example.app.Controller: Metric recorded - ID: req-153 duration: 144ms
+2025-10-14T09:02:34.000Z INFO [http-14] com.example.app.Controller: Cache hit - ID: req-154 duration: 108ms
+2025-10-14T09:02:35.000Z ERROR [worker-0] com.example.service.DataProcessor: Processing failed for batch 155
+java.lang.RuntimeException: Unexpected error processing record
+	at com.example.service.DataProcessor.process(DataProcessor.java:240)
+	at com.example.worker.BatchWorker.run(BatchWorker.java:97)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1136)
+Caused by: java.net.SocketTimeoutException: Read timed out
+	at java.base/java.net.SocketInputStream.socketRead0(Native Method)
+2025-10-14T09:02:36.000Z INFO [http-16] com.example.app.Controller: Database query completed - ID: req-156 duration: 61ms
+2025-10-14T09:02:37.000Z INFO [http-17] com.example.app.Controller: Event published - ID: req-157 duration: 409ms
+2025-10-14T09:02:38.000Z INFO [http-18] com.example.app.Controller: Validation passed - ID: req-158 duration: 60ms
+2025-10-14T09:02:39.000Z INFO [http-19] com.example.app.Controller: Validation passed - ID: req-159 duration: 209ms
+2025-10-14T09:02:40.000Z INFO [http-0] com.example.app.Controller: Validation passed - ID: req-160 duration: 81ms
+2025-10-14T09:02:41.000Z INFO [http-1] com.example.app.Controller: Database query completed - ID: req-161 duration: 327ms
+2025-10-14T09:02:42.000Z INFO [http-2] com.example.app.Controller: Metric recorded - ID: req-162 duration: 445ms
+2025-10-14T09:02:43.000Z INFO [http-3] com.example.app.Controller: Task scheduled - ID: req-163 duration: 163ms
+2025-10-14T09:02:44.000Z DEBUG [main] com.example.util.ConfigLoader: Configuration parameter: max_connections=109
+2025-10-14T09:02:45.000Z INFO [http-5] com.example.app.Controller: Request processed - ID: req-165 duration: 14ms
+2025-10-14T09:02:46.000Z DEBUG [main] com.example.util.ConfigLoader: Configuration parameter: max_connections=188
+2025-10-14T09:02:47.000Z INFO [http-7] com.example.app.Controller: Database query completed - ID: req-167 duration: 170ms
+2025-10-14T09:02:48.000Z INFO [http-8] com.example.app.Controller: Validation passed - ID: req-168 duration: 222ms
+2025-10-14T09:02:49.000Z INFO [http-9] com.example.app.Controller: Validation passed - ID: req-169 duration: 295ms
+2025-10-14T09:02:50.000Z INFO [http-10] com.example.app.Controller: Cache hit - ID: req-170 duration: 54ms
+2025-10-14T09:02:51.000Z DEBUG [security] JWT token validated for user_id=9602
+2025-10-14T09:02:52.000Z INFO [http-12] com.example.app.Controller: Database query completed - ID: req-172 duration: 193ms
+2025-10-14T09:02:53.000Z DEBUG [main] com.example.util.ConfigLoader: Configuration parameter: max_connections=108
+2025-10-14T09:02:54.000Z INFO [http-14] com.example.app.Controller: Session created - ID: req-174 duration: 149ms
+2025-10-14T09:02:55.000Z INFO [http-15] com.example.app.Controller: Event published - ID: req-175 duration: 198ms
+2025-10-14T09:02:56.000Z INFO [http-16] com.example.app.Controller: Metric recorded - ID: req-176 duration: 469ms
+2025-10-14T09:02:57.000Z DEBUG [security] JWT token validated for user_id=9609
+2025-10-14T09:02:58.000Z INFO [http-18] com.example.app.Controller: Event published - ID: req-178 duration: 329ms
+2025-10-14T09:02:59.000Z INFO [http-19] com.example.app.Controller: Session created - ID: req-179 duration: 452ms
+2025-10-14T09:03:00.000Z ERROR [http-0] Database connection pool exhausted
+org.postgresql.util.PSQLException: Connection has been closed.
+	at org.postgresql.jdbc.PgConnection.checkClosed(PgConnection.java:856)
+2025-10-14T09:03:01.000Z INFO [http-1] com.example.app.Controller: Request processed - ID: req-181 duration: 193ms
+2025-10-14T09:03:02.000Z INFO [http-2] com.example.app.Controller: Cache hit - ID: req-182 duration: 66ms
+2025-10-14T09:03:03.000Z INFO [http-3] com.example.app.Controller: Session created - ID: req-183 duration: 508ms
+2025-10-14T09:03:04.000Z INFO [http-4] com.example.app.Controller: Task scheduled - ID: req-184 duration: 496ms
+2025-10-14T09:03:05.000Z DEBUG [sql] Query plan cached: hash=126718
+2025-10-14T09:03:06.000Z INFO [http-6] com.example.app.Controller: Task scheduled - ID: req-186 duration: 495ms
+2025-10-14T09:03:07.000Z DEBUG [sql] Query plan cached: hash=805667
+2025-10-14T09:03:08.000Z DEBUG [sql] Query plan cached: hash=210807
+2025-10-14T09:03:09.000Z ERROR [http-9] Database connection pool exhausted
+org.postgresql.util.PSQLException: Connection has been closed.
+	at org.postgresql.jdbc.PgConnection.checkClosed(PgConnection.java:856)
+2025-10-14T09:03:10.000Z DEBUG [main] com.example.util.ConfigLoader: Configuration parameter: max_connections=77
+2025-10-14T09:03:11.000Z INFO [http-11] com.example.app.Controller: Session created - ID: req-191 duration: 357ms
+2025-10-14T09:03:12.000Z INFO [http-12] com.example.app.Controller: Metric recorded - ID: req-192 duration: 457ms
+2025-10-14T09:03:13.000Z INFO [http-13] com.example.app.Controller: Task scheduled - ID: req-193 duration: 289ms
+2025-10-14T09:03:14.000Z INFO [http-14] com.example.app.Controller: Cache hit - ID: req-194 duration: 507ms
+2025-10-14T09:03:15.000Z WARN [cache-monitor] Cache eviction rate high: 91% capacity
+2025-10-14T09:03:16.000Z WARN [thread-6] com.example.monitor.HealthCheck: Service degradation detected - response time: 1343ms
+2025-10-14T09:03:17.000Z INFO [http-17] com.example.app.Controller: Validation passed - ID: req-197 duration: 75ms
+2025-10-14T09:03:18.000Z DEBUG [security] JWT token validated for user_id=1319
+2025-10-14T09:03:19.000Z INFO [http-19] com.example.app.Controller: Request processed - ID: req-199 duration: 139ms
+2025-10-14T09:03:20.000Z INFO [http-0] com.example.app.Controller: Cache hit - ID: req-200 duration: 498ms
+2025-10-14T09:03:21.000Z ERROR [http-1] Database connection pool exhausted
+org.postgresql.util.PSQLException: Connection has been closed.
+	at org.postgresql.jdbc.PgConnection.checkClosed(PgConnection.java:856)
+2025-10-14T09:03:22.000Z WARN [cache-monitor] Cache eviction rate high: 86% capacity
+2025-10-14T09:03:23.000Z INFO [http-3] com.example.app.Controller: Request processed - ID: req-203 duration: 28ms
+2025-10-14T09:03:24.000Z DEBUG [main] com.example.util.ConfigLoader: Configuration parameter: max_connections=53
+2025-10-14T09:03:25.000Z DEBUG [main] com.example.util.ConfigLoader: Configuration parameter: max_connections=70
+2025-10-14T09:03:26.000Z INFO [http-6] com.example.app.Controller: Database query completed - ID: req-206 duration: 244ms
+2025-10-14T09:03:27.000Z INFO [http-7] com.example.app.Controller: Session created - ID: req-207 duration: 325ms
+2025-10-14T09:03:28.000Z INFO [http-8] com.example.app.Controller: Metric recorded - ID: req-208 duration: 219ms
+2025-10-14T09:03:29.000Z WARN [thread-9] com.example.monitor.HealthCheck: Service degradation detected - response time: 2075ms
+2025-10-14T09:03:30.000Z INFO [http-10] com.example.app.Controller: Request processed - ID: req-210 duration: 488ms
+2025-10-14T09:03:31.000Z DEBUG [security] JWT token validated for user_id=7451
+2025-10-14T09:03:32.000Z WARN [cache-monitor] Cache eviction rate high: 83% capacity
+2025-10-14T09:03:33.000Z INFO [http-13] com.example.app.Controller: Metric recorded - ID: req-213 duration: 292ms
+2025-10-14T09:03:34.000Z INFO [http-14] com.example.app.Controller: Cache hit - ID: req-214 duration: 67ms
+2025-10-14T09:03:35.000Z INFO [http-15] com.example.app.Controller: Request processed - ID: req-215 duration: 239ms
+2025-10-14T09:03:36.000Z INFO [http-16] com.example.app.Controller: Validation passed - ID: req-216 duration: 134ms
+2025-10-14T09:03:37.000Z INFO [http-17] com.example.app.Controller: Request processed - ID: req-217 duration: 62ms
+2025-10-14T09:03:38.000Z DEBUG [sql] Query plan cached: hash=781530
+2025-10-14T09:03:39.000Z INFO [http-19] com.example.app.Controller: Event published - ID: req-219 duration: 127ms
+2025-10-14T09:03:40.000Z WARN [scheduler] Task execution delayed by 3672ms
+2025-10-14T09:03:41.000Z ERROR [async-5] Failed to publish message to queue
+com.rabbitmq.client.AlreadyClosedException: channel is already closed
+2025-10-14T09:03:42.000Z DEBUG [sql] Query plan cached: hash=897878
+2025-10-14T09:03:43.000Z INFO [http-3] com.example.app.Controller: Cache hit - ID: req-223 duration: 469ms
+2025-10-14T09:03:44.000Z INFO [http-4] com.example.app.Controller: Validation passed - ID: req-224 duration: 283ms
+2025-10-14T09:03:45.000Z INFO [http-5] com.example.app.Controller: Database query completed - ID: req-225 duration: 57ms
+2025-10-14T09:03:46.000Z INFO [http-6] com.example.app.Controller: Cache hit - ID: req-226 duration: 376ms
+2025-10-14T09:03:47.000Z DEBUG [security] JWT token validated for user_id=3162
+2025-10-14T09:03:48.000Z WARN [thread-8] com.example.monitor.HealthCheck: Service degradation detected - response time: 1661ms
+2025-10-14T09:03:49.000Z INFO [http-9] com.example.app.Controller: Request processed - ID: req-229 duration: 179ms
+2025-10-14T09:03:50.000Z INFO [http-10] com.example.app.Controller: Validation passed - ID: req-230 duration: 126ms
+2025-10-14T09:03:51.000Z INFO [http-11] com.example.app.Controller: Validation passed - ID: req-231 duration: 300ms
+2025-10-14T09:03:52.000Z INFO [http-12] com.example.app.Controller: Session created - ID: req-232 duration: 237ms
+2025-10-14T09:03:53.000Z INFO [http-13] com.example.app.Controller: Session created - ID: req-233 duration: 270ms
+2025-10-14T09:03:54.000Z INFO [http-14] com.example.app.Controller: Event published - ID: req-234 duration: 245ms
+2025-10-14T09:03:55.000Z INFO [http-15] com.example.app.Controller: Event published - ID: req-235 duration: 198ms
+2025-10-14T09:03:56.000Z INFO [http-16] com.example.app.Controller: Cache hit - ID: req-236 duration: 202ms
+2025-10-14T09:03:57.000Z INFO [http-17] com.example.app.Controller: Database query completed - ID: req-237 duration: 352ms
+2025-10-14T09:03:58.000Z DEBUG [main] com.example.util.ConfigLoader: Configuration parameter: max_connections=96
+2025-10-14T09:03:59.000Z INFO [http-19] com.example.app.Controller: Session created - ID: req-239 duration: 238ms
+2025-10-14T09:04:00.000Z INFO [http-0] com.example.app.Controller: Database query completed - ID: req-240 duration: 26ms
+2025-10-14T09:04:01.000Z INFO [http-1] com.example.app.Controller: Cache hit - ID: req-241 duration: 365ms
+2025-10-14T09:04:02.000Z INFO [http-2] com.example.app.Controller: Database query completed - ID: req-242 duration: 129ms
+2025-10-14T09:04:03.000Z WARN [scheduler] Task execution delayed by 1882ms
+2025-10-14T09:04:04.000Z INFO [http-4] com.example.app.Controller: Metric recorded - ID: req-244 duration: 497ms
+2025-10-14T09:04:05.000Z INFO [http-5] com.example.app.Controller: Validation passed - ID: req-245 duration: 206ms
+2025-10-14T09:04:06.000Z INFO [http-6] com.example.app.Controller: Session created - ID: req-246 duration: 314ms
+2025-10-14T09:04:07.000Z ERROR [http-7] Database connection pool exhausted
+org.postgresql.util.PSQLException: Connection has been closed.
+	at org.postgresql.jdbc.PgConnection.checkClosed(PgConnection.java:856)
+2025-10-14T09:04:08.000Z INFO [http-8] com.example.app.Controller: Session created - ID: req-248 duration: 99ms
+2025-10-14T09:04:09.000Z WARN [cache-monitor] Cache eviction rate high: 80% capacity
+2025-10-14T09:04:10.000Z INFO [http-10] com.example.app.Controller: Cache hit - ID: req-250 duration: 75ms
+2025-10-14T09:04:11.000Z WARN [cache-monitor] Cache eviction rate high: 89% capacity
+2025-10-14T09:04:12.000Z INFO [http-12] com.example.app.Controller: Metric recorded - ID: req-252 duration: 506ms
+2025-10-14T09:04:13.000Z ERROR [worker-3] com.example.service.DataProcessor: Processing failed for batch 253
+java.lang.RuntimeException: Unexpected error processing record
+	at com.example.service.DataProcessor.process(DataProcessor.java:155)
+	at com.example.worker.BatchWorker.run(BatchWorker.java:136)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1136)
+Caused by: java.net.SocketTimeoutException: Read timed out
+	at java.base/java.net.SocketInputStream.socketRead0(Native Method)
+2025-10-14T09:04:14.000Z INFO [http-14] com.example.app.Controller: Validation passed - ID: req-254 duration: 323ms
+2025-10-14T09:04:15.000Z WARN [scheduler] Task execution delayed by 2946ms
+2025-10-14T09:04:16.000Z INFO [http-16] com.example.app.Controller: Request processed - ID: req-256 duration: 324ms
+2025-10-14T09:04:17.000Z DEBUG [sql] Query plan cached: hash=305911
+2025-10-14T09:04:18.000Z DEBUG [security] JWT token validated for user_id=5014
+2025-10-14T09:04:19.000Z DEBUG [main] com.example.util.ConfigLoader: Configuration parameter: max_connections=157
+2025-10-14T09:04:20.000Z INFO [http-0] com.example.app.Controller: Event published - ID: req-260 duration: 17ms
+2025-10-14T09:04:21.000Z ERROR [http-1] Database connection pool exhausted
+org.postgresql.util.PSQLException: Connection has been closed.
+	at org.postgresql.jdbc.PgConnection.checkClosed(PgConnection.java:856)
+2025-10-14T09:04:22.000Z INFO [http-2] com.example.app.Controller: Validation passed - ID: req-262 duration: 365ms
+2025-10-14T09:04:23.000Z WARN [thread-3] com.example.monitor.HealthCheck: Service degradation detected - response time: 1947ms
+2025-10-14T09:04:24.000Z WARN [cache-monitor] Cache eviction rate high: 74% capacity
+2025-10-14T09:04:25.000Z WARN [thread-5] com.example.monitor.HealthCheck: Service degradation detected - response time: 1395ms
+2025-10-14T09:04:26.000Z DEBUG [sql] Query plan cached: hash=833852
+2025-10-14T09:04:27.000Z INFO [http-7] com.example.app.Controller: Event published - ID: req-267 duration: 290ms
+2025-10-14T09:04:28.000Z ERROR [http-8] Database connection pool exhausted
+org.postgresql.util.PSQLException: Connection has been closed.
+	at org.postgresql.jdbc.PgConnection.checkClosed(PgConnection.java:856)
+2025-10-14T09:04:29.000Z INFO [http-9] com.example.app.Controller: Event published - ID: req-269 duration: 409ms
+2025-10-14T09:04:30.000Z DEBUG [sql] Query plan cached: hash=518211
+2025-10-14T09:04:31.000Z WARN [cache-monitor] Cache eviction rate high: 67% capacity
+2025-10-14T09:04:32.000Z INFO [http-12] com.example.app.Controller: Validation passed - ID: req-272 duration: 454ms
+2025-10-14T09:04:33.000Z ERROR [worker-3] com.example.service.DataProcessor: Processing failed for batch 273
+java.lang.RuntimeException: Unexpected error processing record
+	at com.example.service.DataProcessor.process(DataProcessor.java:165)
+	at com.example.worker.BatchWorker.run(BatchWorker.java:124)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1136)
+Caused by: java.net.SocketTimeoutException: Read timed out
+	at java.base/java.net.SocketInputStream.socketRead0(Native Method)
+2025-10-14T09:04:34.000Z INFO [http-14] com.example.app.Controller: Request processed - ID: req-274 duration: 322ms
+2025-10-14T09:04:35.000Z INFO [http-15] com.example.app.Controller: Request processed - ID: req-275 duration: 265ms
+2025-10-14T09:04:36.000Z DEBUG [sql] Query plan cached: hash=310265
+2025-10-14T09:04:37.000Z INFO [http-17] com.example.app.Controller: Session created - ID: req-277 duration: 167ms
+2025-10-14T09:04:38.000Z INFO [http-18] com.example.app.Controller: Event published - ID: req-278 duration: 206ms
+2025-10-14T09:04:39.000Z INFO [http-19] com.example.app.Controller: Session created - ID: req-279 duration: 322ms
+2025-10-14T09:04:40.000Z WARN [cache-monitor] Cache eviction rate high: 92% capacity
+2025-10-14T09:04:41.000Z INFO [http-1] com.example.app.Controller: Event published - ID: req-281 duration: 171ms
+2025-10-14T09:04:42.000Z WARN [scheduler] Task execution delayed by 2841ms
+2025-10-14T09:04:43.000Z WARN [cache-monitor] Cache eviction rate high: 79% capacity
+2025-10-14T09:04:44.000Z INFO [http-4] com.example.app.Controller: Event published - ID: req-284 duration: 419ms
+2025-10-14T09:04:45.000Z INFO [http-5] com.example.app.Controller: Session created - ID: req-285 duration: 390ms
+2025-10-14T09:04:46.000Z INFO [http-6] com.example.app.Controller: Validation passed - ID: req-286 duration: 250ms
+2025-10-14T09:04:47.000Z WARN [cache-monitor] Cache eviction rate high: 61% capacity
+2025-10-14T09:04:48.000Z WARN [scheduler] Task execution delayed by 2626ms
+2025-10-14T09:04:49.000Z INFO [http-9] com.example.app.Controller: Task scheduled - ID: req-289 duration: 383ms
+2025-10-14T09:04:50.000Z WARN [thread-0] com.example.monitor.HealthCheck: Service degradation detected - response time: 1463ms
+2025-10-14T09:04:51.000Z INFO [http-11] com.example.app.Controller: Cache hit - ID: req-291 duration: 295ms
+2025-10-14T09:04:52.000Z DEBUG [main] com.example.util.ConfigLoader: Configuration parameter: max_connections=169
+2025-10-14T09:04:53.000Z INFO [http-13] com.example.app.Controller: Task scheduled - ID: req-293 duration: 49ms
+2025-10-14T09:04:54.000Z WARN [scheduler] Task execution delayed by 2916ms
+2025-10-14T09:04:55.000Z INFO [http-15] com.example.app.Controller: Metric recorded - ID: req-295 duration: 428ms
+2025-10-14T09:04:56.000Z INFO [http-16] com.example.app.Controller: Session created - ID: req-296 duration: 505ms
+2025-10-14T09:04:57.000Z DEBUG [main] com.example.util.ConfigLoader: Configuration parameter: max_connections=108
+2025-10-14T09:04:58.000Z INFO [http-18] com.example.app.Controller: Cache hit - ID: req-298 duration: 280ms
+2025-10-14T09:04:59.000Z DEBUG [main] com.example.util.ConfigLoader: Configuration parameter: max_connections=126
+2025-10-14T09:05:00.000Z INFO [http-0] com.example.app.Controller: Cache hit - ID: req-300 duration: 263ms
+2025-10-14T09:05:01.000Z DEBUG [security] JWT token validated for user_id=5045
+2025-10-14T09:05:02.000Z DEBUG [sql] Query plan cached: hash=372007
+2025-10-14T09:05:03.000Z DEBUG [sql] Query plan cached: hash=147049
+2025-10-14T09:05:04.000Z INFO [http-4] com.example.app.Controller: Session created - ID: req-304 duration: 127ms
+2025-10-14T09:05:05.000Z DEBUG [sql] Query plan cached: hash=975402
+2025-10-14T09:05:06.000Z INFO [http-6] com.example.app.Controller: Request processed - ID: req-306 duration: 263ms
+2025-10-14T09:05:07.000Z WARN [thread-7] com.example.monitor.HealthCheck: Service degradation detected - response time: 955ms
+2025-10-14T09:05:08.000Z INFO [http-8] com.example.app.Controller: Request processed - ID: req-308 duration: 13ms
+2025-10-14T09:05:09.000Z INFO [http-9] com.example.app.Controller: Cache hit - ID: req-309 duration: 38ms
+2025-10-14T09:05:10.000Z INFO [http-10] com.example.app.Controller: Validation passed - ID: req-310 duration: 91ms
+2025-10-14T09:05:11.000Z INFO [http-11] com.example.app.Controller: Validation passed - ID: req-311 duration: 158ms
+2025-10-14T09:05:12.000Z INFO [http-12] com.example.app.Controller: Task scheduled - ID: req-312 duration: 10ms
+2025-10-14T09:05:13.000Z ERROR [worker-3] com.example.service.DataProcessor: Processing failed for batch 313
+java.lang.RuntimeException: Unexpected error processing record
+	at com.example.service.DataProcessor.process(DataProcessor.java:241)
+	at com.example.worker.BatchWorker.run(BatchWorker.java:124)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1136)
+Caused by: java.net.SocketTimeoutException: Read timed out
+	at java.base/java.net.SocketInputStream.socketRead0(Native Method)
+2025-10-14T09:05:14.000Z WARN [thread-4] com.example.monitor.HealthCheck: Service degradation detected - response time: 2261ms
+2025-10-14T09:05:15.000Z INFO [http-15] com.example.app.Controller: Database query completed - ID: req-315 duration: 144ms
+2025-10-14T09:05:16.000Z DEBUG [security] JWT token validated for user_id=6675
+2025-10-14T09:05:17.000Z INFO [http-17] com.example.app.Controller: Metric recorded - ID: req-317 duration: 185ms
+2025-10-14T09:05:18.000Z WARN [thread-8] com.example.monitor.HealthCheck: Service degradation detected - response time: 948ms
+2025-10-14T09:05:19.000Z INFO [http-19] com.example.app.Controller: Metric recorded - ID: req-319 duration: 463ms
+2025-10-14T09:05:20.000Z INFO [http-0] com.example.app.Controller: Request processed - ID: req-320 duration: 245ms
+2025-10-14T09:05:21.000Z INFO [http-1] com.example.app.Controller: Database query completed - ID: req-321 duration: 418ms
+2025-10-14T09:05:22.000Z INFO [http-2] com.example.app.Controller: Cache hit - ID: req-322 duration: 398ms
+2025-10-14T09:05:23.000Z INFO [http-3] com.example.app.Controller: Database query completed - ID: req-323 duration: 68ms
+2025-10-14T09:05:24.000Z INFO [http-4] com.example.app.Controller: Metric recorded - ID: req-324 duration: 236ms
+2025-10-14T09:05:25.000Z INFO [http-5] com.example.app.Controller: Request processed - ID: req-325 duration: 58ms
+2025-10-14T09:05:26.000Z INFO [http-6] com.example.app.Controller: Task scheduled - ID: req-326 duration: 481ms
+2025-10-14T09:05:27.000Z INFO [http-7] com.example.app.Controller: Database query completed - ID: req-327 duration: 184ms
+2025-10-14T09:05:28.000Z INFO [http-8] com.example.app.Controller: Database query completed - ID: req-328 duration: 179ms
+2025-10-14T09:05:29.000Z INFO [http-9] com.example.app.Controller: Event published - ID: req-329 duration: 132ms
+2025-10-14T09:05:30.000Z INFO [http-10] com.example.app.Controller: Metric recorded - ID: req-330 duration: 500ms
+2025-10-14T09:05:31.000Z WARN [thread-1] com.example.monitor.HealthCheck: Service degradation detected - response time: 972ms
+2025-10-14T09:05:32.000Z INFO [http-12] com.example.app.Controller: Cache hit - ID: req-332 duration: 155ms
+2025-10-14T09:05:33.000Z DEBUG [main] com.example.util.ConfigLoader: Configuration parameter: max_connections=170
+2025-10-14T09:05:34.000Z INFO [http-14] com.example.app.Controller: Request processed - ID: req-334 duration: 289ms
+2025-10-14T09:05:35.000Z DEBUG [main] com.example.util.ConfigLoader: Configuration parameter: max_connections=92
+2025-10-14T09:05:36.000Z INFO [http-16] com.example.app.Controller: Validation passed - ID: req-336 duration: 68ms
+2025-10-14T09:05:37.000Z INFO [http-17] com.example.app.Controller: Database query completed - ID: req-337 duration: 48ms
+2025-10-14T09:05:38.000Z DEBUG [main] com.example.util.ConfigLoader: Configuration parameter: max_connections=75
+2025-10-14T09:05:39.000Z INFO [http-19] com.example.app.Controller: Event published - ID: req-339 duration: 284ms
+2025-10-14T09:05:40.000Z WARN [thread-0] com.example.monitor.HealthCheck: Service degradation detected - response time: 821ms
+2025-10-14T09:05:41.000Z DEBUG [main] com.example.util.ConfigLoader: Configuration parameter: max_connections=127
+2025-10-14T09:05:42.000Z INFO [http-2] com.example.app.Controller: Event published - ID: req-342 duration: 374ms
+2025-10-14T09:05:43.000Z INFO [http-3] com.example.app.Controller: Session created - ID: req-343 duration: 452ms
+2025-10-14T09:05:44.000Z DEBUG [security] JWT token validated for user_id=2189
+2025-10-14T09:05:45.000Z INFO [http-5] com.example.app.Controller: Database query completed - ID: req-345 duration: 94ms
+2025-10-14T09:05:46.000Z DEBUG [main] com.example.util.ConfigLoader: Configuration parameter: max_connections=112
+2025-10-14T09:05:47.000Z INFO [http-7] com.example.app.Controller: Event published - ID: req-347 duration: 111ms
+2025-10-14T09:05:48.000Z DEBUG [security] JWT token validated for user_id=8756
+2025-10-14T09:05:49.000Z DEBUG [sql] Query plan cached: hash=375972
+2025-10-14T09:05:50.000Z DEBUG [main] com.example.util.ConfigLoader: Configuration parameter: max_connections=129
+2025-10-14T09:05:51.000Z INFO [http-11] com.example.app.Controller: Cache hit - ID: req-351 duration: 429ms
+2025-10-14T09:05:52.000Z INFO [http-12] com.example.app.Controller: Task scheduled - ID: req-352 duration: 250ms
+2025-10-14T09:05:53.000Z WARN [scheduler] Task execution delayed by 2466ms
+2025-10-14T09:05:54.000Z WARN [cache-monitor] Cache eviction rate high: 76% capacity
+2025-10-14T09:05:55.000Z WARN [thread-5] com.example.monitor.HealthCheck: Service degradation detected - response time: 761ms
+2025-10-14T09:05:56.000Z INFO [http-16] com.example.app.Controller: Database query completed - ID: req-356 duration: 113ms
+2025-10-14T09:05:57.000Z INFO [http-17] com.example.app.Controller: Task scheduled - ID: req-357 duration: 267ms
+2025-10-14T09:05:58.000Z INFO [http-18] com.example.app.Controller: Request processed - ID: req-358 duration: 55ms
+2025-10-14T09:05:59.000Z INFO [http-19] com.example.app.Controller: Event published - ID: req-359 duration: 324ms
+2025-10-14T09:06:00.000Z INFO [http-0] com.example.app.Controller: Request processed - ID: req-360 duration: 491ms
+2025-10-14T09:06:01.000Z WARN [scheduler] Task execution delayed by 529ms
+2025-10-14T09:06:02.000Z INFO [http-2] com.example.app.Controller: Validation passed - ID: req-362 duration: 377ms
+2025-10-14T09:06:03.000Z DEBUG [security] JWT token validated for user_id=5167
+2025-10-14T09:06:04.000Z INFO [http-4] com.example.app.Controller: Validation passed - ID: req-364 duration: 174ms
+2025-10-14T09:06:05.000Z INFO [http-5] com.example.app.Controller: Request processed - ID: req-365 duration: 27ms
+2025-10-14T09:06:06.000Z INFO [http-6] com.example.app.Controller: Validation passed - ID: req-366 duration: 367ms
+2025-10-14T09:06:07.000Z DEBUG [security] JWT token validated for user_id=5320
+2025-10-14T09:06:08.000Z DEBUG [main] com.example.util.ConfigLoader: Configuration parameter: max_connections=58
+2025-10-14T09:06:09.000Z INFO [http-9] com.example.app.Controller: Metric recorded - ID: req-369 duration: 352ms
+2025-10-14T09:06:10.000Z INFO [http-10] com.example.app.Controller: Cache hit - ID: req-370 duration: 142ms
+2025-10-14T09:06:11.000Z INFO [http-11] com.example.app.Controller: Database query completed - ID: req-371 duration: 232ms
+2025-10-14T09:06:12.000Z INFO [http-12] com.example.app.Controller: Database query completed - ID: req-372 duration: 191ms
+2025-10-14T09:06:13.000Z INFO [http-13] com.example.app.Controller: Task scheduled - ID: req-373 duration: 119ms
+2025-10-14T09:06:14.000Z DEBUG [main] com.example.util.ConfigLoader: Configuration parameter: max_connections=183
+2025-10-14T09:06:15.000Z WARN [cache-monitor] Cache eviction rate high: 63% capacity
+2025-10-14T09:06:16.000Z INFO [http-16] com.example.app.Controller: Event published - ID: req-376 duration: 64ms
+2025-10-14T09:06:17.000Z INFO [http-17] com.example.app.Controller: Task scheduled - ID: req-377 duration: 223ms
+2025-10-14T09:06:18.000Z INFO [http-18] com.example.app.Controller: Session created - ID: req-378 duration: 311ms
+2025-10-14T09:06:19.000Z INFO [http-19] com.example.app.Controller: Event published - ID: req-379 duration: 64ms
+2025-10-14T09:06:20.000Z DEBUG [sql] Query plan cached: hash=706580
+2025-10-14T09:06:21.000Z INFO [http-1] com.example.app.Controller: Task scheduled - ID: req-381 duration: 433ms
+2025-10-14T09:06:22.000Z INFO [http-2] com.example.app.Controller: Validation passed - ID: req-382 duration: 241ms
+2025-10-14T09:06:23.000Z INFO [http-3] com.example.app.Controller: Cache hit - ID: req-383 duration: 56ms
+2025-10-14T09:06:24.000Z INFO [http-4] com.example.app.Controller: Event published - ID: req-384 duration: 347ms
+2025-10-14T09:06:25.000Z INFO [http-5] com.example.app.Controller: Event published - ID: req-385 duration: 125ms
+2025-10-14T09:06:26.000Z WARN [scheduler] Task execution delayed by 4602ms
+2025-10-14T09:06:27.000Z INFO [http-7] com.example.app.Controller: Validation passed - ID: req-387 duration: 371ms
+2025-10-14T09:06:28.000Z DEBUG [main] com.example.util.ConfigLoader: Configuration parameter: max_connections=58
+2025-10-14T09:06:29.000Z INFO [http-9] com.example.app.Controller: Event published - ID: req-389 duration: 359ms
+2025-10-14T09:06:30.000Z DEBUG [main] com.example.util.ConfigLoader: Configuration parameter: max_connections=103
+2025-10-14T09:06:31.000Z INFO [http-11] com.example.app.Controller: Task scheduled - ID: req-391 duration: 82ms
+2025-10-14T09:06:32.000Z INFO [http-12] com.example.app.Controller: Request processed - ID: req-392 duration: 176ms
+2025-10-14T09:06:33.000Z WARN [thread-3] com.example.monitor.HealthCheck: Service degradation detected - response time: 2159ms
+2025-10-14T09:06:34.000Z INFO [http-14] com.example.app.Controller: Metric recorded - ID: req-394 duration: 129ms
+2025-10-14T09:06:35.000Z INFO [http-15] com.example.app.Controller: Validation passed - ID: req-395 duration: 493ms
+2025-10-14T09:06:36.000Z DEBUG [security] JWT token validated for user_id=3283
+2025-10-14T09:06:37.000Z INFO [http-17] com.example.app.Controller: Database query completed - ID: req-397 duration: 296ms
+2025-10-14T09:06:38.000Z INFO [http-18] com.example.app.Controller: Validation passed - ID: req-398 duration: 251ms
+2025-10-14T09:06:39.000Z INFO [http-19] com.example.app.Controller: Event published - ID: req-399 duration: 220ms
+2025-10-14T09:06:40.000Z INFO [http-0] com.example.app.Controller: Event published - ID: req-400 duration: 462ms
+2025-10-14T09:06:41.000Z INFO [http-1] com.example.app.Controller: Session created - ID: req-401 duration: 24ms
+2025-10-14T09:06:42.000Z WARN [thread-2] com.example.monitor.HealthCheck: Service degradation detected - response time: 1222ms
+2025-10-14T09:06:43.000Z INFO [http-3] com.example.app.Controller: Database query completed - ID: req-403 duration: 43ms
+2025-10-14T09:06:44.000Z INFO [http-4] com.example.app.Controller: Metric recorded - ID: req-404 duration: 250ms
+2025-10-14T09:06:45.000Z INFO [http-5] com.example.app.Controller: Session created - ID: req-405 duration: 278ms
+2025-10-14T09:06:46.000Z INFO [http-6] com.example.app.Controller: Session created - ID: req-406 duration: 204ms
+2025-10-14T09:06:47.000Z INFO [http-7] com.example.app.Controller: Task scheduled - ID: req-407 duration: 314ms
+2025-10-14T09:06:48.000Z DEBUG [security] JWT token validated for user_id=2328
+2025-10-14T09:06:49.000Z INFO [http-9] com.example.app.Controller: Database query completed - ID: req-409 duration: 432ms
+2025-10-14T09:06:50.000Z DEBUG [main] com.example.util.ConfigLoader: Configuration parameter: max_connections=147
+2025-10-14T09:06:51.000Z DEBUG [main] com.example.util.ConfigLoader: Configuration parameter: max_connections=122
+2025-10-14T09:06:52.000Z WARN [cache-monitor] Cache eviction rate high: 66% capacity
+2025-10-14T09:06:53.000Z WARN [scheduler] Task execution delayed by 1509ms
+2025-10-14T09:06:54.000Z INFO [http-14] com.example.app.Controller: Metric recorded - ID: req-414 duration: 241ms
+2025-10-14T09:06:55.000Z INFO [http-15] com.example.app.Controller: Event published - ID: req-415 duration: 245ms
+2025-10-14T09:06:56.000Z DEBUG [main] com.example.util.ConfigLoader: Configuration parameter: max_connections=143
+2025-10-14T09:06:57.000Z INFO [http-17] com.example.app.Controller: Event published - ID: req-417 duration: 66ms
+2025-10-14T09:06:58.000Z DEBUG [sql] Query plan cached: hash=321640
+2025-10-14T09:06:59.000Z INFO [http-19] com.example.app.Controller: Event published - ID: req-419 duration: 377ms
+2025-10-14T09:07:00.000Z INFO [http-0] com.example.app.Controller: Task scheduled - ID: req-420 duration: 326ms
+2025-10-14T09:07:01.000Z DEBUG [security] JWT token validated for user_id=7303
+2025-10-14T09:07:02.000Z DEBUG [main] com.example.util.ConfigLoader: Configuration parameter: max_connections=97
+2025-10-14T09:07:03.000Z WARN [thread-3] com.example.monitor.HealthCheck: Service degradation detected - response time: 911ms
+2025-10-14T09:07:04.000Z INFO [http-4] com.example.app.Controller: Validation passed - ID: req-424 duration: 406ms
+2025-10-14T09:07:05.000Z DEBUG [security] JWT token validated for user_id=9801
+2025-10-14T09:07:06.000Z INFO [http-6] com.example.app.Controller: Event published - ID: req-426 duration: 16ms
+2025-10-14T09:07:07.000Z DEBUG [sql] Query plan cached: hash=395131
+2025-10-14T09:07:08.000Z DEBUG [main] com.example.util.ConfigLoader: Configuration parameter: max_connections=192
+2025-10-14T09:07:09.000Z INFO [http-9] com.example.app.Controller: Validation passed - ID: req-429 duration: 252ms
+2025-10-14T09:07:10.000Z INFO [http-10] com.example.app.Controller: Request processed - ID: req-430 duration: 268ms
+2025-10-14T09:07:11.000Z INFO [http-11] com.example.app.Controller: Metric recorded - ID: req-431 duration: 474ms
+2025-10-14T09:07:12.000Z INFO [http-12] com.example.app.Controller: Metric recorded - ID: req-432 duration: 206ms
+2025-10-14T09:07:13.000Z INFO [http-13] com.example.app.Controller: Session created - ID: req-433 duration: 221ms
+2025-10-14T09:07:14.000Z INFO [http-14] com.example.app.Controller: Cache hit - ID: req-434 duration: 504ms
+2025-10-14T09:07:15.000Z INFO [http-15] com.example.app.Controller: Session created - ID: req-435 duration: 503ms
+2025-10-14T09:07:16.000Z INFO [http-16] com.example.app.Controller: Request processed - ID: req-436 duration: 356ms
+2025-10-14T09:07:17.000Z WARN [cache-monitor] Cache eviction rate high: 50% capacity
+2025-10-14T09:07:18.000Z WARN [scheduler] Task execution delayed by 3813ms
+2025-10-14T09:07:19.000Z WARN [cache-monitor] Cache eviction rate high: 67% capacity
+2025-10-14T09:07:20.000Z INFO [http-0] com.example.app.Controller: Metric recorded - ID: req-440 duration: 16ms
+2025-10-14T09:07:21.000Z DEBUG [sql] Query plan cached: hash=196535
+2025-10-14T09:07:22.000Z ERROR [async-2] Failed to publish message to queue
+com.rabbitmq.client.AlreadyClosedException: channel is already closed
+2025-10-14T09:07:23.000Z INFO [http-3] com.example.app.Controller: Database query completed - ID: req-443 duration: 38ms
+2025-10-14T09:07:24.000Z DEBUG [security] JWT token validated for user_id=1448
+2025-10-14T09:07:25.000Z INFO [http-5] com.example.app.Controller: Metric recorded - ID: req-445 duration: 440ms
+2025-10-14T09:07:26.000Z DEBUG [security] JWT token validated for user_id=4865
+2025-10-14T09:07:27.000Z INFO [http-7] com.example.app.Controller: Session created - ID: req-447 duration: 246ms
+2025-10-14T09:07:28.000Z DEBUG [security] JWT token validated for user_id=8353
+2025-10-14T09:07:29.000Z INFO [http-9] com.example.app.Controller: Validation passed - ID: req-449 duration: 337ms
+2025-10-14T09:07:30.000Z DEBUG [main] com.example.util.ConfigLoader: Configuration parameter: max_connections=106
+2025-10-14T09:07:31.000Z INFO [http-11] com.example.app.Controller: Event published - ID: req-451 duration: 484ms
+2025-10-14T09:07:32.000Z INFO [http-12] com.example.app.Controller: Session created - ID: req-452 duration: 333ms
+2025-10-14T09:07:33.000Z INFO [http-13] com.example.app.Controller: Metric recorded - ID: req-453 duration: 168ms
+2025-10-14T09:07:34.000Z INFO [http-14] com.example.app.Controller: Session created - ID: req-454 duration: 487ms
+2025-10-14T09:07:35.000Z DEBUG [sql] Query plan cached: hash=770793
+2025-10-14T09:07:36.000Z INFO [http-16] com.example.app.Controller: Database query completed - ID: req-456 duration: 95ms
+2025-10-14T09:07:37.000Z DEBUG [security] JWT token validated for user_id=2836
+2025-10-14T09:07:38.000Z INFO [http-18] com.example.app.Controller: Database query completed - ID: req-458 duration: 443ms
+2025-10-14T09:07:39.000Z INFO [http-19] com.example.app.Controller: Cache hit - ID: req-459 duration: 346ms
+2025-10-14T09:07:40.000Z INFO [http-0] com.example.app.Controller: Task scheduled - ID: req-460 duration: 272ms
+2025-10-14T09:07:41.000Z INFO [http-1] com.example.app.Controller: Metric recorded - ID: req-461 duration: 29ms
+2025-10-14T09:07:42.000Z INFO [http-2] com.example.app.Controller: Task scheduled - ID: req-462 duration: 46ms
+2025-10-14T09:07:43.000Z WARN [thread-3] com.example.monitor.HealthCheck: Service degradation detected - response time: 1462ms
+2025-10-14T09:07:44.000Z INFO [http-4] com.example.app.Controller: Event published - ID: req-464 duration: 282ms
+2025-10-14T09:07:45.000Z WARN [thread-5] com.example.monitor.HealthCheck: Service degradation detected - response time: 833ms
+2025-10-14T09:07:46.000Z INFO [http-6] com.example.app.Controller: Event published - ID: req-466 duration: 276ms
+2025-10-14T09:07:47.000Z DEBUG [security] JWT token validated for user_id=1480
+2025-10-14T09:07:48.000Z INFO [http-8] com.example.app.Controller: Event published - ID: req-468 duration: 24ms
+2025-10-14T09:07:49.000Z DEBUG [main] com.example.util.ConfigLoader: Configuration parameter: max_connections=133
+2025-10-14T09:07:50.000Z INFO [http-10] com.example.app.Controller: Validation passed - ID: req-470 duration: 502ms
+2025-10-14T09:07:51.000Z DEBUG [security] JWT token validated for user_id=6826
+2025-10-14T09:07:52.000Z INFO [http-12] com.example.app.Controller: Session created - ID: req-472 duration: 218ms
+2025-10-14T09:07:53.000Z WARN [cache-monitor] Cache eviction rate high: 60% capacity
+2025-10-14T09:07:54.000Z DEBUG [security] JWT token validated for user_id=1203
+2025-10-14T09:07:55.000Z DEBUG [main] com.example.util.ConfigLoader: Configuration parameter: max_connections=107
+2025-10-14T09:07:56.000Z WARN [thread-6] com.example.monitor.HealthCheck: Service degradation detected - response time: 2193ms
+2025-10-14T09:07:57.000Z DEBUG [main] com.example.util.ConfigLoader: Configuration parameter: max_connections=67
+2025-10-14T09:07:58.000Z INFO [http-18] com.example.app.Controller: Request processed - ID: req-478 duration: 343ms
+2025-10-14T09:07:59.000Z INFO [http-19] com.example.app.Controller: Database query completed - ID: req-479 duration: 321ms
+2025-10-14T09:08:00.000Z INFO [http-0] com.example.app.Controller: Database query completed - ID: req-480 duration: 234ms
+2025-10-14T09:08:01.000Z WARN [cache-monitor] Cache eviction rate high: 67% capacity
+2025-10-14T09:08:02.000Z INFO [http-2] com.example.app.Controller: Validation passed - ID: req-482 duration: 270ms
+2025-10-14T09:08:03.000Z INFO [http-3] com.example.app.Controller: Database query completed - ID: req-483 duration: 257ms
+2025-10-14T09:08:04.000Z INFO [http-4] com.example.app.Controller: Database query completed - ID: req-484 duration: 430ms
+2025-10-14T09:08:05.000Z INFO [http-5] com.example.app.Controller: Session created - ID: req-485 duration: 76ms
+2025-10-14T09:08:06.000Z ERROR [async-6] Failed to publish message to queue
+com.rabbitmq.client.AlreadyClosedException: channel is already closed
+2025-10-14T09:08:07.000Z DEBUG [main] com.example.util.ConfigLoader: Configuration parameter: max_connections=79
+2025-10-14T09:08:08.000Z ERROR [http-8] Database connection pool exhausted
+org.postgresql.util.PSQLException: Connection has been closed.
+	at org.postgresql.jdbc.PgConnection.checkClosed(PgConnection.java:856)
+2025-10-14T09:08:09.000Z ERROR [worker-4] com.example.service.DataProcessor: Processing failed for batch 489
+java.lang.RuntimeException: Unexpected error processing record
+	at com.example.service.DataProcessor.process(DataProcessor.java:206)
+	at com.example.worker.BatchWorker.run(BatchWorker.java:106)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1136)
+Caused by: java.net.SocketTimeoutException: Read timed out
+	at java.base/java.net.SocketInputStream.socketRead0(Native Method)
+2025-10-14T09:08:10.000Z ERROR [worker-0] com.example.service.DataProcessor: Processing failed for batch 490
+java.lang.RuntimeException: Unexpected error processing record
+	at com.example.service.DataProcessor.process(DataProcessor.java:297)
+	at com.example.worker.BatchWorker.run(BatchWorker.java:122)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1136)
+Caused by: java.net.SocketTimeoutException: Read timed out
+	at java.base/java.net.SocketInputStream.socketRead0(Native Method)
+2025-10-14T09:08:11.000Z INFO [http-11] com.example.app.Controller: Metric recorded - ID: req-491 duration: 490ms
+2025-10-14T09:08:12.000Z INFO [http-12] com.example.app.Controller: Session created - ID: req-492 duration: 150ms
+2025-10-14T09:08:13.000Z INFO [http-13] com.example.app.Controller: Session created - ID: req-493 duration: 368ms
+2025-10-14T09:08:14.000Z INFO [http-14] com.example.app.Controller: Request processed - ID: req-494 duration: 134ms
+2025-10-14T09:08:15.000Z INFO [http-15] com.example.app.Controller: Metric recorded - ID: req-495 duration: 243ms
+2025-10-14T09:08:16.000Z INFO [http-16] com.example.app.Controller: Session created - ID: req-496 duration: 173ms
+2025-10-14T09:08:17.000Z INFO [http-17] com.example.app.Controller: Cache hit - ID: req-497 duration: 34ms
+2025-10-14T09:08:18.000Z WARN [cache-monitor] Cache eviction rate high: 67% capacity
+2025-10-14T09:08:19.000Z DEBUG [sql] Query plan cached: hash=409488
+2025-10-14T09:08:20.000Z INFO [http-0] com.example.app.Controller: Request processed - ID: req-500 duration: 253ms
+2025-10-14T09:08:21.000Z WARN [thread-1] com.example.monitor.HealthCheck: Service degradation detected - response time: 1882ms
+2025-10-14T09:08:22.000Z INFO [http-2] com.example.app.Controller: Event published - ID: req-502 duration: 81ms
+2025-10-14T09:08:23.000Z WARN [scheduler] Task execution delayed by 1907ms
+2025-10-14T09:08:24.000Z DEBUG [security] JWT token validated for user_id=1131
+2025-10-14T09:08:25.000Z INFO [http-5] com.example.app.Controller: Request processed - ID: req-505 duration: 280ms
+2025-10-14T09:08:26.000Z INFO [http-6] com.example.app.Controller: Request processed - ID: req-506 duration: 269ms
+2025-10-14T09:08:27.000Z DEBUG [security] JWT token validated for user_id=9808
+2025-10-14T09:08:28.000Z WARN [cache-monitor] Cache eviction rate high: 86% capacity
+2025-10-14T09:08:29.000Z WARN [thread-9] com.example.monitor.HealthCheck: Service degradation detected - response time: 549ms
+2025-10-14T09:08:30.000Z WARN [cache-monitor] Cache eviction rate high: 55% capacity
+2025-10-14T09:08:31.000Z INFO [http-11] com.example.app.Controller: Validation passed - ID: req-511 duration: 466ms
+2025-10-14T09:08:32.000Z INFO [http-12] com.example.app.Controller: Validation passed - ID: req-512 duration: 391ms
+2025-10-14T09:08:33.000Z INFO [http-13] com.example.app.Controller: Request processed - ID: req-513 duration: 126ms
+2025-10-14T09:08:34.000Z INFO [http-14] com.example.app.Controller: Session created - ID: req-514 duration: 223ms
+2025-10-14T09:08:35.000Z INFO [http-15] com.example.app.Controller: Session created - ID: req-515 duration: 179ms
+2025-10-14T09:08:36.000Z DEBUG [security] JWT token validated for user_id=1698
+2025-10-14T09:08:37.000Z WARN [scheduler] Task execution delayed by 2711ms
+2025-10-14T09:08:38.000Z DEBUG [security] JWT token validated for user_id=8419
+2025-10-14T09:08:39.000Z INFO [http-19] com.example.app.Controller: Request processed - ID: req-519 duration: 298ms
+2025-10-14T09:08:40.000Z INFO [http-0] com.example.app.Controller: Task scheduled - ID: req-520 duration: 183ms
+2025-10-14T09:08:41.000Z INFO [http-1] com.example.app.Controller: Database query completed - ID: req-521 duration: 72ms
+2025-10-14T09:08:42.000Z WARN [scheduler] Task execution delayed by 2172ms
+2025-10-14T09:08:43.000Z INFO [http-3] com.example.app.Controller: Cache hit - ID: req-523 duration: 206ms
+2025-10-14T09:08:44.000Z DEBUG [main] com.example.util.ConfigLoader: Configuration parameter: max_connections=163
+2025-10-14T09:08:45.000Z INFO [http-5] com.example.app.Controller: Task scheduled - ID: req-525 duration: 485ms
+2025-10-14T09:08:46.000Z WARN [cache-monitor] Cache eviction rate high: 89% capacity
+2025-10-14T09:08:47.000Z INFO [http-7] com.example.app.Controller: Metric recorded - ID: req-527 duration: 175ms
+2025-10-14T09:08:48.000Z INFO [http-8] com.example.app.Controller: Metric recorded - ID: req-528 duration: 418ms
+2025-10-14T09:08:49.000Z INFO [http-9] com.example.app.Controller: Session created - ID: req-529 duration: 302ms
+2025-10-14T09:08:50.000Z INFO [http-10] com.example.app.Controller: Session created - ID: req-530 duration: 441ms
+2025-10-14T09:08:51.000Z INFO [http-11] com.example.app.Controller: Session created - ID: req-531 duration: 461ms
+2025-10-14T09:08:52.000Z WARN [thread-2] com.example.monitor.HealthCheck: Service degradation detected - response time: 577ms
+2025-10-14T09:08:53.000Z INFO [http-13] com.example.app.Controller: Metric recorded - ID: req-533 duration: 142ms
+2025-10-14T09:08:54.000Z INFO [http-14] com.example.app.Controller: Validation passed - ID: req-534 duration: 159ms
+2025-10-14T09:08:55.000Z WARN [thread-5] com.example.monitor.HealthCheck: Service degradation detected - response time: 1115ms
+2025-10-14T09:08:56.000Z INFO [http-16] com.example.app.Controller: Metric recorded - ID: req-536 duration: 173ms
+2025-10-14T09:08:57.000Z INFO [http-17] com.example.app.Controller: Session created - ID: req-537 duration: 422ms
+2025-10-14T09:08:58.000Z INFO [http-18] com.example.app.Controller: Session created - ID: req-538 duration: 131ms
+2025-10-14T09:08:59.000Z WARN [thread-9] com.example.monitor.HealthCheck: Service degradation detected - response time: 673ms
+2025-10-14T09:09:00.000Z INFO [http-0] com.example.app.Controller: Cache hit - ID: req-540 duration: 199ms
+2025-10-14T09:09:01.000Z WARN [cache-monitor] Cache eviction rate high: 53% capacity
+2025-10-14T09:09:02.000Z INFO [http-2] com.example.app.Controller: Task scheduled - ID: req-542 duration: 369ms
+2025-10-14T09:09:03.000Z ERROR [worker-3] com.example.service.DataProcessor: Processing failed for batch 543
+java.lang.RuntimeException: Unexpected error processing record
+	at com.example.service.DataProcessor.process(DataProcessor.java:257)
+	at com.example.worker.BatchWorker.run(BatchWorker.java:105)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1136)
+Caused by: java.net.SocketTimeoutException: Read timed out
+	at java.base/java.net.SocketInputStream.socketRead0(Native Method)
+2025-10-14T09:09:04.000Z DEBUG [sql] Query plan cached: hash=659011
+2025-10-14T09:09:05.000Z WARN [scheduler] Task execution delayed by 874ms
+2025-10-14T09:09:06.000Z WARN [scheduler] Task execution delayed by 3733ms
+2025-10-14T09:09:07.000Z INFO [http-7] com.example.app.Controller: Session created - ID: req-547 duration: 193ms
+2025-10-14T09:09:08.000Z INFO [http-8] com.example.app.Controller: Task scheduled - ID: req-548 duration: 170ms
+2025-10-14T09:09:09.000Z ERROR [http-9] Database connection pool exhausted
+org.postgresql.util.PSQLException: Connection has been closed.
+	at org.postgresql.jdbc.PgConnection.checkClosed(PgConnection.java:856)
+2025-10-14T09:09:10.000Z DEBUG [security] JWT token validated for user_id=4938
+2025-10-14T09:09:11.000Z INFO [http-11] com.example.app.Controller: Metric recorded - ID: req-551 duration: 78ms
+2025-10-14T09:09:12.000Z INFO [http-12] com.example.app.Controller: Metric recorded - ID: req-552 duration: 370ms
+2025-10-14T09:09:13.000Z ERROR [worker-3] com.example.service.DataProcessor: Processing failed for batch 553
+java.lang.RuntimeException: Unexpected error processing record
+	at com.example.service.DataProcessor.process(DataProcessor.java:123)
+	at com.example.worker.BatchWorker.run(BatchWorker.java:116)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1136)
+Caused by: java.net.SocketTimeoutException: Read timed out
+	at java.base/java.net.SocketInputStream.socketRead0(Native Method)
+2025-10-14T09:09:14.000Z INFO [http-14] com.example.app.Controller: Database query completed - ID: req-554 duration: 55ms
+2025-10-14T09:09:15.000Z INFO [http-15] com.example.app.Controller: Metric recorded - ID: req-555 duration: 265ms
+2025-10-14T09:09:16.000Z DEBUG [security] JWT token validated for user_id=1948
+2025-10-14T09:09:17.000Z INFO [http-17] com.example.app.Controller: Task scheduled - ID: req-557 duration: 100ms
+2025-10-14T09:09:18.000Z DEBUG [main] com.example.util.ConfigLoader: Configuration parameter: max_connections=142
+2025-10-14T09:09:19.000Z DEBUG [sql] Query plan cached: hash=225722
+2025-10-14T09:09:20.000Z DEBUG [main] com.example.util.ConfigLoader: Configuration parameter: max_connections=169
+2025-10-14T09:09:21.000Z INFO [http-1] com.example.app.Controller: Session created - ID: req-561 duration: 160ms
+2025-10-14T09:09:22.000Z INFO [http-2] com.example.app.Controller: Request processed - ID: req-562 duration: 415ms
+2025-10-14T09:09:23.000Z INFO [http-3] com.example.app.Controller: Validation passed - ID: req-563 duration: 263ms
+2025-10-14T09:09:24.000Z DEBUG [sql] Query plan cached: hash=664400
+2025-10-14T09:09:25.000Z INFO [http-5] com.example.app.Controller: Request processed - ID: req-565 duration: 346ms
+2025-10-14T09:09:26.000Z INFO [http-6] com.example.app.Controller: Task scheduled - ID: req-566 duration: 367ms
+2025-10-14T09:09:27.000Z DEBUG [main] com.example.util.ConfigLoader: Configuration parameter: max_connections=81
+2025-10-14T09:09:28.000Z DEBUG [main] com.example.util.ConfigLoader: Configuration parameter: max_connections=154
+2025-10-14T09:09:29.000Z INFO [http-9] com.example.app.Controller: Metric recorded - ID: req-569 duration: 507ms
+2025-10-14T09:09:30.000Z WARN [thread-0] com.example.monitor.HealthCheck: Service degradation detected - response time: 1050ms
+2025-10-14T09:09:31.000Z WARN [scheduler] Task execution delayed by 3752ms
+2025-10-14T09:09:32.000Z INFO [http-12] com.example.app.Controller: Task scheduled - ID: req-572 duration: 281ms
+2025-10-14T09:09:33.000Z INFO [http-13] com.example.app.Controller: Validation passed - ID: req-573 duration: 148ms
+2025-10-14T09:09:34.000Z INFO [http-14] com.example.app.Controller: Validation passed - ID: req-574 duration: 49ms
+2025-10-14T09:09:35.000Z INFO [http-15] com.example.app.Controller: Database query completed - ID: req-575 duration: 185ms
+2025-10-14T09:09:36.000Z DEBUG [main] com.example.util.ConfigLoader: Configuration parameter: max_connections=177
+2025-10-14T09:09:37.000Z WARN [scheduler] Task execution delayed by 1889ms
+2025-10-14T09:09:38.000Z WARN [cache-monitor] Cache eviction rate high: 65% capacity
+2025-10-14T09:09:39.000Z INFO [http-19] com.example.app.Controller: Request processed - ID: req-579 duration: 271ms
+2025-10-14T09:09:40.000Z INFO [http-0] com.example.app.Controller: Database query completed - ID: req-580 duration: 337ms
+2025-10-14T09:09:41.000Z INFO [http-1] com.example.app.Controller: Task scheduled - ID: req-581 duration: 312ms
+2025-10-14T09:09:42.000Z INFO [http-2] com.example.app.Controller: Metric recorded - ID: req-582 duration: 212ms
+2025-10-14T09:09:43.000Z WARN [cache-monitor] Cache eviction rate high: 71% capacity
+2025-10-14T09:09:44.000Z INFO [http-4] com.example.app.Controller: Cache hit - ID: req-584 duration: 400ms
+2025-10-14T09:09:45.000Z INFO [http-5] com.example.app.Controller: Request processed - ID: req-585 duration: 101ms
+2025-10-14T09:09:46.000Z INFO [http-6] com.example.app.Controller: Session created - ID: req-586 duration: 400ms
+2025-10-14T09:09:47.000Z INFO [http-7] com.example.app.Controller: Validation passed - ID: req-587 duration: 470ms
+2025-10-14T09:09:48.000Z WARN [cache-monitor] Cache eviction rate high: 70% capacity
+2025-10-14T09:09:49.000Z INFO [http-9] com.example.app.Controller: Database query completed - ID: req-589 duration: 501ms
+2025-10-14T09:09:50.000Z DEBUG [security] JWT token validated for user_id=9119
+2025-10-14T09:09:51.000Z INFO [http-11] com.example.app.Controller: Database query completed - ID: req-591 duration: 408ms
+2025-10-14T09:09:52.000Z INFO [http-12] com.example.app.Controller: Task scheduled - ID: req-592 duration: 477ms
+2025-10-14T09:09:53.000Z INFO [http-13] com.example.app.Controller: Session created - ID: req-593 duration: 132ms
+2025-10-14T09:09:54.000Z WARN [scheduler] Task execution delayed by 1700ms
+2025-10-14T09:09:55.000Z DEBUG [main] com.example.util.ConfigLoader: Configuration parameter: max_connections=93
+2025-10-14T09:09:56.000Z ERROR [worker-1] com.example.service.DataProcessor: Processing failed for batch 596
+java.lang.RuntimeException: Unexpected error processing record
+	at com.example.service.DataProcessor.process(DataProcessor.java:242)
+	at com.example.worker.BatchWorker.run(BatchWorker.java:69)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1136)
+Caused by: java.net.SocketTimeoutException: Read timed out
+	at java.base/java.net.SocketInputStream.socketRead0(Native Method)
+2025-10-14T09:09:57.000Z INFO [http-17] com.example.app.Controller: Task scheduled - ID: req-597 duration: 159ms
+2025-10-14T09:09:58.000Z WARN [thread-8] com.example.monitor.HealthCheck: Service degradation detected - response time: 1343ms
+2025-10-14T09:09:59.000Z DEBUG [sql] Query plan cached: hash=904391
+2025-10-14T09:10:00.000Z DEBUG [main] com.example.util.ConfigLoader: Configuration parameter: max_connections=136
+2025-10-14T09:10:01.000Z INFO [http-1] com.example.app.Controller: Database query completed - ID: req-601 duration: 388ms
+2025-10-14T09:10:02.000Z INFO [http-2] com.example.app.Controller: Session created - ID: req-602 duration: 383ms
+2025-10-14T09:10:03.000Z INFO [http-3] com.example.app.Controller: Validation passed - ID: req-603 duration: 467ms
+2025-10-14T09:10:04.000Z INFO [http-4] com.example.app.Controller: Task scheduled - ID: req-604 duration: 206ms
+2025-10-14T09:10:05.000Z INFO [http-5] com.example.app.Controller: Validation passed - ID: req-605 duration: 284ms
+2025-10-14T09:10:06.000Z WARN [cache-monitor] Cache eviction rate high: 83% capacity
+2025-10-14T09:10:07.000Z INFO [http-7] com.example.app.Controller: Cache hit - ID: req-607 duration: 366ms
+2025-10-14T09:10:08.000Z INFO [http-8] com.example.app.Controller: Request processed - ID: req-608 duration: 507ms
+2025-10-14T09:10:09.000Z INFO [http-9] com.example.app.Controller: Metric recorded - ID: req-609 duration: 399ms
+2025-10-14T09:10:10.000Z DEBUG [sql] Query plan cached: hash=894406
+2025-10-14T09:10:11.000Z INFO [http-11] com.example.app.Controller: Metric recorded - ID: req-611 duration: 390ms
+2025-10-14T09:10:12.000Z DEBUG [main] com.example.util.ConfigLoader: Configuration parameter: max_connections=144
+2025-10-14T09:10:13.000Z INFO [http-13] com.example.app.Controller: Validation passed - ID: req-613 duration: 176ms
+2025-10-14T09:10:14.000Z DEBUG [main] com.example.util.ConfigLoader: Configuration parameter: max_connections=71
+2025-10-14T09:10:15.000Z INFO [http-15] com.example.app.Controller: Cache hit - ID: req-615 duration: 152ms
+2025-10-14T09:10:16.000Z INFO [http-16] com.example.app.Controller: Event published - ID: req-616 duration: 372ms
+2025-10-14T09:10:17.000Z INFO [http-17] com.example.app.Controller: Database query completed - ID: req-617 duration: 371ms
+2025-10-14T09:10:18.000Z INFO [http-18] com.example.app.Controller: Event published - ID: req-618 duration: 275ms
+2025-10-14T09:10:19.000Z WARN [scheduler] Task execution delayed by 1586ms
+2025-10-14T09:10:20.000Z WARN [scheduler] Task execution delayed by 3831ms
+2025-10-14T09:10:21.000Z INFO [http-1] com.example.app.Controller: Database query completed - ID: req-621 duration: 20ms
+2025-10-14T09:10:22.000Z INFO [http-2] com.example.app.Controller: Request processed - ID: req-622 duration: 100ms
+2025-10-14T09:10:23.000Z DEBUG [main] com.example.util.ConfigLoader: Configuration parameter: max_connections=180
+2025-10-14T09:10:24.000Z DEBUG [security] JWT token validated for user_id=7501
+2025-10-14T09:10:25.000Z INFO [http-5] com.example.app.Controller: Session created - ID: req-625 duration: 193ms
+2025-10-14T09:10:26.000Z INFO [http-6] com.example.app.Controller: Event published - ID: req-626 duration: 36ms
+2025-10-14T09:10:27.000Z INFO [http-7] com.example.app.Controller: Task scheduled - ID: req-627 duration: 406ms
+2025-10-14T09:10:28.000Z INFO [http-8] com.example.app.Controller: Validation passed - ID: req-628 duration: 114ms
+2025-10-14T09:10:29.000Z INFO [http-9] com.example.app.Controller: Event published - ID: req-629 duration: 392ms
+2025-10-14T09:10:30.000Z WARN [scheduler] Task execution delayed by 3379ms
+2025-10-14T09:10:31.000Z INFO [http-11] com.example.app.Controller: Cache hit - ID: req-631 duration: 233ms
+2025-10-14T09:10:32.000Z WARN [cache-monitor] Cache eviction rate high: 81% capacity
+2025-10-14T09:10:33.000Z INFO [http-13] com.example.app.Controller: Database query completed - ID: req-633 duration: 69ms
+2025-10-14T09:10:34.000Z INFO [http-14] com.example.app.Controller: Database query completed - ID: req-634 duration: 414ms
+2025-10-14T09:10:35.000Z INFO [http-15] com.example.app.Controller: Cache hit - ID: req-635 duration: 187ms
+2025-10-14T09:10:36.000Z INFO [http-16] com.example.app.Controller: Task scheduled - ID: req-636 duration: 179ms
+2025-10-14T09:10:37.000Z INFO [http-17] com.example.app.Controller: Event published - ID: req-637 duration: 455ms
+2025-10-14T09:10:38.000Z INFO [http-18] com.example.app.Controller: Request processed - ID: req-638 duration: 193ms
+2025-10-14T09:10:39.000Z WARN [scheduler] Task execution delayed by 1556ms
+2025-10-14T09:10:40.000Z WARN [cache-monitor] Cache eviction rate high: 61% capacity
+2025-10-14T09:10:41.000Z INFO [http-1] com.example.app.Controller: Database query completed - ID: req-641 duration: 483ms
+2025-10-14T09:10:42.000Z INFO [http-2] com.example.app.Controller: Event published - ID: req-642 duration: 123ms
+2025-10-14T09:10:43.000Z DEBUG [security] JWT token validated for user_id=8244
+2025-10-14T09:10:44.000Z ERROR [http-4] Database connection pool exhausted
+org.postgresql.util.PSQLException: Connection has been closed.
+	at org.postgresql.jdbc.PgConnection.checkClosed(PgConnection.java:856)
+2025-10-14T09:10:45.000Z INFO [http-5] com.example.app.Controller: Session created - ID: req-645 duration: 118ms
+2025-10-14T09:10:46.000Z WARN [scheduler] Task execution delayed by 4413ms
+2025-10-14T09:10:47.000Z INFO [http-7] com.example.app.Controller: Event published - ID: req-647 duration: 132ms
+2025-10-14T09:10:48.000Z ERROR [http-8] Database connection pool exhausted
+org.postgresql.util.PSQLException: Connection has been closed.
+	at org.postgresql.jdbc.PgConnection.checkClosed(PgConnection.java:856)
+2025-10-14T09:10:49.000Z WARN [scheduler] Task execution delayed by 4323ms
+2025-10-14T09:10:50.000Z WARN [scheduler] Task execution delayed by 3926ms
+2025-10-14T09:10:51.000Z INFO [http-11] com.example.app.Controller: Database query completed - ID: req-651 duration: 377ms
+2025-10-14T09:10:52.000Z WARN [scheduler] Task execution delayed by 1181ms
+2025-10-14T09:10:53.000Z INFO [http-13] com.example.app.Controller: Validation passed - ID: req-653 duration: 500ms
+2025-10-14T09:10:54.000Z DEBUG [main] com.example.util.ConfigLoader: Configuration parameter: max_connections=60
+2025-10-14T09:10:55.000Z INFO [http-15] com.example.app.Controller: Task scheduled - ID: req-655 duration: 100ms
+2025-10-14T09:10:56.000Z INFO [http-16] com.example.app.Controller: Validation passed - ID: req-656 duration: 217ms
+2025-10-14T09:10:57.000Z WARN [cache-monitor] Cache eviction rate high: 92% capacity
+2025-10-14T09:10:58.000Z DEBUG [security] JWT token validated for user_id=3622
+2025-10-14T09:10:59.000Z INFO [http-19] com.example.app.Controller: Request processed - ID: req-659 duration: 165ms
+2025-10-14T09:11:00.000Z WARN [cache-monitor] Cache eviction rate high: 72% capacity
+2025-10-14T09:11:01.000Z WARN [thread-1] com.example.monitor.HealthCheck: Service degradation detected - response time: 1129ms
+2025-10-14T09:11:02.000Z WARN [thread-2] com.example.monitor.HealthCheck: Service degradation detected - response time: 1672ms
+2025-10-14T09:11:03.000Z WARN [cache-monitor] Cache eviction rate high: 70% capacity
+2025-10-14T09:11:04.000Z INFO [http-4] com.example.app.Controller: Metric recorded - ID: req-664 duration: 353ms
+2025-10-14T09:11:05.000Z INFO [http-5] com.example.app.Controller: Session created - ID: req-665 duration: 312ms
+2025-10-14T09:11:06.000Z INFO [http-6] com.example.app.Controller: Event published - ID: req-666 duration: 416ms
+2025-10-14T09:11:07.000Z WARN [cache-monitor] Cache eviction rate high: 89% capacity
+2025-10-14T09:11:08.000Z INFO [http-8] com.example.app.Controller: Database query completed - ID: req-668 duration: 111ms
+2025-10-14T09:11:09.000Z INFO [http-9] com.example.app.Controller: Task scheduled - ID: req-669 duration: 392ms
+2025-10-14T09:11:10.000Z INFO [http-10] com.example.app.Controller: Event published - ID: req-670 duration: 256ms
+2025-10-14T09:11:11.000Z INFO [http-11] com.example.app.Controller: Validation passed - ID: req-671 duration: 430ms
+2025-10-14T09:11:12.000Z INFO [http-12] com.example.app.Controller: Validation passed - ID: req-672 duration: 473ms
+2025-10-14T09:11:13.000Z DEBUG [sql] Query plan cached: hash=399569
+2025-10-14T09:11:14.000Z INFO [http-14] com.example.app.Controller: Database query completed - ID: req-674 duration: 60ms
+2025-10-14T09:11:15.000Z DEBUG [security] JWT token validated for user_id=1469
+2025-10-14T09:11:16.000Z INFO [http-16] com.example.app.Controller: Metric recorded - ID: req-676 duration: 300ms
+2025-10-14T09:11:17.000Z WARN [scheduler] Task execution delayed by 2397ms
+2025-10-14T09:11:18.000Z INFO [http-18] com.example.app.Controller: Metric recorded - ID: req-678 duration: 365ms
+2025-10-14T09:11:19.000Z INFO [http-19] com.example.app.Controller: Cache hit - ID: req-679 duration: 485ms
+2025-10-14T09:11:20.000Z DEBUG [main] com.example.util.ConfigLoader: Configuration parameter: max_connections=65
+2025-10-14T09:11:21.000Z INFO [http-1] com.example.app.Controller: Request processed - ID: req-681 duration: 507ms
+2025-10-14T09:11:22.000Z DEBUG [main] com.example.util.ConfigLoader: Configuration parameter: max_connections=112
+2025-10-14T09:11:23.000Z DEBUG [security] JWT token validated for user_id=7341
+2025-10-14T09:11:24.000Z INFO [http-4] com.example.app.Controller: Cache hit - ID: req-684 duration: 26ms
+2025-10-14T09:11:25.000Z DEBUG [sql] Query plan cached: hash=401251
+2025-10-14T09:11:26.000Z DEBUG [main] com.example.util.ConfigLoader: Configuration parameter: max_connections=168
+2025-10-14T09:11:27.000Z INFO [http-7] com.example.app.Controller: Database query completed - ID: req-687 duration: 404ms
+2025-10-14T09:11:28.000Z INFO [http-8] com.example.app.Controller: Session created - ID: req-688 duration: 320ms
+2025-10-14T09:11:29.000Z WARN [thread-9] com.example.monitor.HealthCheck: Service degradation detected - response time: 1545ms
+2025-10-14T09:11:30.000Z DEBUG [main] com.example.util.ConfigLoader: Configuration parameter: max_connections=188
+2025-10-14T09:11:31.000Z INFO [http-11] com.example.app.Controller: Task scheduled - ID: req-691 duration: 287ms
+2025-10-14T09:11:32.000Z INFO [http-12] com.example.app.Controller: Session created - ID: req-692 duration: 504ms
+2025-10-14T09:11:33.000Z INFO [http-13] com.example.app.Controller: Database query completed - ID: req-693 duration: 361ms
+2025-10-14T09:11:34.000Z DEBUG [sql] Query plan cached: hash=201404
+2025-10-14T09:11:35.000Z INFO [http-15] com.example.app.Controller: Cache hit - ID: req-695 duration: 253ms
+2025-10-14T09:11:36.000Z DEBUG [main] com.example.util.ConfigLoader: Configuration parameter: max_connections=145
+2025-10-14T09:11:37.000Z INFO [http-17] com.example.app.Controller: Session created - ID: req-697 duration: 308ms
+2025-10-14T09:11:38.000Z INFO [http-18] com.example.app.Controller: Validation passed - ID: req-698 duration: 163ms
+2025-10-14T09:11:39.000Z INFO [http-19] com.example.app.Controller: Cache hit - ID: req-699 duration: 359ms
+2025-10-14T09:11:40.000Z INFO [http-0] com.example.app.Controller: Cache hit - ID: req-700 duration: 426ms
+2025-10-14T09:11:41.000Z DEBUG [sql] Query plan cached: hash=267107
+2025-10-14T09:11:42.000Z INFO [http-2] com.example.app.Controller: Task scheduled - ID: req-702 duration: 495ms
+2025-10-14T09:11:43.000Z WARN [cache-monitor] Cache eviction rate high: 52% capacity
+2025-10-14T09:11:44.000Z INFO [http-4] com.example.app.Controller: Session created - ID: req-704 duration: 84ms
+2025-10-14T09:11:45.000Z WARN [thread-5] com.example.monitor.HealthCheck: Service degradation detected - response time: 2339ms
+2025-10-14T09:11:46.000Z INFO [http-6] com.example.app.Controller: Validation passed - ID: req-706 duration: 392ms
+2025-10-14T09:11:47.000Z WARN [cache-monitor] Cache eviction rate high: 55% capacity
+2025-10-14T09:11:48.000Z INFO [http-8] com.example.app.Controller: Task scheduled - ID: req-708 duration: 83ms
+2025-10-14T09:11:49.000Z INFO [http-9] com.example.app.Controller: Task scheduled - ID: req-709 duration: 254ms
+2025-10-14T09:11:50.000Z DEBUG [security] JWT token validated for user_id=6026
+2025-10-14T09:11:51.000Z INFO [http-11] com.example.app.Controller: Session created - ID: req-711 duration: 481ms
+2025-10-14T09:11:52.000Z INFO [http-12] com.example.app.Controller: Session created - ID: req-712 duration: 428ms
+2025-10-14T09:11:53.000Z DEBUG [security] JWT token validated for user_id=6951
+2025-10-14T09:11:54.000Z WARN [thread-4] com.example.monitor.HealthCheck: Service degradation detected - response time: 2401ms
+2025-10-14T09:11:55.000Z INFO [http-15] com.example.app.Controller: Cache hit - ID: req-715 duration: 411ms
+2025-10-14T09:11:56.000Z DEBUG [security] JWT token validated for user_id=7298
+2025-10-14T09:11:57.000Z WARN [cache-monitor] Cache eviction rate high: 92% capacity
+2025-10-14T09:11:58.000Z WARN [thread-8] com.example.monitor.HealthCheck: Service degradation detected - response time: 1977ms
+2025-10-14T09:11:59.000Z INFO [http-19] com.example.app.Controller: Metric recorded - ID: req-719 duration: 488ms
+2025-10-14T09:12:00.000Z DEBUG [sql] Query plan cached: hash=941868
+2025-10-14T09:12:01.000Z INFO [http-1] com.example.app.Controller: Task scheduled - ID: req-721 duration: 45ms
+2025-10-14T09:12:02.000Z INFO [http-2] com.example.app.Controller: Database query completed - ID: req-722 duration: 419ms
+2025-10-14T09:12:03.000Z DEBUG [main] com.example.util.ConfigLoader: Configuration parameter: max_connections=101
+2025-10-14T09:12:04.000Z INFO [http-4] com.example.app.Controller: Task scheduled - ID: req-724 duration: 307ms
+2025-10-14T09:12:05.000Z INFO [http-5] com.example.app.Controller: Database query completed - ID: req-725 duration: 484ms
+2025-10-14T09:12:06.000Z WARN [thread-6] com.example.monitor.HealthCheck: Service degradation detected - response time: 858ms
+2025-10-14T09:12:07.000Z INFO [http-7] com.example.app.Controller: Metric recorded - ID: req-727 duration: 256ms
+2025-10-14T09:12:08.000Z INFO [http-8] com.example.app.Controller: Task scheduled - ID: req-728 duration: 63ms
+2025-10-14T09:12:09.000Z INFO [http-9] com.example.app.Controller: Cache hit - ID: req-729 duration: 414ms
+2025-10-14T09:12:10.000Z INFO [http-10] com.example.app.Controller: Session created - ID: req-730 duration: 227ms
+2025-10-14T09:12:11.000Z DEBUG [sql] Query plan cached: hash=531144
+2025-10-14T09:12:12.000Z DEBUG [sql] Query plan cached: hash=984838
+2025-10-14T09:12:13.000Z DEBUG [main] com.example.util.ConfigLoader: Configuration parameter: max_connections=155
+2025-10-14T09:12:14.000Z INFO [http-14] com.example.app.Controller: Metric recorded - ID: req-734 duration: 278ms
+2025-10-14T09:12:15.000Z WARN [scheduler] Task execution delayed by 3206ms
+2025-10-14T09:12:16.000Z DEBUG [security] JWT token validated for user_id=4794
+2025-10-14T09:12:17.000Z INFO [http-17] com.example.app.Controller: Event published - ID: req-737 duration: 95ms
+2025-10-14T09:12:18.000Z INFO [http-18] com.example.app.Controller: Metric recorded - ID: req-738 duration: 339ms
+2025-10-14T09:12:19.000Z INFO [http-19] com.example.app.Controller: Session created - ID: req-739 duration: 440ms
+2025-10-14T09:12:20.000Z DEBUG [main] com.example.util.ConfigLoader: Configuration parameter: max_connections=167
+2025-10-14T09:12:21.000Z WARN [scheduler] Task execution delayed by 875ms
+2025-10-14T09:12:22.000Z INFO [http-2] com.example.app.Controller: Validation passed - ID: req-742 duration: 56ms
+2025-10-14T09:12:23.000Z INFO [http-3] com.example.app.Controller: Task scheduled - ID: req-743 duration: 74ms
+2025-10-14T09:12:24.000Z INFO [http-4] com.example.app.Controller: Task scheduled - ID: req-744 duration: 500ms
+2025-10-14T09:12:25.000Z INFO [http-5] com.example.app.Controller: Session created - ID: req-745 duration: 432ms
+2025-10-14T09:12:26.000Z INFO [http-6] com.example.app.Controller: Session created - ID: req-746 duration: 355ms
+2025-10-14T09:12:27.000Z INFO [http-7] com.example.app.Controller: Metric recorded - ID: req-747 duration: 122ms
+2025-10-14T09:12:28.000Z INFO [http-8] com.example.app.Controller: Database query completed - ID: req-748 duration: 17ms
+2025-10-14T09:12:29.000Z INFO [http-9] com.example.app.Controller: Validation passed - ID: req-749 duration: 84ms
+2025-10-14T09:12:30.000Z WARN [cache-monitor] Cache eviction rate high: 90% capacity
+2025-10-14T09:12:31.000Z INFO [http-11] com.example.app.Controller: Validation passed - ID: req-751 duration: 18ms
+2025-10-14T09:12:32.000Z INFO [http-12] com.example.app.Controller: Validation passed - ID: req-752 duration: 62ms
+2025-10-14T09:12:33.000Z INFO [http-13] com.example.app.Controller: Validation passed - ID: req-753 duration: 131ms
+2025-10-14T09:12:34.000Z INFO [http-14] com.example.app.Controller: Session created - ID: req-754 duration: 398ms
+2025-10-14T09:12:35.000Z DEBUG [sql] Query plan cached: hash=536939
+2025-10-14T09:12:36.000Z WARN [cache-monitor] Cache eviction rate high: 68% capacity
+2025-10-14T09:12:37.000Z INFO [http-17] com.example.app.Controller: Validation passed - ID: req-757 duration: 229ms
+2025-10-14T09:12:38.000Z INFO [http-18] com.example.app.Controller: Session created - ID: req-758 duration: 156ms
+2025-10-14T09:12:39.000Z DEBUG [sql] Query plan cached: hash=872348
+2025-10-14T09:12:40.000Z DEBUG [sql] Query plan cached: hash=591318
+2025-10-14T09:12:41.000Z INFO [http-1] com.example.app.Controller: Session created - ID: req-761 duration: 430ms
+2025-10-14T09:12:42.000Z WARN [thread-2] com.example.monitor.HealthCheck: Service degradation detected - response time: 1789ms
+2025-10-14T09:12:43.000Z DEBUG [security] JWT token validated for user_id=9496
+2025-10-14T09:12:44.000Z DEBUG [security] JWT token validated for user_id=2667
+2025-10-14T09:12:45.000Z INFO [http-5] com.example.app.Controller: Task scheduled - ID: req-765 duration: 248ms
+2025-10-14T09:12:46.000Z ERROR [async-6] Failed to publish message to queue
+com.rabbitmq.client.AlreadyClosedException: channel is already closed
+2025-10-14T09:12:47.000Z WARN [thread-7] com.example.monitor.HealthCheck: Service degradation detected - response time: 842ms
+2025-10-14T09:12:48.000Z INFO [http-8] com.example.app.Controller: Task scheduled - ID: req-768 duration: 101ms
+2025-10-14T09:12:49.000Z ERROR [http-9] Database connection pool exhausted
+org.postgresql.util.PSQLException: Connection has been closed.
+	at org.postgresql.jdbc.PgConnection.checkClosed(PgConnection.java:856)
+2025-10-14T09:12:50.000Z INFO [http-10] com.example.app.Controller: Metric recorded - ID: req-770 duration: 130ms
+2025-10-14T09:12:51.000Z INFO [http-11] com.example.app.Controller: Session created - ID: req-771 duration: 353ms
+2025-10-14T09:12:52.000Z WARN [scheduler] Task execution delayed by 742ms
+2025-10-14T09:12:53.000Z WARN [thread-3] com.example.monitor.HealthCheck: Service degradation detected - response time: 1707ms
+2025-10-14T09:12:54.000Z INFO [http-14] com.example.app.Controller: Task scheduled - ID: req-774 duration: 340ms
+2025-10-14T09:12:55.000Z DEBUG [main] com.example.util.ConfigLoader: Configuration parameter: max_connections=154
+2025-10-14T09:12:56.000Z ERROR [http-16] Database connection pool exhausted
+org.postgresql.util.PSQLException: Connection has been closed.
+	at org.postgresql.jdbc.PgConnection.checkClosed(PgConnection.java:856)
+2025-10-14T09:12:57.000Z INFO [http-17] com.example.app.Controller: Session created - ID: req-777 duration: 86ms
+2025-10-14T09:12:58.000Z INFO [http-18] com.example.app.Controller: Metric recorded - ID: req-778 duration: 376ms
+2025-10-14T09:12:59.000Z WARN [cache-monitor] Cache eviction rate high: 85% capacity
+2025-10-14T09:13:00.000Z INFO [http-0] com.example.app.Controller: Event published - ID: req-780 duration: 505ms
+2025-10-14T09:13:01.000Z WARN [cache-monitor] Cache eviction rate high: 87% capacity
+2025-10-14T09:13:02.000Z INFO [http-2] com.example.app.Controller: Task scheduled - ID: req-782 duration: 402ms
+2025-10-14T09:13:03.000Z WARN [scheduler] Task execution delayed by 1361ms
+2025-10-14T09:13:04.000Z DEBUG [sql] Query plan cached: hash=326242
+2025-10-14T09:13:05.000Z INFO [http-5] com.example.app.Controller: Database query completed - ID: req-785 duration: 336ms
+2025-10-14T09:13:06.000Z DEBUG [main] com.example.util.ConfigLoader: Configuration parameter: max_connections=63
+2025-10-14T09:13:07.000Z WARN [scheduler] Task execution delayed by 4555ms
+2025-10-14T09:13:08.000Z DEBUG [main] com.example.util.ConfigLoader: Configuration parameter: max_connections=165
+2025-10-14T09:13:09.000Z INFO [http-9] com.example.app.Controller: Event published - ID: req-789 duration: 331ms
+2025-10-14T09:13:10.000Z INFO [http-10] com.example.app.Controller: Event published - ID: req-790 duration: 479ms
+2025-10-14T09:13:11.000Z INFO [http-11] com.example.app.Controller: Request processed - ID: req-791 duration: 124ms
+2025-10-14T09:13:12.000Z INFO [http-12] com.example.app.Controller: Task scheduled - ID: req-792 duration: 382ms
+2025-10-14T09:13:13.000Z DEBUG [sql] Query plan cached: hash=791655
+2025-10-14T09:13:14.000Z INFO [http-14] com.example.app.Controller: Validation passed - ID: req-794 duration: 218ms
+2025-10-14T09:13:15.000Z INFO [http-15] com.example.app.Controller: Database query completed - ID: req-795 duration: 181ms
+2025-10-14T09:13:16.000Z INFO [http-16] com.example.app.Controller: Metric recorded - ID: req-796 duration: 63ms
+2025-10-14T09:13:17.000Z DEBUG [security] JWT token validated for user_id=4234
+2025-10-14T09:13:18.000Z INFO [http-18] com.example.app.Controller: Event published - ID: req-798 duration: 282ms
+2025-10-14T09:13:19.000Z DEBUG [security] JWT token validated for user_id=9300
+2025-10-14T09:13:20.000Z WARN [scheduler] Task execution delayed by 1760ms
+2025-10-14T09:13:21.000Z INFO [http-1] com.example.app.Controller: Session created - ID: req-801 duration: 29ms
+2025-10-14T09:13:22.000Z DEBUG [security] JWT token validated for user_id=7398
+2025-10-14T09:13:23.000Z ERROR [worker-3] com.example.service.DataProcessor: Processing failed for batch 803
+java.lang.RuntimeException: Unexpected error processing record
+	at com.example.service.DataProcessor.process(DataProcessor.java:110)
+	at com.example.worker.BatchWorker.run(BatchWorker.java:138)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1136)
+Caused by: java.net.SocketTimeoutException: Read timed out
+	at java.base/java.net.SocketInputStream.socketRead0(Native Method)
+2025-10-14T09:13:24.000Z INFO [http-4] com.example.app.Controller: Metric recorded - ID: req-804 duration: 111ms
+2025-10-14T09:13:25.000Z INFO [http-5] com.example.app.Controller: Session created - ID: req-805 duration: 471ms
+2025-10-14T09:13:26.000Z WARN [cache-monitor] Cache eviction rate high: 54% capacity
+2025-10-14T09:13:27.000Z INFO [http-7] com.example.app.Controller: Validation passed - ID: req-807 duration: 312ms
+2025-10-14T09:13:28.000Z DEBUG [security] JWT token validated for user_id=1478
+2025-10-14T09:13:29.000Z WARN [scheduler] Task execution delayed by 751ms
+2025-10-14T09:13:30.000Z DEBUG [security] JWT token validated for user_id=9952
+2025-10-14T09:13:31.000Z INFO [http-11] com.example.app.Controller: Request processed - ID: req-811 duration: 13ms
+2025-10-14T09:13:32.000Z DEBUG [security] JWT token validated for user_id=6812
+2025-10-14T09:13:33.000Z INFO [http-13] com.example.app.Controller: Session created - ID: req-813 duration: 266ms
+2025-10-14T09:13:34.000Z INFO [http-14] com.example.app.Controller: Database query completed - ID: req-814 duration: 362ms
+2025-10-14T09:13:35.000Z WARN [thread-5] com.example.monitor.HealthCheck: Service degradation detected - response time: 1146ms
+2025-10-14T09:13:36.000Z DEBUG [security] JWT token validated for user_id=8191
+2025-10-14T09:13:37.000Z WARN [thread-7] com.example.monitor.HealthCheck: Service degradation detected - response time: 1057ms
+2025-10-14T09:13:38.000Z DEBUG [sql] Query plan cached: hash=144954
+2025-10-14T09:13:39.000Z INFO [http-19] com.example.app.Controller: Cache hit - ID: req-819 duration: 342ms
+2025-10-14T09:13:40.000Z INFO [http-0] com.example.app.Controller: Event published - ID: req-820 duration: 391ms
+2025-10-14T09:13:41.000Z INFO [http-1] com.example.app.Controller: Session created - ID: req-821 duration: 206ms
+2025-10-14T09:13:42.000Z DEBUG [sql] Query plan cached: hash=142848
+2025-10-14T09:13:43.000Z INFO [http-3] com.example.app.Controller: Validation passed - ID: req-823 duration: 43ms
+2025-10-14T09:13:44.000Z ERROR [worker-4] com.example.service.DataProcessor: Processing failed for batch 824
+java.lang.RuntimeException: Unexpected error processing record
+	at com.example.service.DataProcessor.process(DataProcessor.java:295)
+	at com.example.worker.BatchWorker.run(BatchWorker.java:142)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1136)
+Caused by: java.net.SocketTimeoutException: Read timed out
+	at java.base/java.net.SocketInputStream.socketRead0(Native Method)
+2025-10-14T09:13:45.000Z WARN [thread-5] com.example.monitor.HealthCheck: Service degradation detected - response time: 2469ms
+2025-10-14T09:13:46.000Z INFO [http-6] com.example.app.Controller: Task scheduled - ID: req-826 duration: 490ms
+2025-10-14T09:13:47.000Z INFO [http-7] com.example.app.Controller: Database query completed - ID: req-827 duration: 400ms
+2025-10-14T09:13:48.000Z DEBUG [main] com.example.util.ConfigLoader: Configuration parameter: max_connections=120
+2025-10-14T09:13:49.000Z DEBUG [main] com.example.util.ConfigLoader: Configuration parameter: max_connections=110
+2025-10-14T09:13:50.000Z INFO [http-10] com.example.app.Controller: Cache hit - ID: req-830 duration: 343ms
+2025-10-14T09:13:51.000Z DEBUG [sql] Query plan cached: hash=997597
+2025-10-14T09:13:52.000Z INFO [http-12] com.example.app.Controller: Cache hit - ID: req-832 duration: 31ms
+2025-10-14T09:13:53.000Z INFO [http-13] com.example.app.Controller: Task scheduled - ID: req-833 duration: 193ms
+2025-10-14T09:13:54.000Z INFO [http-14] com.example.app.Controller: Request processed - ID: req-834 duration: 484ms
+2025-10-14T09:13:55.000Z INFO [http-15] com.example.app.Controller: Task scheduled - ID: req-835 duration: 52ms
+2025-10-14T09:13:56.000Z INFO [http-16] com.example.app.Controller: Database query completed - ID: req-836 duration: 33ms
+2025-10-14T09:13:57.000Z INFO [http-17] com.example.app.Controller: Task scheduled - ID: req-837 duration: 142ms
+2025-10-14T09:13:58.000Z ERROR [worker-3] com.example.service.DataProcessor: Processing failed for batch 838
+java.lang.RuntimeException: Unexpected error processing record
+	at com.example.service.DataProcessor.process(DataProcessor.java:229)
+	at com.example.worker.BatchWorker.run(BatchWorker.java:63)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1136)
+Caused by: java.net.SocketTimeoutException: Read timed out
+	at java.base/java.net.SocketInputStream.socketRead0(Native Method)
+2025-10-14T09:13:59.000Z INFO [http-19] com.example.app.Controller: Session created - ID: req-839 duration: 285ms
+2025-10-14T09:14:00.000Z INFO [http-0] com.example.app.Controller: Request processed - ID: req-840 duration: 136ms
+2025-10-14T09:14:01.000Z INFO [http-1] com.example.app.Controller: Task scheduled - ID: req-841 duration: 35ms
+2025-10-14T09:14:02.000Z INFO [http-2] com.example.app.Controller: Task scheduled - ID: req-842 duration: 293ms
+2025-10-14T09:14:03.000Z INFO [http-3] com.example.app.Controller: Validation passed - ID: req-843 duration: 304ms
+2025-10-14T09:14:04.000Z INFO [http-4] com.example.app.Controller: Cache hit - ID: req-844 duration: 123ms
+2025-10-14T09:14:05.000Z INFO [http-5] com.example.app.Controller: Task scheduled - ID: req-845 duration: 72ms
+2025-10-14T09:14:06.000Z INFO [http-6] com.example.app.Controller: Database query completed - ID: req-846 duration: 127ms
+2025-10-14T09:14:07.000Z INFO [http-7] com.example.app.Controller: Request processed - ID: req-847 duration: 114ms
+2025-10-14T09:14:08.000Z INFO [http-8] com.example.app.Controller: Event published - ID: req-848 duration: 70ms
+2025-10-14T09:14:09.000Z INFO [http-9] com.example.app.Controller: Session created - ID: req-849 duration: 235ms
+2025-10-14T09:14:10.000Z INFO [http-10] com.example.app.Controller: Session created - ID: req-850 duration: 316ms
+2025-10-14T09:14:11.000Z DEBUG [security] JWT token validated for user_id=8532
+2025-10-14T09:14:12.000Z INFO [http-12] com.example.app.Controller: Session created - ID: req-852 duration: 152ms
+2025-10-14T09:14:13.000Z INFO [http-13] com.example.app.Controller: Database query completed - ID: req-853 duration: 491ms
+2025-10-14T09:14:14.000Z INFO [http-14] com.example.app.Controller: Request processed - ID: req-854 duration: 167ms
+2025-10-14T09:14:15.000Z INFO [http-15] com.example.app.Controller: Metric recorded - ID: req-855 duration: 175ms
+2025-10-14T09:14:16.000Z DEBUG [security] JWT token validated for user_id=9875
+2025-10-14T09:14:17.000Z INFO [http-17] com.example.app.Controller: Request processed - ID: req-857 duration: 255ms
+2025-10-14T09:14:18.000Z INFO [http-18] com.example.app.Controller: Database query completed - ID: req-858 duration: 390ms
+2025-10-14T09:14:19.000Z INFO [http-19] com.example.app.Controller: Cache hit - ID: req-859 duration: 244ms
+2025-10-14T09:14:20.000Z INFO [http-0] com.example.app.Controller: Session created - ID: req-860 duration: 76ms
+2025-10-14T09:14:21.000Z INFO [http-1] com.example.app.Controller: Database query completed - ID: req-861 duration: 305ms
+2025-10-14T09:14:22.000Z DEBUG [sql] Query plan cached: hash=235775
+2025-10-14T09:14:23.000Z DEBUG [sql] Query plan cached: hash=473850
+2025-10-14T09:14:24.000Z INFO [http-4] com.example.app.Controller: Request processed - ID: req-864 duration: 136ms
+2025-10-14T09:14:25.000Z WARN [thread-5] com.example.monitor.HealthCheck: Service degradation detected - response time: 2377ms
+2025-10-14T09:14:26.000Z INFO [http-6] com.example.app.Controller: Session created - ID: req-866 duration: 54ms
+2025-10-14T09:14:27.000Z DEBUG [security] JWT token validated for user_id=7114
+2025-10-14T09:14:28.000Z INFO [http-8] com.example.app.Controller: Validation passed - ID: req-868 duration: 152ms
+2025-10-14T09:14:29.000Z WARN [cache-monitor] Cache eviction rate high: 51% capacity
+2025-10-14T09:14:30.000Z INFO [http-10] com.example.app.Controller: Metric recorded - ID: req-870 duration: 100ms
+2025-10-14T09:14:31.000Z DEBUG [security] JWT token validated for user_id=4279
+2025-10-14T09:14:32.000Z ERROR [http-12] Database connection pool exhausted
+org.postgresql.util.PSQLException: Connection has been closed.
+	at org.postgresql.jdbc.PgConnection.checkClosed(PgConnection.java:856)
+2025-10-14T09:14:33.000Z WARN [cache-monitor] Cache eviction rate high: 84% capacity
+2025-10-14T09:14:34.000Z WARN [cache-monitor] Cache eviction rate high: 56% capacity
+2025-10-14T09:14:35.000Z INFO [http-15] com.example.app.Controller: Request processed - ID: req-875 duration: 509ms
+2025-10-14T09:14:36.000Z INFO [http-16] com.example.app.Controller: Event published - ID: req-876 duration: 36ms
+2025-10-14T09:14:37.000Z INFO [http-17] com.example.app.Controller: Validation passed - ID: req-877 duration: 166ms
+2025-10-14T09:14:38.000Z INFO [http-18] com.example.app.Controller: Session created - ID: req-878 duration: 338ms
+2025-10-14T09:14:39.000Z INFO [http-19] com.example.app.Controller: Database query completed - ID: req-879 duration: 143ms
+2025-10-14T09:14:40.000Z DEBUG [sql] Query plan cached: hash=420539
+2025-10-14T09:14:41.000Z INFO [http-1] com.example.app.Controller: Task scheduled - ID: req-881 duration: 251ms
+2025-10-14T09:14:42.000Z ERROR [async-2] Failed to publish message to queue
+com.rabbitmq.client.AlreadyClosedException: channel is already closed
+2025-10-14T09:14:43.000Z WARN [cache-monitor] Cache eviction rate high: 62% capacity
+2025-10-14T09:14:44.000Z INFO [http-4] com.example.app.Controller: Validation passed - ID: req-884 duration: 133ms
+2025-10-14T09:14:45.000Z WARN [thread-5] com.example.monitor.HealthCheck: Service degradation detected - response time: 2112ms
+2025-10-14T09:14:46.000Z INFO [http-6] com.example.app.Controller: Task scheduled - ID: req-886 duration: 493ms
+2025-10-14T09:14:47.000Z WARN [scheduler] Task execution delayed by 215ms
+2025-10-14T09:14:48.000Z DEBUG [sql] Query plan cached: hash=800616
+2025-10-14T09:14:49.000Z WARN [scheduler] Task execution delayed by 2224ms
+2025-10-14T09:14:50.000Z INFO [http-10] com.example.app.Controller: Cache hit - ID: req-890 duration: 127ms
+2025-10-14T09:14:51.000Z INFO [http-11] com.example.app.Controller: Request processed - ID: req-891 duration: 455ms
+2025-10-14T09:14:52.000Z INFO [http-12] com.example.app.Controller: Database query completed - ID: req-892 duration: 486ms
+2025-10-14T09:14:53.000Z INFO [http-13] com.example.app.Controller: Cache hit - ID: req-893 duration: 399ms
+2025-10-14T09:14:54.000Z INFO [http-14] com.example.app.Controller: Database query completed - ID: req-894 duration: 400ms
+2025-10-14T09:14:55.000Z WARN [thread-5] com.example.monitor.HealthCheck: Service degradation detected - response time: 1034ms
+2025-10-14T09:14:56.000Z INFO [http-16] com.example.app.Controller: Cache hit - ID: req-896 duration: 104ms
+2025-10-14T09:14:57.000Z DEBUG [main] com.example.util.ConfigLoader: Configuration parameter: max_connections=155
+2025-10-14T09:14:58.000Z INFO [http-18] com.example.app.Controller: Database query completed - ID: req-898 duration: 113ms
+2025-10-14T09:14:59.000Z WARN [thread-9] com.example.monitor.HealthCheck: Service degradation detected - response time: 739ms
+2025-10-14T09:15:00.000Z INFO [http-0] com.example.app.Controller: Validation passed - ID: req-900 duration: 418ms
+2025-10-14T09:15:01.000Z INFO [http-1] com.example.app.Controller: Cache hit - ID: req-901 duration: 427ms
+2025-10-14T09:15:02.000Z INFO [http-2] com.example.app.Controller: Validation passed - ID: req-902 duration: 129ms
+2025-10-14T09:15:03.000Z DEBUG [sql] Query plan cached: hash=475695
+2025-10-14T09:15:04.000Z WARN [cache-monitor] Cache eviction rate high: 94% capacity
+2025-10-14T09:15:05.000Z INFO [http-5] com.example.app.Controller: Validation passed - ID: req-905 duration: 273ms
+2025-10-14T09:15:06.000Z INFO [http-6] com.example.app.Controller: Request processed - ID: req-906 duration: 468ms
+2025-10-14T09:15:07.000Z INFO [http-7] com.example.app.Controller: Cache hit - ID: req-907 duration: 345ms
+2025-10-14T09:15:08.000Z WARN [cache-monitor] Cache eviction rate high: 95% capacity
+2025-10-14T09:15:09.000Z DEBUG [main] com.example.util.ConfigLoader: Configuration parameter: max_connections=140
+2025-10-14T09:15:10.000Z WARN [cache-monitor] Cache eviction rate high: 95% capacity
+2025-10-14T09:15:11.000Z INFO [http-11] com.example.app.Controller: Database query completed - ID: req-911 duration: 422ms
+2025-10-14T09:15:12.000Z ERROR [http-12] Database connection pool exhausted
+org.postgresql.util.PSQLException: Connection has been closed.
+	at org.postgresql.jdbc.PgConnection.checkClosed(PgConnection.java:856)
+2025-10-14T09:15:13.000Z INFO [http-13] com.example.app.Controller: Database query completed - ID: req-913 duration: 216ms
+2025-10-14T09:15:14.000Z WARN [cache-monitor] Cache eviction rate high: 77% capacity
+2025-10-14T09:15:15.000Z INFO [http-15] com.example.app.Controller: Validation passed - ID: req-915 duration: 157ms
+2025-10-14T09:15:16.000Z INFO [http-16] com.example.app.Controller: Validation passed - ID: req-916 duration: 439ms
+2025-10-14T09:15:17.000Z DEBUG [security] JWT token validated for user_id=8210
+2025-10-14T09:15:18.000Z INFO [http-18] com.example.app.Controller: Metric recorded - ID: req-918 duration: 425ms
+2025-10-14T09:15:19.000Z DEBUG [sql] Query plan cached: hash=885768
+2025-10-14T09:15:20.000Z DEBUG [main] com.example.util.ConfigLoader: Configuration parameter: max_connections=82
+2025-10-14T09:15:21.000Z INFO [http-1] com.example.app.Controller: Session created - ID: req-921 duration: 100ms
+2025-10-14T09:15:22.000Z INFO [http-2] com.example.app.Controller: Database query completed - ID: req-922 duration: 96ms
+2025-10-14T09:15:23.000Z INFO [http-3] com.example.app.Controller: Event published - ID: req-923 duration: 69ms
+2025-10-14T09:15:24.000Z INFO [http-4] com.example.app.Controller: Cache hit - ID: req-924 duration: 81ms
+2025-10-14T09:15:25.000Z DEBUG [main] com.example.util.ConfigLoader: Configuration parameter: max_connections=77
+2025-10-14T09:15:26.000Z DEBUG [main] com.example.util.ConfigLoader: Configuration parameter: max_connections=109
+2025-10-14T09:15:27.000Z INFO [http-7] com.example.app.Controller: Database query completed - ID: req-927 duration: 126ms
+2025-10-14T09:15:28.000Z INFO [http-8] com.example.app.Controller: Request processed - ID: req-928 duration: 96ms
+2025-10-14T09:15:29.000Z INFO [http-9] com.example.app.Controller: Session created - ID: req-929 duration: 37ms
+2025-10-14T09:15:30.000Z DEBUG [security] JWT token validated for user_id=2429
+2025-10-14T09:15:31.000Z INFO [http-11] com.example.app.Controller: Cache hit - ID: req-931 duration: 349ms
+2025-10-14T09:15:32.000Z WARN [thread-2] com.example.monitor.HealthCheck: Service degradation detected - response time: 1810ms
+2025-10-14T09:15:33.000Z INFO [http-13] com.example.app.Controller: Metric recorded - ID: req-933 duration: 170ms
+2025-10-14T09:15:34.000Z WARN [thread-4] com.example.monitor.HealthCheck: Service degradation detected - response time: 2317ms
+2025-10-14T09:15:35.000Z DEBUG [main] com.example.util.ConfigLoader: Configuration parameter: max_connections=66
+2025-10-14T09:15:36.000Z DEBUG [sql] Query plan cached: hash=776427
+2025-10-14T09:15:37.000Z INFO [http-17] com.example.app.Controller: Metric recorded - ID: req-937 duration: 51ms
+2025-10-14T09:15:38.000Z INFO [http-18] com.example.app.Controller: Event published - ID: req-938 duration: 437ms
+2025-10-14T09:15:39.000Z INFO [http-19] com.example.app.Controller: Request processed - ID: req-939 duration: 320ms
+2025-10-14T09:15:40.000Z INFO [http-0] com.example.app.Controller: Event published - ID: req-940 duration: 57ms
+2025-10-14T09:15:41.000Z INFO [http-1] com.example.app.Controller: Session created - ID: req-941 duration: 152ms
+2025-10-14T09:15:42.000Z INFO [http-2] com.example.app.Controller: Metric recorded - ID: req-942 duration: 276ms
+2025-10-14T09:15:43.000Z WARN [thread-3] com.example.monitor.HealthCheck: Service degradation detected - response time: 1342ms
+2025-10-14T09:15:44.000Z INFO [http-4] com.example.app.Controller: Validation passed - ID: req-944 duration: 183ms
+2025-10-14T09:15:45.000Z WARN [scheduler] Task execution delayed by 4912ms
+2025-10-14T09:15:46.000Z INFO [http-6] com.example.app.Controller: Task scheduled - ID: req-946 duration: 468ms
+2025-10-14T09:15:47.000Z WARN [cache-monitor] Cache eviction rate high: 52% capacity
+2025-10-14T09:15:48.000Z INFO [http-8] com.example.app.Controller: Validation passed - ID: req-948 duration: 421ms
+2025-10-14T09:15:49.000Z DEBUG [sql] Query plan cached: hash=640227
+2025-10-14T09:15:50.000Z INFO [http-10] com.example.app.Controller: Session created - ID: req-950 duration: 198ms
+2025-10-14T09:15:51.000Z WARN [thread-1] com.example.monitor.HealthCheck: Service degradation detected - response time: 1069ms
+2025-10-14T09:15:52.000Z INFO [http-12] com.example.app.Controller: Request processed - ID: req-952 duration: 144ms
+2025-10-14T09:15:53.000Z INFO [http-13] com.example.app.Controller: Request processed - ID: req-953 duration: 232ms
+2025-10-14T09:15:54.000Z INFO [http-14] com.example.app.Controller: Task scheduled - ID: req-954 duration: 502ms
+2025-10-14T09:15:55.000Z INFO [http-15] com.example.app.Controller: Metric recorded - ID: req-955 duration: 356ms
+2025-10-14T09:15:56.000Z INFO [http-16] com.example.app.Controller: Event published - ID: req-956 duration: 44ms
+2025-10-14T09:15:57.000Z INFO [http-17] com.example.app.Controller: Cache hit - ID: req-957 duration: 225ms
+2025-10-14T09:15:58.000Z INFO [http-18] com.example.app.Controller: Session created - ID: req-958 duration: 151ms
+2025-10-14T09:15:59.000Z INFO [http-19] com.example.app.Controller: Request processed - ID: req-959 duration: 140ms
+2025-10-14T09:16:00.000Z INFO [http-0] com.example.app.Controller: Metric recorded - ID: req-960 duration: 262ms
+2025-10-14T09:16:01.000Z INFO [http-1] com.example.app.Controller: Cache hit - ID: req-961 duration: 153ms
+2025-10-14T09:16:02.000Z INFO [http-2] com.example.app.Controller: Validation passed - ID: req-962 duration: 299ms
+2025-10-14T09:16:03.000Z WARN [thread-3] com.example.monitor.HealthCheck: Service degradation detected - response time: 1977ms
+2025-10-14T09:16:04.000Z INFO [http-4] com.example.app.Controller: Request processed - ID: req-964 duration: 103ms
+2025-10-14T09:16:05.000Z WARN [cache-monitor] Cache eviction rate high: 59% capacity
+2025-10-14T09:16:06.000Z WARN [thread-6] com.example.monitor.HealthCheck: Service degradation detected - response time: 785ms
+2025-10-14T09:16:07.000Z DEBUG [security] JWT token validated for user_id=4261
+2025-10-14T09:16:08.000Z DEBUG [main] com.example.util.ConfigLoader: Configuration parameter: max_connections=143
+2025-10-14T09:16:09.000Z INFO [http-9] com.example.app.Controller: Database query completed - ID: req-969 duration: 225ms
+2025-10-14T09:16:10.000Z INFO [http-10] com.example.app.Controller: Request processed - ID: req-970 duration: 78ms
+2025-10-14T09:16:11.000Z INFO [http-11] com.example.app.Controller: Metric recorded - ID: req-971 duration: 13ms
+2025-10-14T09:16:12.000Z INFO [http-12] com.example.app.Controller: Metric recorded - ID: req-972 duration: 351ms
+2025-10-14T09:16:13.000Z WARN [cache-monitor] Cache eviction rate high: 72% capacity
+2025-10-14T09:16:14.000Z INFO [http-14] com.example.app.Controller: Database query completed - ID: req-974 duration: 176ms
+2025-10-14T09:16:15.000Z ERROR [http-15] Database connection pool exhausted
+org.postgresql.util.PSQLException: Connection has been closed.
+	at org.postgresql.jdbc.PgConnection.checkClosed(PgConnection.java:856)
+2025-10-14T09:16:16.000Z INFO [http-16] com.example.app.Controller: Task scheduled - ID: req-976 duration: 136ms
+2025-10-14T09:16:17.000Z DEBUG [sql] Query plan cached: hash=326407
+2025-10-14T09:16:18.000Z INFO [http-18] com.example.app.Controller: Session created - ID: req-978 duration: 196ms
+2025-10-14T09:16:19.000Z INFO [http-19] com.example.app.Controller: Session created - ID: req-979 duration: 320ms
+2025-10-14T09:16:20.000Z INFO [http-0] com.example.app.Controller: Session created - ID: req-980 duration: 158ms
+2025-10-14T09:16:21.000Z INFO [http-1] com.example.app.Controller: Cache hit - ID: req-981 duration: 53ms
+2025-10-14T09:16:22.000Z WARN [cache-monitor] Cache eviction rate high: 89% capacity
+2025-10-14T09:16:23.000Z INFO [http-3] com.example.app.Controller: Database query completed - ID: req-983 duration: 257ms
+2025-10-14T09:16:24.000Z INFO [http-4] com.example.app.Controller: Task scheduled - ID: req-984 duration: 468ms
+2025-10-14T09:16:25.000Z ERROR [http-5] Database connection pool exhausted
+org.postgresql.util.PSQLException: Connection has been closed.
+	at org.postgresql.jdbc.PgConnection.checkClosed(PgConnection.java:856)
+2025-10-14T09:16:26.000Z INFO [http-6] com.example.app.Controller: Session created - ID: req-986 duration: 477ms
+2025-10-14T09:16:27.000Z WARN [cache-monitor] Cache eviction rate high: 66% capacity
+2025-10-14T09:16:28.000Z DEBUG [sql] Query plan cached: hash=441138
+2025-10-14T09:16:29.000Z INFO [http-9] com.example.app.Controller: Metric recorded - ID: req-989 duration: 461ms
+2025-10-14T09:16:30.000Z INFO [http-10] com.example.app.Controller: Metric recorded - ID: req-990 duration: 26ms
+2025-10-14T09:16:31.000Z DEBUG [security] JWT token validated for user_id=1571
+2025-10-14T09:16:32.000Z WARN [thread-2] com.example.monitor.HealthCheck: Service degradation detected - response time: 1120ms
+2025-10-14T09:16:33.000Z DEBUG [main] com.example.util.ConfigLoader: Configuration parameter: max_connections=115
+2025-10-14T09:16:34.000Z DEBUG [sql] Query plan cached: hash=391308
+2025-10-14T09:16:35.000Z INFO [http-15] com.example.app.Controller: Event published - ID: req-995 duration: 394ms
+2025-10-14T09:16:36.000Z WARN [thread-6] com.example.monitor.HealthCheck: Service degradation detected - response time: 1443ms
+2025-10-14T09:16:37.000Z INFO [http-17] com.example.app.Controller: Session created - ID: req-997 duration: 78ms
+2025-10-14T09:16:38.000Z INFO [http-18] com.example.app.Controller: Session created - ID: req-998 duration: 387ms
+2025-10-14T09:16:39.000Z WARN [thread-9] com.example.monitor.HealthCheck: Service degradation detected - response time: 1204ms
+2025-10-14T09:16:40.000Z INFO [http-0] com.example.app.Controller: Task scheduled - ID: req-1000 duration: 206ms
