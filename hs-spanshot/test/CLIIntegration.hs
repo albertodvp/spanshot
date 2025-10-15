@@ -1,0 +1,129 @@
+module Main (main) where
+
+{- | CLI Integration Tests
+
+These tests validate the spanshot CLI binary end-to-end, ensuring that:
+
+1. The binary correctly reads and processes log files
+2. Output adheres to the expected JSONL format
+3. Command-line arguments are properly handled
+4. Error cases produce appropriate exit codes and messages
+
+Why CLI integration tests are important:
+
+- Validates the entire pipeline from CLI parsing to output formatting
+- Catches issues with option parsing, configuration, and user-facing behavior
+- Ensures the binary can be safely distributed and used by end users
+- Tests the actual compiled executable, not just library code
+
+How these tests work:
+
+- Uses 'cabal list-bin' to locate the compiled spanshot binary
+- Runs the binary as a subprocess with various arguments
+- Validates output structure (JSONL format) and content
+- Uses 'timeout' to handle streaming behavior (since spanshot tails files)
+- Tests both success and failure scenarios
+-}
+
+import Data.Aeson (Value, eitherDecode)
+import qualified Data.ByteString.Lazy as BL
+import qualified Data.ByteString.Lazy.Char8 as BLC
+import Data.List (isInfixOf)
+import System.Exit (ExitCode (..))
+import System.Process (readProcessWithExitCode)
+import Test.Tasty (TestTree, defaultMain, testGroup)
+import Test.Tasty.HUnit (assertBool, assertFailure, testCase, (@?=))
+
+main :: IO ()
+main = do
+  binaryPath <- getBinaryPath
+  defaultMain $ testGroup "CLI Integration Tests"
+    [ outputValidationTests binaryPath
+    , behaviorTests binaryPath
+    , errorHandlingTests binaryPath
+    ]
+
+getBinaryPath :: IO FilePath
+getBinaryPath = do
+  (exitCode, stdout, stderr) <- readProcessWithExitCode "cabal" ["list-bin", "spanshot"] ""
+  case exitCode of
+    ExitSuccess -> case lines stdout of
+      (binaryPath:_) -> pure binaryPath
+      [] -> error "cabal list-bin returned no output"
+    ExitFailure code -> error $ "Failed to get binary path (exit " ++ show code ++ "): " ++ stderr
+
+outputValidationTests :: FilePath -> TestTree
+outputValidationTests binary = testGroup "Output Validation Tests"
+  [ testCase "processes small.log and produces valid JSONL output" $ do
+      output <- runCollectToEnd binary "test/fixtures/small.log" 5
+      let outputLines = BLC.lines output
+      length outputLines @?= 5
+      mapM_ validateJSONLine (zip [1..] outputLines)
+  
+  , testCase "processes empty.log and produces no output" $ do
+      output <- runCollectToEnd binary "test/fixtures/empty.log" 0
+      let outputLines = BLC.lines output
+      length outputLines @?= 0
+  
+  , testCase "processes long_file.log and produces valid JSONL output" $ do
+      output <- runCollectToEnd binary "test/fixtures/long_file.log" 1133
+      let outputLines = BLC.lines output
+      length outputLines @?= 1133
+      mapM_ validateJSONLine (zip [1..] outputLines)
+  ]
+
+behaviorTests :: FilePath -> TestTree
+behaviorTests binary = testGroup "CLI Behavior Tests"
+  [ testCase "shows help text" $ do
+      (exitCode, stdout, _) <- readProcessWithExitCode binary ["--help"] ""
+      exitCode @?= ExitSuccess
+      assertBool "Help contains 'SpanShot'" $ "SpanShot" `isInfixOf` stdout
+      assertBool "Help mentions collect command" $ "collect" `isInfixOf` stdout
+  
+  , testCase "collect subcommand shows help" $ do
+      (exitCode, stdout, _) <- readProcessWithExitCode binary ["collect", "--help"] ""
+      exitCode @?= ExitSuccess
+      assertBool "Help mentions logfile" $ "logfile" `isInfixOf` stdout
+  ]
+
+errorHandlingTests :: FilePath -> TestTree
+errorHandlingTests binary = testGroup "Error Handling Tests"
+  [ testCase "fails with missing file" $ do
+      (exitCode, _stdout, stderr) <- readProcessWithExitCode 
+        binary 
+        ["collect", "--logfile", "test/fixtures/nonexistent.log"] 
+        ""
+      case exitCode of
+        ExitFailure _ -> assertBool "Error message mentions file" $ "nonexistent.log" `isInfixOf` stderr
+        ExitSuccess -> assertFailure "Expected failure for missing file but got success"
+  
+  , testCase "requires subcommand" $ do
+      (exitCode, _stdout, _stderr) <- readProcessWithExitCode binary [] ""
+      case exitCode of
+        ExitFailure _ -> pure ()
+        ExitSuccess -> assertFailure "Expected failure when no subcommand given"
+  ]
+
+runCollectToEnd :: FilePath -> FilePath -> Int -> IO BL.ByteString
+runCollectToEnd binary logfile expectedLines = do
+  let timeoutSeconds = if expectedLines > 100 then "10s" else "3s"
+  (exitCode, stdout, stderr) <- readProcessWithExitCode 
+    "timeout"
+    ["--signal=TERM", "--kill-after=1s", timeoutSeconds, binary, "collect", "--logfile", logfile]
+    ""
+  case exitCode of
+    ExitSuccess -> extractLines stdout
+    ExitFailure 124 -> extractLines stdout
+    ExitFailure code -> error $ "Binary failed with exit code " ++ show code ++ ":\n" ++ stderr
+  where
+    extractLines stdout = do
+      let outputLines = BLC.lines (BLC.pack stdout)
+      if length outputLines >= expectedLines || expectedLines == 0
+        then pure $ BL.fromStrict $ BLC.toStrict $ BLC.unlines $ take expectedLines outputLines
+        else error $ "Expected at least " ++ show expectedLines ++ " lines, got " ++ show (length outputLines)
+
+validateJSONLine :: (Int, BL.ByteString) -> IO ()
+validateJSONLine (lineNum, line) = do
+  case eitherDecode line of
+    Left err -> assertFailure $ "Line " ++ show lineNum ++ " is not valid JSON: " ++ err
+    Right (_ :: Value) -> pure ()

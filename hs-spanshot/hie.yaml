@@ -4,7 +4,7 @@ cradle:
       component: "lib:hs-spanshot"
 
     - path: "app/Main.hs"
-      component: "hs-spanshot:exe:hs-spanshot"
+      component: "hs-spanshot:exe:spanshot"
 
     - path: "app/Paths_hs_spanshot.hs"
       component: "hs-spanshot:exe:hs-spanshot"

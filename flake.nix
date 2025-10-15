@@ -19,10 +19,7 @@
       perSystem =
         {
           config,
-          self',
-          inputs',
           pkgs,
-          system,
           ...
         }:
         {
@@ -46,6 +43,7 @@
               hlint
               haskellPackages.apply-refact
               fourmolu
+              just
             ];
             shellHook = ''
               echo "Welcome to the Relage development environment!"

@@ -1,3 +1,4 @@
 .direnv
 dist-newstyle
 *.mp4
+*.excalidraw

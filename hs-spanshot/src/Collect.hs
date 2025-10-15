@@ -20,6 +20,13 @@ import System.IO (Handle, IOMode (..), hIsEOF, openFile)
 
 import Types (CollectOptions (..), CollectEvent (..))
 
+-- | Default size for chunks read from file handles.
+--
+-- Set to 32KB (32 * 1024 bytes), which is a common buffer size that balances
+-- memory usage with I/O efficiency.
+defaultChunkSize :: Int
+defaultChunkSize = 32 * 1024
+
 -- | Collect events from a file, polling for new content when EOF is reached.
 --
 -- This function opens a file and continuously reads it line-by-line, creating
@@ -71,11 +78,8 @@ bytesWithPolling opts handle = go
           go
         else do
           chunk <- liftIO $ BS.hGetSome handle defaultChunkSize
-          unless (BS.null chunk) $ do
-            Q.chunk chunk
-            go
-    
-    defaultChunkSize = 32 * 1024
+          unless (BS.null chunk) $ Q.chunk chunk
+          go
 
 -- | Process a stream of line-bytestreams into 'CollectEvent's.
 --

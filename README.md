@@ -42,14 +42,14 @@ cabal build
 cabal test
 
 # Run the executable
-cabal run hs-spanshot -- --logfile /path/to/your/app.log
+cabal run spanshot -- --logfile /path/to/your/app.log
 ```
 
 **Using Cabal directly:**
 ```bash
 cd hs-spanshot
 cabal build
-cabal run hs-spanshot -- --logfile /path/to/your/app.log
+cabal run spanshot -- --logfile /path/to/your/app.log
 ```
 
 #### Installing the Binary
@@ -59,7 +59,7 @@ cabal run hs-spanshot -- --logfile /path/to/your/app.log
 cabal install
 
 # Or copy the built binary
-cp $(cabal list-bin hs-spanshot) ~/.local/bin/spanshot
+cp $(cabal list-bin spanshot) ~/.local/bin/spanshot
 ```
 
 ### Quick Start
@@ -69,7 +69,7 @@ cp $(cabal list-bin hs-spanshot) ~/.local/bin/spanshot
 spanshot --logfile /path/to/your/application.log
 
 # Or using cabal run during development
-cabal run hs-spanshot -- --logfile /path/to/your/app.log
+cabal run spanshot -- --logfile /path/to/your/app.log
 ```
 
 ### Example Output
