@@ -1,3 +1,5 @@
+set working-directory := "hs-spanshot"
+
 # List available recipes
 default:
     @just --list
