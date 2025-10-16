@@ -51,6 +51,7 @@ Each line is a JSON event:
 ```
 
 **Fields:**
+
 - `source`: Log file path
 - `session_order_id`: Sequential counter (resets per run)
 - `read_at_utc`: UTC timestamp when event was read
@@ -59,12 +60,14 @@ Each line is a JSON event:
 ## Features & Limitations
 
 **Current:**
+
 - ✅ Tail-f style continuous monitoring
 - ✅ UTF-8 decoding with lenient error handling
 - ✅ Streaming architecture (minimal memory)
 - ✅ Clean shutdown on Ctrl-C
 
 **Limitations (v0.0):**
+
 - ❌ Single file only
 - ❌ No log rotation handling
 - ❌ Line-based parsing (multi-line stack traces split into separate events)
@@ -92,7 +95,7 @@ See [`justfile`](justfile) for all available commands.
 The project includes two test suites:
 
 1. **Unit tests** - Test core library functionality (streaming, event generation)
-2. **CLI integration tests** - End-to-end validation of the compiled binary, including JSONL output format and error handling
+1. **CLI integration tests** - End-to-end validation of the compiled binary, including JSONL output format and error handling
 
 Run with `just test` or `cabal test`.
 
