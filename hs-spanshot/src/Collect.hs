@@ -18,7 +18,7 @@ import Streaming.ByteString.Char8 qualified as Q
 import Streaming.Prelude qualified as S
 import System.IO (Handle, IOMode (..), hIsEOF, openFile)
 
-import Types (CollectEvent (..), CollectOptions (..))
+import Types (CollectEvent (CollectEvent, line, readAtUtc, sessionOrderId, source), CollectOptions (pollIntervalMs))
 
 {- | Default size for chunks read from file handles.
 
