@@ -73,7 +73,7 @@
             ghcid
             hlint
             haskellPackages.apply-refact
-            fourmolu
+            pkgs.haskell.packages.ghc912.fourmolu
             just
           ];
           shellHook = ''
