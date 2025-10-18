@@ -36,6 +36,7 @@
         treefmt = {
           projectRootFile = "flake.nix";
           programs = {
+            actionlint.enable = true;
             alejandra.enable = true;
             mdformat.enable = true;
             fourmolu = {
