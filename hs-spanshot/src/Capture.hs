@@ -1,12 +1,16 @@
 module Capture (
     detectError,
     runAllDetectors,
+    addToPreWindow,
 ) where
 
+import Data.Sequence (Seq)
+import Data.Sequence qualified as Seq
 import Data.Text qualified as T
+import Data.Time (addUTCTime)
 import Text.Regex.TDFA ((=~))
 
-import Types (CollectEvent (..), DetectionRule (..))
+import Types (CaptureOptions (minContextEvents, preWindowDuration), CollectEvent (line, readAtUtc), DetectionRule (RegexRule))
 
 {- | Check if a detection rule matches a collect event.
 
@@ -60,3 +64,52 @@ consider optimizing with:
 -}
 runAllDetectors :: [DetectionRule] -> CollectEvent -> [DetectionRule]
 runAllDetectors rules event = filter (`detectError` event) rules
+
+{- | Add an event to the pre-window buffer with smart cleanup.
+
+This function implements a two-phase cleanup strategy:
+1. Time-based: Drop events older than preWindowDuration
+2. Count-based fallback: If time-based cleanup leaves fewer than minContextEvents,
+   keep the last N events instead
+
+This ensures we always have sufficient context for error diagnosis, even in
+sparse logging scenarios.
+
+Example:
+
+@
+-- Dense logging (time-based cleanup works)
+buffer = [t=5, t=6, t=7, t=8]
+newEvent = t=10
+preWindowDuration = 5s
+minContextEvents = 2
+Result: [t=6, t=7, t=8, t=10]  -- Cutoff at t=5
+
+-- Sparse logging (fallback to count-based)
+buffer = [t=0, t=1, t=2]
+newEvent = t=100
+preWindowDuration = 5s
+minContextEvents = 3
+Result: [t=1, t=2, t=100]  -- Keep last 3
+@
+
+Time Complexity: O(n) for dropWhileL + O(n) for drop = O(n)
+Space Complexity: O(1) - structural sharing in Seq
+-}
+addToPreWindow :: CaptureOptions -> Seq CollectEvent -> CollectEvent -> Seq CollectEvent
+addToPreWindow opts buffer newEvent =
+    let
+        withNew = buffer Seq.|> newEvent
+        cutoff = addUTCTime (negate $ preWindowDuration opts) (readAtUtc newEvent)
+        timeFiltered = Seq.dropWhileL (\e -> readAtUtc e < cutoff) withNew
+        timeFilteredLen = Seq.length timeFiltered
+        minEvents = minContextEvents opts
+        cleaned =
+            if timeFilteredLen >= minEvents
+                then timeFiltered
+                else
+                    let totalLen = Seq.length withNew
+                        dropCount = max 0 (totalLen - minEvents)
+                     in Seq.drop dropCount withNew
+     in
+        cleaned

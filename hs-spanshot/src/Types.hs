@@ -11,9 +11,14 @@ module Types (
     SpanShot (..),
     CaptureOptions (..),
     defaultCaptureOptions,
+    ActiveCapture (..),
+    CaptureState (..),
+    initialCaptureState,
 ) where
 
 import Data.Aeson (FromJSON (parseJSON), Options (fieldLabelModifier), ToJSON (toJSON), camelTo2, defaultOptions, genericParseJSON, genericToJSON)
+import Data.Sequence (Seq)
+import Data.Sequence qualified as Seq
 import Data.Text (Text)
 import Data.Time (NominalDiffTime, UTCTime)
 import GHC.Generics (Generic)
@@ -95,6 +100,7 @@ instance FromJSON SpanShot where
 data CaptureOptions = CaptureOptions
     { preWindowDuration :: !NominalDiffTime
     , postWindowDuration :: !NominalDiffTime
+    , minContextEvents :: !Int
     , detectionRules :: ![DetectionRule]
     }
     deriving (Show, Eq)
@@ -104,5 +110,27 @@ defaultCaptureOptions =
     CaptureOptions
         { preWindowDuration = 5
         , postWindowDuration = 5
+        , minContextEvents = 10
         , detectionRules = [RegexRule "ERROR"]
+        }
+
+data ActiveCapture = ActiveCapture
+    { acErrorEvent :: !CollectEvent
+    , acDetectedBy :: ![DetectionRule]
+    , acPreWindowSnapshot :: !(Seq CollectEvent)
+    , acPostEvents :: !(Seq CollectEvent)
+    }
+    deriving (Show, Eq)
+
+data CaptureState = CaptureState
+    { csPreWindow :: !(Seq CollectEvent)
+    , csActiveCapture :: !(Maybe ActiveCapture)
+    }
+    deriving (Show, Eq)
+
+initialCaptureState :: CaptureState
+initialCaptureState =
+    CaptureState
+        { csPreWindow = Seq.empty
+        , csActiveCapture = Nothing
         }
