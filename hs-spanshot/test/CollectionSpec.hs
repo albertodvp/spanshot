@@ -12,7 +12,7 @@ import System.Process (createProcess, shell, waitForProcess)
 import Test.Hspec (Spec, describe, expectationFailure, it, shouldBe)
 
 import Collect (collectFromFile)
-import Types (CollectEvent (..), CollectOptions (..))
+import Types (CollectEvent (line, sessionOrderId, source), CollectOptions (CollectOptions, pollIntervalMs))
 
 testOptions :: CollectOptions
 testOptions = CollectOptions{pollIntervalMs = 50}
