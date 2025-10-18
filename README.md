@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="logo-removebg.png" alt="SpanShot Logo" width="600"/>
+  <img src="spanshot-logo.svg" alt="SpanShot Logo" width="600"/>
 </div>
 
 # SpanShot
