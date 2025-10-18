@@ -28,7 +28,7 @@ import Data.Aeson (Value, eitherDecode)
 import Data.ByteString.Lazy qualified as BL
 import Data.ByteString.Lazy.Char8 qualified as BLC
 import Data.List (isInfixOf)
-import System.Exit (ExitCode (..))
+import System.Exit (ExitCode (ExitFailure, ExitSuccess))
 import System.Process (readProcessWithExitCode)
 import Test.Tasty (TestTree, defaultMain, testGroup)
 import Test.Tasty.HUnit (assertBool, assertFailure, testCase, (@?=))

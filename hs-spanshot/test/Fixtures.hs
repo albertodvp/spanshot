@@ -10,7 +10,7 @@ import Data.Text qualified as T
 import Data.Time (UTCTime (..), fromGregorian, secondsToDiffTime)
 import Test.QuickCheck (Gen, choose)
 
-import Types (CollectEvent (..))
+import Types (CollectEvent (CollectEvent, line, readAtUtc, sessionOrderId, source))
 
 mockTime :: Integer -> UTCTime
 mockTime seconds = UTCTime (fromGregorian 2025 10 16) (secondsToDiffTime seconds)

@@ -5,7 +5,7 @@ import Test.Hspec (Spec, describe, it, shouldBe)
 
 import Capture (detectError, runAllDetectors)
 import Fixtures (mockEvent)
-import Types (DetectionRule (..))
+import Types (DetectionRule (RegexRule))
 
 detectionTests :: Spec
 detectionTests = do

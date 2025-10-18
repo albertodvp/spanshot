@@ -1,4 +1,3 @@
-{-# LANGUAGE TypeApplications #-}
 {-# OPTIONS_GHC -Wno-orphans #-}
 
 module SerializationProperties (serializationPropertyTests) where
@@ -12,7 +11,7 @@ import Test.Tasty (TestTree, testGroup)
 import Test.Tasty.QuickCheck (testProperty, withMaxSuccess)
 
 import Fixtures (arbitraryUTCTime)
-import Types (CollectEvent (..), DetectionRule (..), SpanShot (..))
+import Types (CollectEvent (CollectEvent), DetectionRule (RegexRule), SpanShot (SpanShot, postWindow, preWindow))
 
 printableChars :: [Char]
 printableChars = ['a' .. 'z'] ++ ['A' .. 'Z'] ++ ['0' .. '9'] ++ " .,!?-_"
