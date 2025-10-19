@@ -1,35 +1,47 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 module CaptureTypesSpec (captureTypesTests) where
 
 import Data.Sequence qualified as Seq
-import Data.Text qualified as T
 import Test.Hspec (Spec, describe, it, shouldBe, shouldSatisfy)
 
 import Fixtures (mockEvent)
-import Types (ActiveCapture (ActiveCapture, acDetectedBy, acErrorEvent, acPostEvents, acPreWindowSnapshot), CaptureOptions (CaptureOptions, detectionRules, minContextEvents, postWindowDuration, preWindowDuration), CaptureState (csActiveCapture, csPreWindow), DetectionRule (RegexRule), defaultCaptureOptions, initialCaptureState)
+import Types (
+    ActiveCapture (ActiveCapture, acDetectedBy, acErrorEvent, acPostEvents, acPreWindowSnapshot),
+    CaptureState (csActiveCapture, csPreWindow),
+    DetectionRule (RegexRule),
+    captureDetectionRules,
+    captureMinContextEvents,
+    capturePostWindowDuration,
+    capturePreWindowDuration,
+    defaultCaptureOptions,
+    initialCaptureState,
+    mkCaptureOptions,
+ )
 
 captureTypesTests :: Spec
 captureTypesTests = do
     describe "CaptureOptions" $ do
         it "creates default options with sensible defaults" $ do
             let opts = defaultCaptureOptions
-            preWindowDuration opts `shouldBe` 5
-            postWindowDuration opts `shouldBe` 5
-            minContextEvents opts `shouldBe` 10
-            length (detectionRules opts) `shouldBe` 1
+            capturePreWindowDuration opts `shouldBe` 5
+            capturePostWindowDuration opts `shouldBe` 5
+            captureMinContextEvents opts `shouldBe` 10
+            length (captureDetectionRules opts) `shouldBe` 1
 
         it "default options include ERROR pattern" $ do
             let opts = defaultCaptureOptions
-            let rules = detectionRules opts
+            let rules = captureDetectionRules opts
             rules `shouldSatisfy` any (\(RegexRule p) -> p == "ERROR")
 
         it "creates options with minContextEvents" $ do
-            let opts = CaptureOptions{preWindowDuration = 5, postWindowDuration = 5, minContextEvents = 10, detectionRules = [RegexRule "ERROR"]}
-            minContextEvents opts `shouldBe` 10
+            let Right opts = mkCaptureOptions 5 5 10 [RegexRule "ERROR"]
+            captureMinContextEvents opts `shouldBe` 10
 
     describe "ActiveCapture" $ do
         it "creates capture with snapshot and empty post-window" $ do
-            let err = mockEvent 5 (T.pack "ERROR occurred")
-            let snapshot = Seq.fromList [mockEvent 1 (T.pack "INFO"), mockEvent 2 (T.pack "INFO")]
+            let err = mockEvent 5 ("ERROR occurred")
+            let snapshot = Seq.fromList [mockEvent 1 ("INFO"), mockEvent 2 ("INFO")]
             let capture = ActiveCapture{acErrorEvent = err, acDetectedBy = [RegexRule "ERROR"], acPreWindowSnapshot = snapshot, acPostEvents = Seq.empty}
             Seq.length (acPostEvents capture) `shouldBe` 0
             Seq.length (acPreWindowSnapshot capture) `shouldBe` 2
