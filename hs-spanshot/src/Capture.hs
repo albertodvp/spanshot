@@ -1,12 +1,28 @@
 module Capture (
     detectError,
     runAllDetectors,
+    addToPreWindow,
+    processEvent,
 ) where
 
-import Data.Text qualified as T
+import Data.Sequence (Seq)
+import Data.Sequence qualified as Seq
+import Data.Time (addUTCTime)
 import Text.Regex.TDFA ((=~))
+import Text.Regex.TDFA.Text ()
 
-import Types (CollectEvent (..), DetectionRule (..))
+import Data.Maybe (isNothing)
+import Types (
+    ActiveCapture (..),
+    CaptureOptions,
+    CaptureState (..),
+    CollectEvent (..),
+    DetectionRule (..),
+    SpanShot (..),
+    captureDetectionRules,
+    captureMinContextEvents,
+    capturePreWindowDuration,
+ )
 
 {- | Check if a detection rule matches a collect event.
 
@@ -30,7 +46,7 @@ Space Complexity: O(1) - no additional allocation beyond regex engine
 -}
 detectError :: DetectionRule -> CollectEvent -> Bool
 detectError (RegexRule pat) event =
-    T.unpack (line event) =~ pat
+    line event =~ pat
 
 {- | Run all detection rules against an event.
 
@@ -60,3 +76,114 @@ consider optimizing with:
 -}
 runAllDetectors :: [DetectionRule] -> CollectEvent -> [DetectionRule]
 runAllDetectors rules event = filter (`detectError` event) rules
+
+{- | Add an event to the pre-window buffer with smart cleanup.
+
+This function implements a two-phase cleanup strategy:
+1. Time-based: Drop events older than preWindowDuration
+2. Count-based fallback: If time-based cleanup leaves fewer than minContextEvents,
+   keep the last N events instead
+
+This ensures we always have sufficient context for error diagnosis, even in
+sparse logging scenarios.
+
+Example:
+
+@
+-- Dense logging (time-based cleanup works)
+buffer = [t=5, t=6, t=7, t=8]
+newEvent = t=10
+preWindowDuration = 5s
+minContextEvents = 2
+Result: [t=6, t=7, t=8, t=10]  -- Cutoff at t=5
+
+-- Sparse logging (fallback to count-based)
+buffer = [t=0, t=1, t=2]
+newEvent = t=100
+preWindowDuration = 5s
+minContextEvents = 3
+Result: [t=1, t=2, t=100]  -- Keep last 3
+@
+
+Time Complexity: O(n) for dropWhileL + O(n) for drop = O(n)
+Space Complexity: O(1) - structural sharing in Seq
+-}
+addToPreWindow :: CaptureOptions -> Seq CollectEvent -> CollectEvent -> Seq CollectEvent
+addToPreWindow opts buffer newEvent =
+    let
+        withNew = buffer Seq.|> newEvent
+        cutoff = addUTCTime (negate $ capturePreWindowDuration opts) (readAtUtc newEvent)
+        timeFiltered = Seq.dropWhileL (\e -> readAtUtc e < cutoff) withNew
+        timeFilteredLen = Seq.length timeFiltered
+        minEvents = captureMinContextEvents opts
+        cleaned =
+            if timeFilteredLen >= minEvents
+                then timeFiltered
+                else
+                    let totalLen = Seq.length withNew
+                        dropCount = max 0 (totalLen - minEvents)
+                     in Seq.drop dropCount withNew
+     in
+        cleaned
+
+{- | Process a single event through the capture state machine.
+
+This is the core of the streaming capture logic. For each incoming event:
+
+1. Check if it matches any detection rules
+2. If error detected:
+   - Clone current pre-window as snapshot (excluding the error itself)
+   - Create ActiveCapture with empty post-window
+3. Update pre-window with the new event (including errors for future context)
+4. Return new state and any completed SpanShots (empty for now - Phase 4 handles completion)
+
+Key behavior:
+- Error event is NOT included in its own pre-window snapshot
+- Error event IS added to main pre-window for future errors to see
+- Single active capture policy: if capture already active, ignore new errors (Phase 5)
+
+Example:
+
+@
+-- No error, just add to pre-window
+state = CaptureState [t=1, t=2] Nothing
+event = t=3 "INFO"
+result = (CaptureState [t=1, t=2, t=3] Nothing, [])
+
+-- Error detected, snapshot and create capture
+state = CaptureState [t=1, t=2] Nothing
+event = t=3 "ERROR"
+result = (CaptureState [t=1, t=2, t=3] (Just capture), [])
+  where capture.preWindowSnapshot = [t=1, t=2]  -- no t=3!
+@
+
+Time Complexity: O(n) for pre-window cleanup + O(k) for rule checking
+Space Complexity: O(n) for snapshot creation when error detected
+-}
+processEvent :: CaptureOptions -> CaptureState -> CollectEvent -> (CaptureState, [SpanShot])
+processEvent opts state newEvent =
+    let
+        matchedRules = runAllDetectors (captureDetectionRules opts) newEvent
+        isError = not (null matchedRules)
+
+        newCapture =
+            if isError && isNothing (csActiveCapture state)
+                then
+                    Just $
+                        ActiveCapture
+                            { acErrorEvent = newEvent
+                            , acDetectedBy = matchedRules
+                            , acPreWindowSnapshot = csPreWindow state
+                            , acPostEvents = Seq.empty
+                            }
+                else csActiveCapture state
+
+        updatedPreWindow = addToPreWindow opts (csPreWindow state) newEvent
+
+        newState =
+            CaptureState
+                { csPreWindow = updatedPreWindow
+                , csActiveCapture = newCapture
+                }
+     in
+        (newState, [])

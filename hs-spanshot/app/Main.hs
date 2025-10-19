@@ -4,7 +4,7 @@ import Collect (collectFromFile)
 import Data.Aeson qualified as Aeson
 import Data.ByteString.Lazy.Char8 qualified as BL
 import OptEnvConf (
-    HasParser (..),
+    HasParser (settingsParser),
     command,
     commands,
     help,

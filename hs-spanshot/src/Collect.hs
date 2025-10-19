@@ -1,7 +1,6 @@
 module Collect (
     collectFromFile,
     collectFromStream,
-    CollectOptions (..),
 ) where
 
 import Control.Concurrent (threadDelay)
@@ -18,7 +17,7 @@ import Streaming.ByteString.Char8 qualified as Q
 import Streaming.Prelude qualified as S
 import System.IO (Handle, IOMode (..), hIsEOF, openFile)
 
-import Types (CollectEvent (..), CollectOptions (..))
+import Types (CollectEvent (CollectEvent, line, readAtUtc, sessionOrderId, source), CollectOptions (pollIntervalMs))
 
 {- | Default size for chunks read from file handles.
 
@@ -104,13 +103,13 @@ let linesStream = Q.lines someByteStream
 events <- S.toList_ $ collectFromStream "myfile.log" linesStream
 @
 -}
-collectFromStream :: Text -> Stream (Q.ByteStream IO) IO () -> Stream (Of CollectEvent) IO ()
+collectFromStream :: Text -> Stream (Q.ByteStream IO) IO a -> Stream (Of CollectEvent) IO a
 collectFromStream sourcePath linesStream = do
     -- Convert Stream (ByteStream m) to Stream (Of ByteString) using mapped
     let strictLines = S.mapped Q.toStrict linesStream
     -- Now we can zip with indices
     S.mapM (uncurry $ lineToEvent sourcePath) $
-        S.zip (S.each [0 ..]) strictLines
+        S.zip (S.iterate succ 0) strictLines
 
 {- | Convert a single line (as ByteString) into a 'CollectEvent'.
 

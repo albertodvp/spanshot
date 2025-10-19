@@ -15,6 +15,10 @@ extra-doc-files:    CHANGELOG.md
 
 common warnings
     ghc-options: -Wall
+    default-extensions:
+        ImportQualifiedPost
+        OverloadedStrings
+        TypeApplications
 
 library
     import:           warnings
@@ -59,8 +63,10 @@ test-suite hs-spanshot-test
     other-modules:
         CollectionSpec
         CaptureTypesSpec
+        CaptureStreamSpec
         DetectionSpec
         SerializationProperties
+        WindowManagementSpec
         Fixtures
     type:             exitcode-stdio-1.0
     hs-source-dirs:   test
