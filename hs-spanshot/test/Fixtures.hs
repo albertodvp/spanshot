@@ -6,7 +6,6 @@ module Fixtures (
 ) where
 
 import Data.Text (Text)
-import Data.Text qualified as T
 import Data.Time (UTCTime (..), fromGregorian, secondsToDiffTime)
 import Test.QuickCheck (Gen, choose)
 
@@ -18,7 +17,7 @@ mockTime seconds = UTCTime (fromGregorian 2025 10 16) (secondsToDiffTime seconds
 mockEvent :: Int -> Text -> CollectEvent
 mockEvent orderId content =
     CollectEvent
-        { source = T.pack "test.log"
+        { source = "test.log"
         , sessionOrderId = orderId
         , readAtUtc = mockTime (fromIntegral orderId)
         , line = content
@@ -27,7 +26,7 @@ mockEvent orderId content =
 mockEventAtTime :: Text -> UTCTime -> CollectEvent
 mockEventAtTime content time =
     CollectEvent
-        { source = T.pack "test.log"
+        { source = "test.log"
         , sessionOrderId = 0
         , readAtUtc = time
         , line = content
