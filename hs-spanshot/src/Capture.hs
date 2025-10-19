@@ -7,11 +7,22 @@ module Capture (
 
 import Data.Sequence (Seq)
 import Data.Sequence qualified as Seq
-import Data.Text qualified as T
 import Data.Time (addUTCTime)
 import Text.Regex.TDFA ((=~))
+import Text.Regex.TDFA.Text ()
 
-import Types (ActiveCapture (..), CaptureOptions (..), CaptureState (..), CollectEvent (..), DetectionRule (..), SpanShot (..))
+import Data.Maybe (isNothing)
+import Types (
+    ActiveCapture (..),
+    CaptureOptions,
+    CaptureState (..),
+    CollectEvent (..),
+    DetectionRule (..),
+    SpanShot (..),
+    captureDetectionRules,
+    captureMinContextEvents,
+    capturePreWindowDuration,
+ )
 
 {- | Check if a detection rule matches a collect event.
 
@@ -35,7 +46,7 @@ Space Complexity: O(1) - no additional allocation beyond regex engine
 -}
 detectError :: DetectionRule -> CollectEvent -> Bool
 detectError (RegexRule pat) event =
-    T.unpack (line event) =~ pat
+    line event =~ pat
 
 {- | Run all detection rules against an event.
 
@@ -101,10 +112,10 @@ addToPreWindow :: CaptureOptions -> Seq CollectEvent -> CollectEvent -> Seq Coll
 addToPreWindow opts buffer newEvent =
     let
         withNew = buffer Seq.|> newEvent
-        cutoff = addUTCTime (negate $ preWindowDuration opts) (readAtUtc newEvent)
+        cutoff = addUTCTime (negate $ capturePreWindowDuration opts) (readAtUtc newEvent)
         timeFiltered = Seq.dropWhileL (\e -> readAtUtc e < cutoff) withNew
         timeFilteredLen = Seq.length timeFiltered
-        minEvents = minContextEvents opts
+        minEvents = captureMinContextEvents opts
         cleaned =
             if timeFilteredLen >= minEvents
                 then timeFiltered
@@ -152,11 +163,11 @@ Space Complexity: O(n) for snapshot creation when error detected
 processEvent :: CaptureOptions -> CaptureState -> CollectEvent -> (CaptureState, [SpanShot])
 processEvent opts state newEvent =
     let
-        matchedRules = runAllDetectors (detectionRules opts) newEvent
+        matchedRules = runAllDetectors (captureDetectionRules opts) newEvent
         isError = not (null matchedRules)
 
         newCapture =
-            if isError && csActiveCapture state == Nothing
+            if isError && isNothing (csActiveCapture state)
                 then
                     Just $
                         ActiveCapture
