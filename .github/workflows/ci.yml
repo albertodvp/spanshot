@@ -20,9 +20,9 @@ jobs:
       
       - name: Install actionlint
         run: |
-          bash <(curl https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash)
+          bash <(curl -fsSL https://raw.githubusercontent.com/rhysd/actionlint/v1.7.8/scripts/download-actionlint.bash)
           echo "${PWD}" >> "$GITHUB_PATH"
-      
+
       - name: Run actionlint
         run: actionlint
 
@@ -111,48 +111,3 @@ jobs:
 
       - name: Run CLI integration tests
         run: just test-integration-cli
-
-  build:
-    name: Build Check - GHC ${{ matrix.ghc }} - ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest]
-        include:
-          - os: ubuntu-latest
-            ghc: "9.10"
-            cabal: "3.12"
-          - os: ubuntu-latest
-            ghc: "9.8"
-            cabal: "3.10"
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup Haskell
-        uses: haskell-actions/setup@v2
-        id: setup
-        with:
-          ghc-version: ${{ matrix.ghc }}
-          cabal-version: ${{ matrix.cabal }}
-          cabal-update: true
-
-      - name: Show installed versions
-        run: |
-          cabal --version
-          ghc --version
-
-      - name: Install just
-        uses: extractions/setup-just@v2
-
-      - name: Cache cabal store
-        uses: actions/cache@v4
-        with:
-          path: ${{ steps.setup.outputs.cabal-store }}
-          key: ${{ runner.os }}-ghc-${{ steps.setup.outputs.ghc-version }}-cabal-${{ hashFiles('**/*.cabal', '**/cabal.project') }}
-          restore-keys: |
-            ${{ runner.os }}-ghc-${{ steps.setup.outputs.ghc-version }}-
-
-      - name: Build project
-        run: just build
