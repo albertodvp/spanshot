@@ -3,4 +3,5 @@ packages: .
 tests: True
 
 if os(windows)
-  constraints: tasty -unix
+  constraints: tasty -unix,
+               ansi-terminal -example
