@@ -47,7 +47,7 @@ executable spanshot
         aeson ^>=2.2,
         bytestring ^>=0.12,
         hs-spanshot,
-        opt-env-conf ^>=0.5,
+        opt-env-conf ^>=0.11,
         streaming ^>=0.2
 
     hs-source-dirs:   app
