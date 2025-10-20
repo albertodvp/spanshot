@@ -4,7 +4,11 @@
 
 # SpanShot
 
+[![CI](https://github.com/albertodvp/spanshot/actions/workflows/ci.yml/badge.svg)](https://github.com/albertodvp/spanshot/actions/workflows/ci.yml)
+
 > Catch the error. Keep the flow.
+
+**Cross-platform testing:** Ubuntu, macOS, and Windows with GHC 9.12
 
 ## The Problem
 
