@@ -3,5 +3,5 @@ packages: .
 tests: True
 
 if os(windows)
-  constraints: tasty -unix
-  preferences: -any.terminfo
+  constraints: tasty -unix,
+               terminfo <0
