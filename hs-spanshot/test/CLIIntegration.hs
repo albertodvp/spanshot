@@ -24,12 +24,16 @@ module Main (main) where
 -- - Uses 'timeout' to handle streaming behavior (since spanshot tails files)
 -- - Tests both success and failure scenarios
 
+import Control.Exception (SomeException, catch)
+import Control.Monad (replicateM)
 import Data.Aeson (Value, eitherDecode)
 import Data.ByteString.Lazy qualified as BL
 import Data.ByteString.Lazy.Char8 qualified as BLC
 import Data.List (isInfixOf)
 import System.Exit (ExitCode (..))
-import System.Process (readProcessWithExitCode)
+import System.IO (BufferMode (..), hGetLine, hSetBuffering)
+import System.Process (CreateProcess (..), StdStream (..), createProcess, proc, readProcessWithExitCode, terminateProcess, waitForProcess)
+import System.Timeout (timeout)
 import Test.Tasty (TestTree, defaultMain, testGroup)
 import Test.Tasty.HUnit (assertBool, assertFailure, testCase, (@?=))
 
@@ -110,22 +114,20 @@ errorHandlingTests binary =
 
 runCollectToEnd :: FilePath -> FilePath -> Int -> IO BL.ByteString
 runCollectToEnd binary logfile expectedLines = do
-    let timeoutSeconds = if expectedLines > 100 then "10s" else "3s"
-    (exitCode, stdout, stderr) <-
-        readProcessWithExitCode
-            "timeout"
-            ["--signal=TERM", "--kill-after=1s", timeoutSeconds, binary, "collect", "--logfile", logfile]
-            ""
-    case exitCode of
-        ExitSuccess -> extractLines stdout
-        ExitFailure 124 -> extractLines stdout
-        ExitFailure code -> error $ "Binary failed with exit code " ++ show code ++ ":\n" ++ stderr
-  where
-    extractLines stdout = do
-        let outputLines = BLC.lines (BLC.pack stdout)
-        if length outputLines >= expectedLines || expectedLines == 0
-            then pure $ BL.fromStrict $ BLC.toStrict $ BLC.unlines $ take expectedLines outputLines
-            else error $ "Expected at least " ++ show expectedLines ++ " lines, got " ++ show (length outputLines)
+    let timeoutMicroseconds = if expectedLines > 100 then 10_000_000 else 3_000_000
+    let procSpec = (proc binary ["collect", "--logfile", logfile]){std_out = CreatePipe, std_err = CreatePipe}
+    (_, Just hOut, _, ph) <- createProcess procSpec
+    hSetBuffering hOut LineBuffering
+    result <-
+        timeout timeoutMicroseconds $ do
+            if expectedLines == 0
+                then pure []
+                else replicateM expectedLines (hGetLine hOut) `catch` \(e :: SomeException) -> error $ "Error reading lines: " ++ show e
+    terminateProcess ph
+    _ <- waitForProcess ph
+    case result of
+        Nothing -> error "Process timed out before producing expected number of lines"
+        Just outputLines -> pure $ BLC.pack $ unlines outputLines
 
 validateJSONLine :: (Int, BL.ByteString) -> IO ()
 validateJSONLine (lineNum, line) = do
