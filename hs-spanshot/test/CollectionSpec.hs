@@ -48,9 +48,9 @@ collectionTests = do
 
             _ <- forkIO $ do
                 threadDelay 100000
-                callCommand $ "echo 'line 3' >> " ++ tempFile
-                callCommand $ "echo 'line 4' >> " ++ tempFile
-                callCommand $ "echo 'line 5' >> " ++ tempFile
+                callCommand $ "echo line 3>> " ++ tempFile
+                callCommand $ "echo line 4>> " ++ tempFile
+                callCommand $ "echo line 5>> " ++ tempFile
 
             events <- S.toList_ $ S.take 5 $ collectFromFile testOptions tempFile
             length events `shouldBe` 5
