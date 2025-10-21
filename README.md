@@ -165,6 +165,10 @@ Each line is a JSON event:
 - ❌ Analyze phase (AI diagnosis)
 - ❌ Deliver phase (notifications)
 
+**Platform-Specific:**
+
+- ❌ **Windows**: Concurrent file access limitation - When `spanshot` is reading a log file, other processes cannot append to it simultaneously due to Windows' strict file locking. This affects real-time log tailing scenarios where logs are actively being written. Future versions will implement proper file sharing using Win32 API. **Workaround**: Use log rotation or batch processing instead of real-time tailing on Windows.
+
 ## Development
 
 ```bash
