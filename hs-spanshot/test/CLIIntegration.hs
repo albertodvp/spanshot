@@ -24,7 +24,7 @@ module Main (main) where
 -- - Uses 'timeout' to handle streaming behavior (since spanshot tails files)
 -- - Tests both success and failure scenarios
 
-import Control.Exception (SomeException, catch)
+import Control.Exception (bracket)
 import Control.Monad (replicateM)
 import Data.Aeson (Value, eitherDecode)
 import Data.ByteString.Lazy qualified as BL
@@ -115,19 +115,20 @@ errorHandlingTests binary =
 runCollectToEnd :: FilePath -> FilePath -> Int -> IO BL.ByteString
 runCollectToEnd binary logfile expectedLines = do
     let timeoutMicroseconds = if expectedLines > 100 then 10_000_000 else 3_000_000
-    let procSpec = (proc binary ["collect", "--logfile", logfile]){std_out = CreatePipe, std_err = CreatePipe}
-    (_, Just hOut, _, ph) <- createProcess procSpec
-    hSetBuffering hOut LineBuffering
-    result <-
-        timeout timeoutMicroseconds $ do
-            if expectedLines == 0
-                then pure []
-                else replicateM expectedLines (hGetLine hOut) `catch` \(e :: SomeException) -> error $ "Error reading lines: " ++ show e
-    terminateProcess ph
-    _ <- waitForProcess ph
-    case result of
-        Nothing -> error "Process timed out before producing expected number of lines"
-        Just outputLines -> pure $ BLC.pack $ unlines outputLines
+    let procSpec = (proc binary ["collect", "--logfile", logfile]){std_out = CreatePipe, std_err = Inherit}
+    bracket
+        (createProcess procSpec)
+        (\(_, _, _, ph) -> terminateProcess ph >> waitForProcess ph >> pure ())
+        $ \(_, Just hOut, _, _) -> do
+            hSetBuffering hOut LineBuffering
+            result <-
+                timeout timeoutMicroseconds $
+                    if expectedLines == 0
+                        then pure []
+                        else replicateM expectedLines (hGetLine hOut)
+            case result of
+                Nothing -> assertFailure "Process timed out before producing expected number of lines"
+                Just outputLines -> pure $ BLC.pack $ unlines outputLines
 
 validateJSONLine :: (Int, BL.ByteString) -> IO ()
 validateJSONLine (lineNum, line) = do
