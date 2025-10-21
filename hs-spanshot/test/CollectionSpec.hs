@@ -2,13 +2,13 @@
 
 module CollectionSpec (collectionTests) where
 
-import Control.Concurrent (forkIO, threadDelay)
+import Control.Concurrent (threadDelay)
 import Control.Exception (SomeException, try)
 import Data.Text qualified as T
 import Streaming.Prelude qualified as S
 import System.IO (IOMode (..), hClose, hPutStrLn, openFile, stderr)
 import System.IO.Temp (emptySystemTempFile)
-import System.Process (callCommand)
+import System.Process (createProcess, shell, waitForProcess)
 import Test.Hspec (Spec, describe, expectationFailure, it, shouldBe)
 
 import Collect (collectFromFile)
@@ -54,13 +54,21 @@ collectionTests = do
             hPutStrLn handle "line 2"
             hClose handle
 
-            _ <- forkIO $ do
-                threadDelay 100000
-                callCommand $ "echo line 3 >> " ++ tempFile
-                callCommand $ "echo line 4 >> " ++ tempFile
-                callCommand $ "echo line 5 >> " ++ tempFile
+            let writerScript =
+                    "sleep 0.2 && echo line 3 >> "
+                        ++ tempFile
+                        ++ " && echo line 4 >> "
+                        ++ tempFile
+                        ++ " && echo line 5 >> "
+                        ++ tempFile
+
+            (_, _, _, writerHandle) <- createProcess (shell writerScript)
+
+            threadDelay 10000
 
             events <- S.toList_ $ S.take 5 $ collectFromFile testOptions tempFile
+
+            _ <- waitForProcess writerHandle
             length events `shouldBe` 5
             map sessionOrderId events `shouldBe` [0, 1, 2, 3, 4]
             map line events `shouldBe` [T.pack "line 1", T.pack "line 2", T.pack "line 3", T.pack "line 4", T.pack "line 5"]
