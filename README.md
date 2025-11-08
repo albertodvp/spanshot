@@ -77,8 +77,6 @@ just build
 # Run tests
 just test
 
-# Install
-cabal install
 ```
 
 ## Quick Start
