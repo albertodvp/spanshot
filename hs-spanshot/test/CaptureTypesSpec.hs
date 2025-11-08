@@ -2,18 +2,16 @@
 
 module CaptureTypesSpec (captureTypesTests) where
 
+import Data.Either (isLeft, isRight)
 import Data.Sequence qualified as Seq
 import Test.Hspec (Spec, describe, it, shouldBe, shouldSatisfy)
 
 import Fixtures (mockEvent)
 import Types (
     ActiveCapture (ActiveCapture, acDetectedBy, acErrorEvent, acPostEvents, acPreWindowSnapshot),
+    CaptureOptions (detectionRules, minContextEvents, postWindowDuration, preWindowDuration),
     CaptureState (csActiveCapture, csPreWindow),
     DetectionRule (RegexRule),
-    captureDetectionRules,
-    captureMinContextEvents,
-    capturePostWindowDuration,
-    capturePreWindowDuration,
     defaultCaptureOptions,
     initialCaptureState,
     mkCaptureOptions,
@@ -24,19 +22,47 @@ captureTypesTests = do
     describe "CaptureOptions" $ do
         it "creates default options with sensible defaults" $ do
             let opts = defaultCaptureOptions
-            capturePreWindowDuration opts `shouldBe` 5
-            capturePostWindowDuration opts `shouldBe` 5
-            captureMinContextEvents opts `shouldBe` 10
-            length (captureDetectionRules opts) `shouldBe` 1
+            preWindowDuration opts `shouldBe` 5
+            postWindowDuration opts `shouldBe` 5
+            minContextEvents opts `shouldBe` 10
+            length (detectionRules opts) `shouldBe` 1
 
         it "default options include ERROR pattern" $ do
             let opts = defaultCaptureOptions
-            let rules = captureDetectionRules opts
+            let rules = detectionRules opts
             rules `shouldSatisfy` any (\(RegexRule p) -> p == "ERROR")
 
         it "creates options with minContextEvents" $ do
             let Right opts = mkCaptureOptions 5 5 10 [RegexRule "ERROR"]
-            captureMinContextEvents opts `shouldBe` 10
+            minContextEvents opts `shouldBe` 10
+
+        it "rejects negative preWindowDuration" $ do
+            let result = mkCaptureOptions (-1) 5 10 [RegexRule "ERROR"]
+            result `shouldSatisfy` isLeft
+
+        it "rejects negative postWindowDuration" $ do
+            let result = mkCaptureOptions 5 (-1) 10 [RegexRule "ERROR"]
+            result `shouldSatisfy` isLeft
+
+        it "rejects minContextEvents less than 1" $ do
+            let result = mkCaptureOptions 5 5 0 [RegexRule "ERROR"]
+            result `shouldSatisfy` isLeft
+
+        it "rejects both windows being zero" $ do
+            let result = mkCaptureOptions 0 0 10 [RegexRule "ERROR"]
+            result `shouldSatisfy` isLeft
+
+        it "accepts zero preWindowDuration with positive postWindowDuration" $ do
+            let result = mkCaptureOptions 0 5 10 [RegexRule "ERROR"]
+            result `shouldSatisfy` isRight
+
+        it "accepts zero postWindowDuration with positive preWindowDuration" $ do
+            let result = mkCaptureOptions 5 0 10 [RegexRule "ERROR"]
+            result `shouldSatisfy` isRight
+
+        it "rejects empty detection rules" $ do
+            let result = mkCaptureOptions 5 5 10 []
+            result `shouldSatisfy` isLeft
 
     describe "ActiveCapture" $ do
         it "creates capture with snapshot and empty post-window" $ do

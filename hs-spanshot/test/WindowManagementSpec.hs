@@ -8,7 +8,7 @@ import Test.Hspec (Spec, describe, expectationFailure, it, shouldBe)
 
 import Capture (addToPreWindow)
 import Fixtures (mockEvent)
-import Types (captureDetectionRules, capturePostWindowDuration, defaultCaptureOptions, mkCaptureOptions)
+import Types (CaptureOptions (detectionRules, postWindowDuration), defaultCaptureOptions, mkCaptureOptions)
 
 windowManagementTests :: Spec
 windowManagementTests = do
@@ -21,7 +21,7 @@ windowManagementTests = do
             Seq.length result `shouldBe` 1
 
         it "drops events older than preWindowDuration" $ do
-            opts <- case mkCaptureOptions 5 (capturePostWindowDuration defaultCaptureOptions) 1 (captureDetectionRules defaultCaptureOptions) of
+            opts <- case mkCaptureOptions 5 (postWindowDuration defaultCaptureOptions) 1 (detectionRules defaultCaptureOptions) of
                 Right o -> pure o
                 Left err -> fail $ "Invalid options: " <> err
             let old = mockEvent 0 ("old")
@@ -34,7 +34,7 @@ windowManagementTests = do
             toList result `shouldBe` [recent, current]
 
         it "keeps minContextEvents even if all expired" $ do
-            opts <- case mkCaptureOptions 5 (capturePostWindowDuration defaultCaptureOptions) 3 (captureDetectionRules defaultCaptureOptions) of
+            opts <- case mkCaptureOptions 5 (postWindowDuration defaultCaptureOptions) 3 (detectionRules defaultCaptureOptions) of
                 Right o -> pure o
                 Left err -> fail $ "Invalid options: " <> err
             let e1 = mockEvent 0 ("e1")
@@ -49,7 +49,7 @@ windowManagementTests = do
             toList result `shouldBe` [e2, e3, current]
 
         it "applies time filter when enough events remain" $ do
-            opts <- case mkCaptureOptions 5 (capturePostWindowDuration defaultCaptureOptions) 2 (captureDetectionRules defaultCaptureOptions) of
+            opts <- case mkCaptureOptions 5 (postWindowDuration defaultCaptureOptions) 2 (detectionRules defaultCaptureOptions) of
                 Right o -> pure o
                 Left err -> fail $ "Invalid options: " <> err
             let e1 = mockEvent 0 ("old")
@@ -64,7 +64,7 @@ windowManagementTests = do
             toList result `shouldBe` [e2, e3, e4, current]
 
         it "keeps events exactly at the time boundary" $ do
-            opts <- case mkCaptureOptions 5 (capturePostWindowDuration defaultCaptureOptions) 1 (captureDetectionRules defaultCaptureOptions) of
+            opts <- case mkCaptureOptions 5 (postWindowDuration defaultCaptureOptions) 1 (detectionRules defaultCaptureOptions) of
                 Right o -> pure o
                 Left err -> fail $ "Invalid options: " <> err
             let boundary = mockEvent 5 ("boundary")

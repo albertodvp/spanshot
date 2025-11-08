@@ -1,9 +1,11 @@
 module Collect (
     collectFromFile,
+    collectFromFileWithCleanup,
     collectFromStream,
 ) where
 
 import Control.Concurrent (threadDelay)
+import Control.Exception (bracket)
 import Control.Monad (unless)
 import Control.Monad.IO.Class (liftIO)
 import Data.ByteString qualified as BS
@@ -15,7 +17,7 @@ import Data.Time (getCurrentTime)
 import Streaming (Of, Stream)
 import Streaming.ByteString.Char8 qualified as Q
 import Streaming.Prelude qualified as S
-import System.IO (Handle, IOMode (..), hIsEOF, openFile)
+import System.IO (Handle, IOMode (..), hClose, hIsEOF, openFile)
 
 import Types (CollectEvent (CollectEvent, line, readAtUtc, sessionOrderId, source), CollectOptions (pollIntervalMs))
 
@@ -34,10 +36,20 @@ a 'CollectEvent' for each line. When the end of file is reached, it polls
 (waits and retries) rather than stopping, making it suitable for tailing
 log files that are actively being written to.
 
-The file handle is never closed, as this is designed for infinite streaming.
+The file handle remains open for the duration of the stream. For proper resource
+cleanup (including handling Ctrl+C signals), the caller should use 'bracket' or
+similar resource management when consuming this stream.
+
 Each line is decoded as UTF-8 with lenient error handling.
 
 Example:
+
+@
+bracket (openFile path ReadMode) hClose $ \handle ->
+    S.mapM_ processEvent $ collectFromHandle opts path handle
+@
+
+Or for simpler use cases where the stream will be fully consumed:
 
 @
 events <- S.toList_ $ S.take 10 $ collectFromFile opts "\/var\/log\/app.log"
@@ -52,6 +64,37 @@ collectFromFile opts filePath = do
     let pollingBytes = bytesWithPolling opts handle
     let linesStream = Q.lines pollingBytes
     collectFromStream (T.pack filePath) linesStream
+
+{- | Collect events from a file with proper resource cleanup.
+
+This is a wrapper around 'collectFromFile' that ensures the file handle is
+properly closed, even when the process receives signals like Ctrl+C (SIGINT).
+The file handle cleanup is guaranteed by 'bracket'.
+
+This function is intended to be used as the top-level entry point when you
+want automatic resource management. For more control, use 'collectFromFile'
+and manage the handle lifecycle manually.
+
+Example:
+
+@
+collectFromFileWithCleanup opts path $ \events ->
+    S.mapM_ printEvent events
+@
+-}
+collectFromFileWithCleanup ::
+    CollectOptions ->
+    FilePath ->
+    (Stream (Of CollectEvent) IO () -> IO r) ->
+    IO r
+collectFromFileWithCleanup opts filePath action =
+    bracket
+        (openFile filePath ReadMode)
+        hClose
+        $ \handle -> do
+            let pollingBytes = bytesWithPolling opts handle
+            let linesStream = Q.lines pollingBytes
+            action $ collectFromStream (T.pack filePath) linesStream
 
 {- | Read bytes from a file handle with polling behavior.
 
