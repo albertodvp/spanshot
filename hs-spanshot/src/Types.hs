@@ -5,16 +5,15 @@
 
 module Types (
     CollectEvent (..),
-    CollectOptions (CollectOptions, pollIntervalMs),
+    CollectOptions (pollIntervalMs),
+    mkCollectOptions,
     defaultCollectOptions,
+    maxPollIntervalMs,
+    minPollIntervalMs,
     DetectionRule (RegexRule, regexPattern),
     SpanShot (..),
-    CaptureOptions,
+    CaptureOptions (preWindowDuration, postWindowDuration, minContextEvents, detectionRules),
     mkCaptureOptions,
-    capturePreWindowDuration,
-    capturePostWindowDuration,
-    captureMinContextEvents,
-    captureDetectionRules,
     defaultCaptureOptions,
     ActiveCapture (..),
     CaptureState (..),
@@ -57,6 +56,18 @@ newtype CollectOptions = CollectOptions
     { pollIntervalMs :: Int
     }
     deriving (Show, Eq)
+
+minPollIntervalMs :: Int
+minPollIntervalMs = 10
+
+maxPollIntervalMs :: Int
+maxPollIntervalMs = 60000
+
+mkCollectOptions :: Int -> Either String CollectOptions
+mkCollectOptions interval
+    | interval < minPollIntervalMs = Left "pollIntervalMs must be at least 10 milliseconds"
+    | interval > maxPollIntervalMs = Left "pollIntervalMs must be at most 60000 milliseconds (1 minute)"
+    | otherwise = Right $ CollectOptions{pollIntervalMs = interval}
 
 defaultCollectOptions :: CollectOptions
 defaultCollectOptions =
@@ -113,18 +124,6 @@ data CaptureOptions = CaptureOptions
     }
     deriving (Show, Eq)
 
-capturePreWindowDuration :: CaptureOptions -> NominalDiffTime
-capturePreWindowDuration = preWindowDuration
-
-capturePostWindowDuration :: CaptureOptions -> NominalDiffTime
-capturePostWindowDuration = postWindowDuration
-
-captureMinContextEvents :: CaptureOptions -> Int
-captureMinContextEvents = minContextEvents
-
-captureDetectionRules :: CaptureOptions -> [DetectionRule]
-captureDetectionRules = detectionRules
-
 mkCaptureOptions ::
     NominalDiffTime ->
     NominalDiffTime ->
@@ -132,9 +131,10 @@ mkCaptureOptions ::
     [DetectionRule] ->
     Either String CaptureOptions
 mkCaptureOptions preWin postWin minCtx rules
-    | preWin < 0 = Left "preWindowDuration must be non-negative (seconds)"
-    | postWin < 0 = Left "postWindowDuration must be non-negative (seconds)"
-    | minCtx < 0 = Left "minContextEvents must be non-negative (count of events)"
+    | preWin < 0 = Left "preWindowDuration must be non-negative (>= 0 seconds)"
+    | postWin < 0 = Left "postWindowDuration must be non-negative (>= 0 seconds)"
+    | preWin == 0 && postWin == 0 = Left "At least one of preWindowDuration or postWindowDuration must be positive (> 0)"
+    | minCtx < 1 = Left "minContextEvents must be at least 1"
     | null rules = Left "detectionRules cannot be empty"
     | otherwise =
         Right $

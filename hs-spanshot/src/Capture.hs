@@ -13,15 +13,12 @@ import Text.Regex.TDFA.Text ()
 
 import Data.Maybe (isNothing)
 import Types (
-    ActiveCapture (..),
-    CaptureOptions,
-    CaptureState (..),
-    CollectEvent (..),
-    DetectionRule (..),
-    SpanShot (..),
-    captureDetectionRules,
-    captureMinContextEvents,
-    capturePreWindowDuration,
+    ActiveCapture (ActiveCapture, acDetectedBy, acErrorEvent, acPostEvents, acPreWindowSnapshot),
+    CaptureOptions (detectionRules, minContextEvents, postWindowDuration, preWindowDuration),
+    CaptureState (CaptureState, csActiveCapture, csPreWindow),
+    CollectEvent (CollectEvent, line, readAtUtc, sessionOrderId, source),
+    DetectionRule (RegexRule, regexPattern),
+    SpanShot (SpanShot, capturedAtUtc, detectedBy, errorEvent, postWindow, preWindow),
  )
 
 {- | Check if a detection rule matches a collect event.
@@ -112,10 +109,10 @@ addToPreWindow :: CaptureOptions -> Seq CollectEvent -> CollectEvent -> Seq Coll
 addToPreWindow opts buffer newEvent =
     let
         withNew = buffer Seq.|> newEvent
-        cutoff = addUTCTime (negate $ capturePreWindowDuration opts) (readAtUtc newEvent)
+        cutoff = addUTCTime (negate $ preWindowDuration opts) (readAtUtc newEvent)
         timeFiltered = Seq.dropWhileL (\e -> readAtUtc e < cutoff) withNew
         timeFilteredLen = Seq.length timeFiltered
-        minEvents = captureMinContextEvents opts
+        minEvents = minContextEvents opts
         cleaned =
             if timeFilteredLen >= minEvents
                 then timeFiltered
@@ -163,7 +160,7 @@ Space Complexity: O(n) for snapshot creation when error detected
 processEvent :: CaptureOptions -> CaptureState -> CollectEvent -> (CaptureState, [SpanShot])
 processEvent opts state newEvent =
     let
-        matchedRules = runAllDetectors (captureDetectionRules opts) newEvent
+        matchedRules = runAllDetectors (detectionRules opts) newEvent
         isError = not (null matchedRules)
 
         newCapture =

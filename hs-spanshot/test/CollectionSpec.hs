@@ -4,18 +4,27 @@ module CollectionSpec (collectionTests) where
 
 import Control.Concurrent (threadDelay)
 import Control.Exception (SomeException, try)
+import Data.Either (isLeft, isRight)
 import Data.Text qualified as T
 import Streaming.Prelude qualified as S
-import System.IO (IOMode (..), hClose, hPutStrLn, openFile, stderr)
+import System.IO (IOMode (WriteMode), hClose, hPutStrLn, openFile, stderr)
 import System.IO.Temp (emptySystemTempFile)
 import System.Process (createProcess, shell, waitForProcess)
-import Test.Hspec (Spec, describe, expectationFailure, it, shouldBe)
+import Test.Hspec (Spec, describe, expectationFailure, it, shouldBe, shouldSatisfy)
 
 import Collect (collectFromFile)
-import Types (CollectEvent (line, sessionOrderId, source), CollectOptions (CollectOptions, pollIntervalMs))
+import Types (
+    CollectEvent (line, sessionOrderId, source),
+    CollectOptions,
+    maxPollIntervalMs,
+    minPollIntervalMs,
+    mkCollectOptions,
+ )
 
 testOptions :: CollectOptions
-testOptions = CollectOptions{pollIntervalMs = 50}
+testOptions = case mkCollectOptions 50 of
+    Right opts -> opts
+    Left err -> error $ "Invalid test options: " ++ err
 
 collectionTests :: Spec
 collectionTests = do
@@ -73,3 +82,26 @@ collectionTests = do
             map sessionOrderId events `shouldBe` [0, 1, 2, 3, 4]
             map line events `shouldBe` [T.pack "line 1", T.pack "line 2", T.pack "line 3", T.pack "line 4", T.pack "line 5"]
 #endif
+
+    describe "CollectOptions validation" $ do
+        it "accepts valid poll interval" $ do
+            let result = mkCollectOptions 100
+            result `shouldSatisfy` isRight
+
+        it "rejects poll interval less than 10ms" $ do
+            let result = mkCollectOptions 5
+            result `shouldSatisfy` isLeft
+
+        it "rejects negative poll interval" $ do
+            let result = mkCollectOptions (-1)
+            result `shouldSatisfy` isLeft
+
+        it "rejects poll interval greater than 60 seconds" $ do
+            let result = mkCollectOptions (maxPollIntervalMs + 1)
+            result `shouldSatisfy` isLeft
+
+        it "accepts boundary values" $ do
+            let result1 = mkCollectOptions minPollIntervalMs
+            let result2 = mkCollectOptions maxPollIntervalMs
+            result1 `shouldSatisfy` isRight
+            result2 `shouldSatisfy` isRight

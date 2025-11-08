@@ -11,11 +11,10 @@ import Capture (processEvent)
 import Fixtures (mockEvent)
 import Types (
     ActiveCapture (..),
+    CaptureOptions (minContextEvents, preWindowDuration),
     CaptureState (..),
     DetectionRule (..),
     SpanShot (..),
-    captureMinContextEvents,
-    capturePreWindowDuration,
     defaultCaptureOptions,
     initialCaptureState,
     mkCaptureOptions,
@@ -81,7 +80,7 @@ captureStreamTests = do
             emitted `shouldBe` []
 
         it "emits SpanShot when post-window duration reached" $ do
-            opts <- case mkCaptureOptions (capturePreWindowDuration defaultCaptureOptions) 5 (captureMinContextEvents defaultCaptureOptions) [RegexRule "ERROR"] of
+            opts <- case mkCaptureOptions (preWindowDuration defaultCaptureOptions) 5 (minContextEvents defaultCaptureOptions) [RegexRule "ERROR"] of
                 Right o -> pure o
                 Left err -> fail $ "Invalid options: " <> err
             let errorEvt = mockEvent 10 ("ERROR")
@@ -102,7 +101,7 @@ captureStreamTests = do
             csActiveCapture newState `shouldBe` Nothing
 
         it "continues tracking when post-window duration not reached" $ do
-            opts <- case mkCaptureOptions (capturePreWindowDuration defaultCaptureOptions) 5 (captureMinContextEvents defaultCaptureOptions) [RegexRule "ERROR"] of
+            opts <- case mkCaptureOptions (preWindowDuration defaultCaptureOptions) 5 (minContextEvents defaultCaptureOptions) [RegexRule "ERROR"] of
                 Right o -> pure o
                 Left err -> fail $ "Invalid options: " <> err
             let errorEvt = mockEvent 10 ("ERROR")
@@ -121,7 +120,7 @@ captureStreamTests = do
 
     describe "Single active capture policy" $ do
         it "second error goes into first error's post-window" $ do
-            opts <- case mkCaptureOptions (capturePreWindowDuration defaultCaptureOptions) 5 (captureMinContextEvents defaultCaptureOptions) [RegexRule "ERROR"] of
+            opts <- case mkCaptureOptions (preWindowDuration defaultCaptureOptions) 5 (minContextEvents defaultCaptureOptions) [RegexRule "ERROR"] of
                 Right o -> pure o
                 Left err -> fail $ "Invalid options: " <> err
             let error1 = mockEvent 10 ("ERROR first")
@@ -139,7 +138,7 @@ captureStreamTests = do
             emitted `shouldBe` []
 
         it "creates new capture after previous completes" $ do
-            opts <- case mkCaptureOptions (capturePreWindowDuration defaultCaptureOptions) 5 (captureMinContextEvents defaultCaptureOptions) [RegexRule "ERROR"] of
+            opts <- case mkCaptureOptions (preWindowDuration defaultCaptureOptions) 5 (minContextEvents defaultCaptureOptions) [RegexRule "ERROR"] of
                 Right o -> pure o
                 Left err -> fail $ "Invalid options: " <> err
             let error1 = mockEvent 10 ("ERROR first")
