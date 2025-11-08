@@ -55,8 +55,6 @@
         };
 
         packages = {
-          hello = pkgs.hello;
-          default = config.packages.hello;
         };
 
         devShells.default = pkgs.mkShell {
