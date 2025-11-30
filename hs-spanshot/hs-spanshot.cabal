@@ -24,6 +24,7 @@ library
     import:           warnings
     exposed-modules:  
         Types
+        Config
         Collect
         Capture
     -- other-modules:
@@ -64,6 +65,7 @@ test-suite hs-spanshot-test
         CollectionSpec
         CaptureTypesSpec
         CaptureStreamSpec
+        ConfigSpec
         DetectionSpec
         SerializationProperties
         WindowManagementSpec
