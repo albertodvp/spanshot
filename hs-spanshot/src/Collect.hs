@@ -45,8 +45,8 @@ Each line is decoded as UTF-8 with lenient error handling.
 Example:
 
 @
-bracket (openFile path ReadMode) hClose $ \handle ->
-    S.mapM_ processEvent $ collectFromHandle opts path handle
+collectFromFileWithCleanup opts path $ \\events ->
+    S.mapM_ processEvent events
 @
 
 Or for simpler use cases where the stream will be fully consumed:
