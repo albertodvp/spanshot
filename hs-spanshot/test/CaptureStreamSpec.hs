@@ -5,7 +5,7 @@ module CaptureStreamSpec (captureStreamTests) where
 import Data.Foldable (toList)
 import Data.Maybe (isJust)
 import Data.Sequence qualified as Seq
-import Test.Hspec (Spec, describe, expectationFailure, it, shouldBe, shouldContain, shouldSatisfy)
+import Test.Hspec (Spec, describe, it, shouldBe, shouldContain, shouldSatisfy)
 
 import Capture (processEvent)
 import Fixtures (mockEvent)
@@ -38,7 +38,7 @@ captureStreamTests = do
                     acErrorEvent cap `shouldBe` errorEvt
                     Seq.length (acPreWindowSnapshot cap) `shouldBe` 2
                     Seq.length (acPostEvents cap) `shouldBe` 0
-            emitted `shouldBe` []
+            emitted `shouldBe` Nothing
 
         it "snapshot does not include error event itself" $ do
             let opts = defaultCaptureOptions
@@ -62,7 +62,7 @@ captureStreamTests = do
             let (newState, emitted) = processEvent opts state infoEvt
 
             csActiveCapture newState `shouldBe` Nothing
-            emitted `shouldBe` []
+            emitted `shouldBe` Nothing
 
     describe "Post-window tracking" $ do
         it "adds events to active post-window" $ do
@@ -77,7 +77,7 @@ captureStreamTests = do
             case csActiveCapture newState of
                 Nothing -> fail "Expected active capture to continue"
                 Just updatedCap -> Seq.length (acPostEvents updatedCap) `shouldBe` 1
-            emitted `shouldBe` []
+            emitted `shouldBe` Nothing
 
         it "emits SpanShot when post-window duration reached" $ do
             opts <- case mkCaptureOptions (preWindowDuration defaultCaptureOptions) 5 (minContextEvents defaultCaptureOptions) [RegexRule "ERROR"] of
@@ -93,11 +93,11 @@ captureStreamTests = do
             let (newState, emitted) = processEvent opts state finalEvt
 
             case emitted of
-                [spanshot] -> do
+                Just spanshot -> do
                     errorEvent spanshot `shouldBe` errorEvt
                     length (preWindow spanshot) `shouldBe` 2
                     length (postWindow spanshot) `shouldBe` 2
-                _ -> fail "Expected one element"
+                Nothing -> fail "Expected a SpanShot"
             csActiveCapture newState `shouldBe` Nothing
 
         it "continues tracking when post-window duration not reached" $ do
@@ -111,7 +111,7 @@ captureStreamTests = do
 
             let (newState, emitted) = processEvent opts state earlyEvt
 
-            emitted `shouldBe` []
+            emitted `shouldBe` Nothing
             case csActiveCapture newState of
                 Nothing -> fail "Expected capture to continue"
                 Just updatedCap -> do
@@ -135,7 +135,7 @@ captureStreamTests = do
                 Just updatedCap -> do
                     acErrorEvent updatedCap `shouldBe` error1
                     toList (acPostEvents updatedCap) `shouldContain` [error2]
-            emitted `shouldBe` []
+            emitted `shouldBe` Nothing
 
         it "creates new capture after previous completes" $ do
             opts <- case mkCaptureOptions (preWindowDuration defaultCaptureOptions) 5 (minContextEvents defaultCaptureOptions) [RegexRule "ERROR"] of
@@ -147,7 +147,7 @@ captureStreamTests = do
             let completionEvt = mockEvent 16 ("INFO")
 
             let (stateAfterCompletion, emitted1) = processEvent opts state completionEvt
-            length emitted1 `shouldBe` 1
+            emitted1 `shouldSatisfy` isJust
             csActiveCapture stateAfterCompletion `shouldBe` Nothing
 
             let error2 = mockEvent 20 ("ERROR second")
@@ -157,4 +157,4 @@ captureStreamTests = do
             case csActiveCapture finalState of
                 Nothing -> fail "Expected new capture"
                 Just newCap -> acErrorEvent newCap `shouldBe` error2
-            emitted2 `shouldBe` []
+            emitted2 `shouldBe` Nothing
