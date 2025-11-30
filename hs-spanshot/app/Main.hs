@@ -1,9 +1,12 @@
 module Main where
 
 import Collect (collectFromFileWithCleanup)
+import Config (getConfigPath, loadConfig)
 import Control.Exception (IOException, catch)
 import Data.Aeson qualified as Aeson
+import Data.ByteString.Char8 qualified as BS
 import Data.ByteString.Lazy.Char8 qualified as BL
+import Data.Yaml qualified as Yaml
 import OptEnvConf (
     HasParser (settingsParser),
     command,
@@ -30,8 +33,9 @@ newtype Instructions = Instructions Dispatch
 instance HasParser Instructions where
     settingsParser = Instructions <$> settingsParser
 
-newtype Dispatch
+data Dispatch
     = DispatchCollect CollectSettings
+    | DispatchConfig ConfigCommand
     deriving (Show)
 
 instance HasParser Dispatch where
@@ -39,6 +43,20 @@ instance HasParser Dispatch where
         commands
             [ command "collect" "Collect logs from a file and output JSONL events" $
                 DispatchCollect <$> settingsParser
+            , command "config" "Manage configuration" $
+                DispatchConfig <$> settingsParser
+            ]
+
+data ConfigCommand
+    = ConfigShow
+    | ConfigPath
+    deriving (Show)
+
+instance HasParser ConfigCommand where
+    settingsParser =
+        commands
+            [ command "show" "Show current configuration" $ pure ConfigShow
+            , command "path" "Show configuration file path" $ pure ConfigPath
             ]
 
 newtype CollectSettings = CollectSettings
@@ -67,11 +85,21 @@ main = do
     case dispatch of
         DispatchCollect (CollectSettings logfilePath) ->
             runCollect logfilePath `catch` handleIOError logfilePath
+        DispatchConfig cmd ->
+            runConfig cmd
 
 runCollect :: FilePath -> IO ()
 runCollect logfilePath =
     collectFromFileWithCleanup defaultCollectOptions logfilePath $ \events ->
         S.mapM_ printEvent events
+
+runConfig :: ConfigCommand -> IO ()
+runConfig ConfigShow = do
+    config <- loadConfig
+    BS.putStrLn $ Yaml.encode config
+runConfig ConfigPath = do
+    path <- getConfigPath
+    putStrLn path
 
 handleIOError :: FilePath -> IOException -> IO ()
 handleIOError path e
