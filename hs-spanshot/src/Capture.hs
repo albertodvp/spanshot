@@ -16,18 +16,18 @@ import Types (
     ActiveCapture (ActiveCapture, acDetectedBy, acErrorEvent, acPostEvents, acPreWindowSnapshot),
     CaptureOptions (detectionRules, minContextEvents, postWindowDuration, preWindowDuration),
     CaptureState (CaptureState, csActiveCapture, csPreWindow),
-    CollectEvent (CollectEvent, line, readAtUtc, sessionOrderId, source),
-    DetectionRule (RegexRule, regexPattern),
+    CollectEvent (CollectEvent, line, readAtUtc),
+    DetectionRule (RegexRule),
     SpanShot (SpanShot, capturedAtUtc, detectedBy, errorEvent, postWindow, preWindow),
  )
 
 {- | Check if a detection rule matches a collect event.
 
-Takes a 'DetectionRule' and applies it to a 'CollectEvent', returning
+Takes a 'Types.DetectionRule' and applies it to a 'Types.Types.CollectEvent', returning
 'True' if the event matches the rule, 'False' otherwise.
 
 Currently supports:
-* 'RegexRule': Matches if the event's line matches the regex pattern
+* 'Types.RegexRule': Matches if the event's line matches the regex pattern
 
 Example:
 
@@ -41,8 +41,8 @@ Time Complexity: O(n × m) where n = line length, m = pattern length
   (typical regex matching complexity)
 Space Complexity: O(1) - no additional allocation beyond regex engine
 -}
-detectError :: DetectionRule -> CollectEvent -> Bool
-detectError (RegexRule pat) event =
+detectError :: Types.DetectionRule -> Types.CollectEvent -> Bool
+detectError (Types.RegexRule pat) event =
     line event =~ pat
 
 {- | Run all detection rules against an event.
@@ -71,7 +71,7 @@ consider optimizing with:
 - Parallel rule evaluation
 - Short-circuit on first match (if only one match needed)
 -}
-runAllDetectors :: [DetectionRule] -> CollectEvent -> [DetectionRule]
+runAllDetectors :: [Types.DetectionRule] -> Types.CollectEvent -> [Types.DetectionRule]
 runAllDetectors rules event = filter (`detectError` event) rules
 
 {- | Add an event to the pre-window buffer with smart cleanup.
@@ -105,7 +105,7 @@ Result: [t=1, t=2, t=100]  -- Keep last 3
 Time Complexity: O(n) for dropWhileL + O(n) for drop = O(n)
 Space Complexity: O(1) - structural sharing in Seq
 -}
-addToPreWindow :: CaptureOptions -> Seq CollectEvent -> CollectEvent -> Seq CollectEvent
+addToPreWindow :: Types.CaptureOptions -> Seq Types.CollectEvent -> Types.CollectEvent -> Seq Types.CollectEvent
 addToPreWindow opts buffer newEvent =
     let
         withNew = buffer Seq.|> newEvent
@@ -132,12 +132,13 @@ This is the core of the streaming capture logic. For each incoming event:
    - Clone current pre-window as snapshot (excluding the error itself)
    - Create ActiveCapture with empty post-window
 3. Update pre-window with the new event (including errors for future context)
-4. Return new state and any completed SpanShots (empty for now - Phase 4 handles completion)
+4. Return new state and any completed SpanShots (emitted when postWindowDuration elapses)
 
 Key behavior:
 - Error event is NOT included in its own pre-window snapshot
 - Error event IS added to main pre-window for future errors to see
-- Single active capture policy: if capture already active, ignore new errors (Phase 5)
+- Single active capture policy: if capture already active, ignore new errors
+- Post-window events are accumulated until postWindowDuration elapses, then SpanShot is emitted
 
 Example:
 
@@ -145,19 +146,24 @@ Example:
 -- No error, just add to pre-window
 state = CaptureState [t=1, t=2] Nothing
 event = t=3 "INFO"
-result = (CaptureState [t=1, t=2, t=3] Nothing, [])
+result = (CaptureState [t=1, t=2, t=3] Nothing, Nothing)
 
 -- Error detected, snapshot and create capture
 state = CaptureState [t=1, t=2] Nothing
 event = t=3 "ERROR"
-result = (CaptureState [t=1, t=2, t=3] (Just capture), [])
+result = (CaptureState [t=1, t=2, t=3] (Just capture), Nothing)
   where capture.preWindowSnapshot = [t=1, t=2]  -- no t=3!
+
+-- Post-window completes, emit SpanShot
+state = CaptureState [t=1, t=2, t=3] (Just activeCapture)
+event = t=8 "INFO"  -- 5 seconds after error
+result = (CaptureState [t=1, t=2, t=3, t=8] Nothing, Just spanshot)
 @
 
 Time Complexity: O(n) for pre-window cleanup + O(k) for rule checking
 Space Complexity: O(n) for snapshot creation when error detected
 -}
-processEvent :: CaptureOptions -> CaptureState -> CollectEvent -> (CaptureState, [SpanShot])
+processEvent :: Types.CaptureOptions -> Types.CaptureState -> Types.CollectEvent -> (Types.CaptureState, Maybe Types.SpanShot)
 processEvent opts state newEvent =
     let
         matchedRules = runAllDetectors (detectionRules opts) newEvent
@@ -168,16 +174,16 @@ processEvent opts state newEvent =
             Nothing
                 | isError ->
                     ( Just $
-                        ActiveCapture
+                        Types.ActiveCapture
                             { acErrorEvent = newEvent
                             , acDetectedBy = matchedRules
                             , acPreWindowSnapshot = csPreWindow state
                             , acPostEvents = Seq.empty
                             }
-                    , []
+                    , Nothing
                     )
                 | otherwise ->
-                    (Nothing, [])
+                    (Nothing, Nothing)
             Just cap ->
                 let
                     errorTime = readAtUtc (acErrorEvent cap)
@@ -188,22 +194,21 @@ processEvent opts state newEvent =
                     if shouldEmit
                         then
                             ( Nothing
-                            ,
-                                [ SpanShot
+                            , Just
+                                Types.SpanShot
                                     { errorEvent = acErrorEvent cap
                                     , preWindow = toList (acPreWindowSnapshot cap)
                                     , postWindow = toList (acPostEvents cap)
                                     , detectedBy = acDetectedBy cap
                                     , capturedAtUtc = eventTime
                                     }
-                                ]
                             )
                         else
                             let updatedPost = acPostEvents cap Seq.|> newEvent
-                             in (Just cap{acPostEvents = updatedPost}, [])
+                             in (Just cap{acPostEvents = updatedPost}, Nothing)
 
         newState =
-            CaptureState
+            Types.CaptureState
                 { csPreWindow = updatedPreWindow
                 , csActiveCapture = newCapture
                 }
