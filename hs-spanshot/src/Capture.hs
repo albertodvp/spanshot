@@ -5,13 +5,13 @@ module Capture (
     processEvent,
 ) where
 
+import Data.Foldable (toList)
 import Data.Sequence (Seq)
 import Data.Sequence qualified as Seq
-import Data.Time (addUTCTime)
+import Data.Time (addUTCTime, diffUTCTime)
 import Text.Regex.TDFA ((=~))
 import Text.Regex.TDFA.Text ()
 
-import Data.Maybe (isNothing)
 import Types (
     ActiveCapture (ActiveCapture, acDetectedBy, acErrorEvent, acPostEvents, acPreWindowSnapshot),
     CaptureOptions (detectionRules, minContextEvents, postWindowDuration, preWindowDuration),
@@ -162,20 +162,45 @@ processEvent opts state newEvent =
     let
         matchedRules = runAllDetectors (detectionRules opts) newEvent
         isError = not (null matchedRules)
+        updatedPreWindow = addToPreWindow opts (csPreWindow state) newEvent
 
-        newCapture =
-            if isError && isNothing (csActiveCapture state)
-                then
-                    Just $
+        (newCapture, emittedShots) = case csActiveCapture state of
+            Nothing
+                | isError ->
+                    ( Just $
                         ActiveCapture
                             { acErrorEvent = newEvent
                             , acDetectedBy = matchedRules
                             , acPreWindowSnapshot = csPreWindow state
                             , acPostEvents = Seq.empty
                             }
-                else csActiveCapture state
-
-        updatedPreWindow = addToPreWindow opts (csPreWindow state) newEvent
+                    , []
+                    )
+                | otherwise ->
+                    (Nothing, [])
+            Just cap ->
+                let
+                    errorTime = readAtUtc (acErrorEvent cap)
+                    eventTime = readAtUtc newEvent
+                    elapsed = diffUTCTime eventTime errorTime
+                    shouldEmit = elapsed >= postWindowDuration opts
+                 in
+                    if shouldEmit
+                        then
+                            ( Nothing
+                            ,
+                                [ SpanShot
+                                    { errorEvent = acErrorEvent cap
+                                    , preWindow = toList (acPreWindowSnapshot cap)
+                                    , postWindow = toList (acPostEvents cap)
+                                    , detectedBy = acDetectedBy cap
+                                    , capturedAtUtc = eventTime
+                                    }
+                                ]
+                            )
+                        else
+                            let updatedPost = acPostEvents cap Seq.|> newEvent
+                             in (Just cap{acPostEvents = updatedPost}, [])
 
         newState =
             CaptureState
@@ -183,4 +208,4 @@ processEvent opts state newEvent =
                 , csActiveCapture = newCapture
                 }
      in
-        (newState, [])
+        (newState, emittedShots)
