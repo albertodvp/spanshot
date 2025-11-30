@@ -47,6 +47,7 @@ main = do
             "CLI Integration Tests"
             [ outputValidationTests binaryPath
             , behaviorTests binaryPath
+            , configTests binaryPath
             , errorHandlingTests binaryPath
             ]
 
@@ -101,6 +102,28 @@ behaviorTests binary =
             (exitCode, stdout, _) <- readProcessWithExitCode binary ["collect", "--help"] ""
             exitCode @?= ExitSuccess
             assertBool "Help mentions logfile" $ "logfile" `isInfixOf` stdout
+        ]
+
+configTests :: FilePath -> TestTree
+configTests binary =
+    testGroup
+        "Config Command Tests"
+        [ testCase "config path shows a path" $ do
+            (exitCode, stdout, _) <- readProcessWithExitCode binary ["config", "path"] ""
+            exitCode @?= ExitSuccess
+            assertBool "Output contains config.yaml" $ "config.yaml" `isInfixOf` stdout
+            assertBool "Output contains spanshot" $ "spanshot" `isInfixOf` stdout
+        , testCase "config show outputs valid YAML" $ do
+            (exitCode, stdout, _) <- readProcessWithExitCode binary ["config", "show"] ""
+            exitCode @?= ExitSuccess
+            assertBool "Output contains capture section" $ "capture:" `isInfixOf` stdout
+            assertBool "Output contains pre_window_duration" $ "pre_window_duration" `isInfixOf` stdout
+            assertBool "Output contains detection_rules" $ "detection_rules" `isInfixOf` stdout
+        , testCase "config subcommand shows help" $ do
+            (exitCode, stdout, _) <- readProcessWithExitCode binary ["config", "--help"] ""
+            exitCode @?= ExitSuccess
+            assertBool "Help mentions show" $ "show" `isInfixOf` stdout
+            assertBool "Help mentions path" $ "path" `isInfixOf` stdout
         ]
 
 errorHandlingTests :: FilePath -> TestTree
