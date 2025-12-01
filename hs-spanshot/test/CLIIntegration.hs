@@ -119,16 +119,18 @@ runCollectToEnd binary logfile expectedLines = do
     bracket
         (createProcess procSpec)
         (\(_, _, _, ph) -> terminateProcess ph >> waitForProcess ph >> pure ())
-        $ \(_, Just hOut, _, _) -> do
-            hSetBuffering hOut LineBuffering
-            result <-
-                timeout timeoutMicroseconds $
-                    if expectedLines == 0
-                        then pure []
-                        else replicateM expectedLines (hGetLine hOut)
-            case result of
-                Nothing -> assertFailure "Process timed out before producing expected number of lines"
-                Just outputLines -> pure $ BLC.pack $ unlines outputLines
+        $ \(_, mHOut, _, _) -> case mHOut of
+            Nothing -> assertFailure "Failed to get stdout handle"
+            Just hOut -> do
+                hSetBuffering hOut LineBuffering
+                result <-
+                    timeout timeoutMicroseconds $
+                        if expectedLines == 0
+                            then pure []
+                            else replicateM expectedLines (hGetLine hOut)
+                case result of
+                    Nothing -> assertFailure "Process timed out before producing expected number of lines"
+                    Just outputLines -> pure $ BLC.pack $ unlines outputLines
 
 validateJSONLine :: (Int, BL.ByteString) -> IO ()
 validateJSONLine (lineNum, line) = do

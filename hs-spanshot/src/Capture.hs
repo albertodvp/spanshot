@@ -16,18 +16,18 @@ import Types (
     ActiveCapture (ActiveCapture, acDetectedBy, acErrorEvent, acPostEvents, acPreWindowSnapshot),
     CaptureOptions (detectionRules, minContextEvents, postWindowDuration, preWindowDuration),
     CaptureState (CaptureState, csActiveCapture, csPreWindow),
-    CollectEvent (CollectEvent, line, readAtUtc),
+    CollectEvent (line, readAtUtc),
     DetectionRule (RegexRule),
     SpanShot (SpanShot, capturedAtUtc, detectedBy, errorEvent, postWindow, preWindow),
  )
 
 {- | Check if a detection rule matches a collect event.
 
-Takes a 'Types.DetectionRule' and applies it to a 'Types.Types.CollectEvent', returning
+Takes a 'DetectionRule' and applies it to a 'CollectEvent', returning
 'True' if the event matches the rule, 'False' otherwise.
 
 Currently supports:
-* 'Types.RegexRule': Matches if the event's line matches the regex pattern
+* 'RegexRule': Matches if the event's line matches the regex pattern
 
 Example:
 
@@ -41,8 +41,8 @@ Time Complexity: O(n × m) where n = line length, m = pattern length
   (typical regex matching complexity)
 Space Complexity: O(1) - no additional allocation beyond regex engine
 -}
-detectError :: Types.DetectionRule -> Types.CollectEvent -> Bool
-detectError (Types.RegexRule pat) event =
+detectError :: DetectionRule -> CollectEvent -> Bool
+detectError (RegexRule pat) event =
     line event =~ pat
 
 {- | Run all detection rules against an event.
@@ -71,7 +71,7 @@ consider optimizing with:
 - Parallel rule evaluation
 - Short-circuit on first match (if only one match needed)
 -}
-runAllDetectors :: [Types.DetectionRule] -> Types.CollectEvent -> [Types.DetectionRule]
+runAllDetectors :: [DetectionRule] -> CollectEvent -> [DetectionRule]
 runAllDetectors rules event = filter (`detectError` event) rules
 
 {- | Add an event to the pre-window buffer with smart cleanup.
@@ -105,7 +105,7 @@ Result: [t=1, t=2, t=100]  -- Keep last 3
 Time Complexity: O(n) for dropWhileL + O(n) for drop = O(n)
 Space Complexity: O(1) - structural sharing in Seq
 -}
-addToPreWindow :: Types.CaptureOptions -> Seq Types.CollectEvent -> Types.CollectEvent -> Seq Types.CollectEvent
+addToPreWindow :: CaptureOptions -> Seq CollectEvent -> CollectEvent -> Seq CollectEvent
 addToPreWindow opts buffer newEvent =
     let
         withNew = buffer Seq.|> newEvent
@@ -170,7 +170,7 @@ Memory considerations:
   with log volume within postWindowDuration. This is a deliberate simplification for v0.1;
   a maxPostWindowEvents option may be added in future versions if needed.
 -}
-processEvent :: Types.CaptureOptions -> Types.CaptureState -> Types.CollectEvent -> (Types.CaptureState, Maybe Types.SpanShot)
+processEvent :: CaptureOptions -> CaptureState -> CollectEvent -> (CaptureState, Maybe SpanShot)
 processEvent opts state newEvent =
     let
         matchedRules = runAllDetectors (detectionRules opts) newEvent
@@ -181,7 +181,7 @@ processEvent opts state newEvent =
             Nothing
                 | isError ->
                     ( Just $
-                        Types.ActiveCapture
+                        ActiveCapture
                             { acErrorEvent = newEvent
                             , acDetectedBy = matchedRules
                             , acPreWindowSnapshot = csPreWindow state
@@ -202,7 +202,7 @@ processEvent opts state newEvent =
                         then
                             ( Nothing
                             , Just
-                                Types.SpanShot
+                                SpanShot
                                     { errorEvent = acErrorEvent cap
                                     , preWindow = toList (acPreWindowSnapshot cap)
                                     , postWindow = toList (acPostEvents cap)
@@ -215,7 +215,7 @@ processEvent opts state newEvent =
                              in (Just cap{acPostEvents = updatedPost}, Nothing)
 
         newState =
-            Types.CaptureState
+            CaptureState
                 { csPreWindow = updatedPreWindow
                 , csActiveCapture = newCapture
                 }
