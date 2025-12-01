@@ -57,6 +57,17 @@ executable spanshot
     hs-source-dirs:   app
     default-language: GHC2024
 
+executable log-generator
+    import:           warnings
+    main-is:          LogGenerator.hs
+    build-depends:
+        base >=4.19.2.0 && <5,
+        random ^>=1.2,
+        text ^>=2.1,
+        time ^>=1.12
+    hs-source-dirs:   app
+    default-language: GHC2024
+
 test-suite hs-spanshot-test
     import:           warnings
     default-language: GHC2024
