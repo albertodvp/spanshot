@@ -162,6 +162,13 @@ result = (CaptureState [t=1, t=2, t=3, t=8] Nothing, Just spanshot)
 
 Time Complexity: O(n) for pre-window cleanup + O(k) for rule checking
 Space Complexity: O(n) for snapshot creation when error detected
+
+Memory considerations:
+- Pre-window is bounded by preWindowDuration (time) and minContextEvents (count fallback)
+- Post-window is bounded by postWindowDuration (time) only, with no hard event count limit
+- In high-throughput scenarios (e.g., 1000s of events/second), post-window memory scales
+  with log volume within postWindowDuration. This is a deliberate simplification for v0.1;
+  a maxPostWindowEvents option may be added in future versions if needed.
 -}
 processEvent :: Types.CaptureOptions -> Types.CaptureState -> Types.CollectEvent -> (Types.CaptureState, Maybe Types.SpanShot)
 processEvent opts state newEvent =

@@ -154,6 +154,12 @@ defaultCaptureOptions =
         , detectionRules = [RegexRule "ERROR"]
         }
 
+{- | Active capture state during post-window collection.
+
+Memory note: 'acPostEvents' grows unbounded until 'postWindowDuration' elapses.
+In high-throughput scenarios, this may consume significant memory proportional
+to log volume within that time window. See 'processEvent' for details.
+-}
 data ActiveCapture = ActiveCapture
     { acErrorEvent :: !CollectEvent
     , acDetectedBy :: ![DetectionRule]

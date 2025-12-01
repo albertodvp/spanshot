@@ -157,6 +157,7 @@ Each line is a JSON event:
 
 - ❌ Regex patterns only (no keyword or log-level detectors yet)
 - ❌ No YAML configuration file support yet (CLI flags only)
+- ❌ No hard limit on post-window event count (bounded by `postWindowDuration` only; in high-throughput scenarios, memory usage scales with log volume within that time window)
 
 **Not Yet Built:**
 
