@@ -5,6 +5,7 @@ module Config (
     CaptureConfig (..),
     defaultConfig,
     loadConfig,
+    loadConfigFrom,
     getConfigPath,
     toCaptureOptions,
     fromCaptureOptions,
@@ -90,6 +91,11 @@ getConfigPath = do
 loadConfig :: IO Config
 loadConfig = do
     path <- getConfigPath
+    loadConfigFrom path
+
+-- | Load config from a specific file path, falling back to defaults if not found
+loadConfigFrom :: FilePath -> IO Config
+loadConfigFrom path = do
     exists <- doesFileExist path
     if exists
         then do

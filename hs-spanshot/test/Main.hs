@@ -11,6 +11,13 @@ import DetectionSpec (detectionTests)
 import SerializationProperties (serializationPropertyTests)
 import WindowManagementSpec (windowManagementTests)
 
+-- Daemon tests
+import DaemonConfigWatcherSpec (daemonConfigWatcherTests)
+import DaemonProcessSpec (daemonProcessTests)
+import DaemonProtocolSpec (daemonProtocolTests)
+import DaemonServerSpec (daemonServerTests)
+import DaemonStateSpec (daemonStateTests)
+
 main :: IO ()
 main = do
     collectionSpec <- testSpec "Collection Tests" collectionTests
@@ -19,6 +26,13 @@ main = do
     configSpec <- testSpec "Config Tests" configTests
     detectionSpec <- testSpec "Detection Tests" detectionTests
     windowManagementSpec <- testSpec "Window Management Tests" windowManagementTests
+
+    -- Daemon specs
+    daemonStateSpec <- testSpec "Daemon State Tests" daemonStateTests
+    daemonProtocolSpec <- testSpec "Daemon Protocol Tests" daemonProtocolTests
+    daemonProcessSpec <- testSpec "Daemon Process Tests" daemonProcessTests
+    daemonServerSpec <- testSpec "Daemon Server Tests" daemonServerTests
+    daemonConfigWatcherSpec <- testSpec "Daemon ConfigWatcher Tests" daemonConfigWatcherTests
 
     defaultMain $
         testGroup
@@ -30,4 +44,10 @@ main = do
             , detectionSpec
             , windowManagementSpec
             , serializationPropertyTests
+            -- Daemon tests
+            , daemonStateSpec
+            , daemonProtocolSpec
+            , daemonProcessSpec
+            , daemonServerSpec
+            , daemonConfigWatcherSpec
             ]
