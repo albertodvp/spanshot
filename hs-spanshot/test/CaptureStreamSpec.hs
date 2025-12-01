@@ -3,17 +3,20 @@
 module CaptureStreamSpec (captureStreamTests) where
 
 import Data.Foldable (toList)
+import Data.Functor.Identity (runIdentity)
 import Data.Maybe (isJust)
 import Data.Sequence qualified as Seq
 import Data.Time (NominalDiffTime)
+import Streaming.Prelude qualified as S
 import Test.Hspec (Spec, describe, it, shouldBe, shouldContain, shouldSatisfy)
 
-import Capture (processEvent)
+import Capture (captureFromStream, processEvent)
 import Fixtures (mockEvent)
 import Types (
     ActiveCapture (..),
     CaptureOptions,
     CaptureState (..),
+    CollectEvent (line),
     DetectionRule (..),
     SpanShot (..),
     initialCaptureState,
@@ -222,3 +225,76 @@ captureStreamTests = do
 
             emitted `shouldSatisfy` isJust
             csActiveCapture newState `shouldBe` Nothing
+
+    describe "captureFromStream combinator" $ do
+        it "produces no SpanShots from empty stream" $ do
+            let opts = testCaptureOptions
+            let events = [] :: [CollectEvent]
+            let result = runIdentity $ S.toList_ $ captureFromStream opts (S.each events)
+            result `shouldBe` []
+
+        it "produces no SpanShots when no errors detected" $ do
+            let opts = testCaptureOptions
+            let events = [mockEvent 1 "INFO", mockEvent 2 "DEBUG", mockEvent 3 "INFO"]
+            let result = runIdentity $ S.toList_ $ captureFromStream opts (S.each events)
+            result `shouldBe` []
+
+        it "produces SpanShot when error detected and post-window completes" $ do
+            let opts = testCaptureOptions -- pre=5s, post=5s
+            let events =
+                    [ mockEvent 1 "INFO pre1"
+                    , mockEvent 2 "INFO pre2"
+                    , mockEvent 10 "ERROR detected"
+                    , mockEvent 11 "INFO post1"
+                    , mockEvent 12 "INFO post2"
+                    , mockEvent 16 "INFO triggers emit" -- 6s after error
+                    ]
+            let result = runIdentity $ S.toList_ $ captureFromStream opts (S.each events)
+            length result `shouldBe` 1
+            case result of
+                [shot] -> do
+                    line (errorEvent shot) `shouldBe` "ERROR detected"
+                    length (preWindow shot) `shouldBe` 2
+                    length (postWindow shot) `shouldBe` 2
+                _ -> fail "Expected exactly one SpanShot"
+
+        it "drops incomplete capture when stream ends before post-window" $ do
+            let opts = testCaptureOptions -- post=5s
+            let events =
+                    [ mockEvent 1 "INFO"
+                    , mockEvent 10 "ERROR detected"
+                    , mockEvent 12 "INFO" -- only 2s after error, not enough
+                    ]
+            let result = runIdentity $ S.toList_ $ captureFromStream opts (S.each events)
+            result `shouldBe` []
+
+        it "captures multiple errors with proper spacing" $ do
+            let opts = testCaptureOptions -- pre=5s, post=5s
+            let events =
+                    [ mockEvent 1 "INFO"
+                    , mockEvent 10 "ERROR first"
+                    , mockEvent 11 "INFO"
+                    , mockEvent 16 "INFO completes first" -- completes first error
+                    , mockEvent 20 "ERROR second"
+                    , mockEvent 21 "INFO"
+                    , mockEvent 26 "INFO completes second" -- completes second error
+                    ]
+            let result = runIdentity $ S.toList_ $ captureFromStream opts (S.each events)
+            length result `shouldBe` 2
+
+        it "second error during active capture goes to post-window" $ do
+            let opts = testCaptureOptions -- post=5s
+            let events =
+                    [ mockEvent 1 "INFO"
+                    , mockEvent 10 "ERROR first"
+                    , mockEvent 12 "ERROR second" -- 2s after first, goes to post-window
+                    , mockEvent 16 "INFO" -- triggers emit
+                    ]
+            let result = runIdentity $ S.toList_ $ captureFromStream opts (S.each events)
+            length result `shouldBe` 1
+            case result of
+                [shot] -> do
+                    line (errorEvent shot) `shouldBe` "ERROR first"
+                    -- second error should be in post-window
+                    map line (postWindow shot) `shouldContain` ["ERROR second"]
+                _ -> fail "Expected exactly one SpanShot"
