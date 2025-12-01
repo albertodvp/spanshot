@@ -65,8 +65,8 @@ maxPollIntervalMs = 60000
 
 mkCollectOptions :: Int -> Either String CollectOptions
 mkCollectOptions interval
-    | interval < minPollIntervalMs = Left "pollIntervalMs must be at least 10 milliseconds"
-    | interval > maxPollIntervalMs = Left "pollIntervalMs must be at most 60000 milliseconds (1 minute)"
+    | interval < minPollIntervalMs = Left $ "pollIntervalMs must be at least " <> show minPollIntervalMs <> " milliseconds"
+    | interval > maxPollIntervalMs = Left $ "pollIntervalMs must be at most " <> show maxPollIntervalMs <> " milliseconds (1 minute)"
     | otherwise = Right $ CollectOptions{pollIntervalMs = interval}
 
 defaultCollectOptions :: CollectOptions

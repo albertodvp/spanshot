@@ -4,26 +4,41 @@ module WindowManagementSpec (windowManagementTests) where
 
 import Data.Foldable (toList)
 import Data.Sequence qualified as Seq
-import Test.Hspec (Spec, describe, expectationFailure, it, shouldBe)
+import Data.Time (NominalDiffTime)
+import Test.Hspec (Spec, describe, it, shouldBe)
 
 import Capture (addToPreWindow)
 import Fixtures (mockEvent)
-import Types (CaptureOptions (detectionRules, postWindowDuration), defaultCaptureOptions, mkCaptureOptions)
+import Types (CaptureOptions, DetectionRule (..), mkCaptureOptions)
+
+-- | Explicit test constants for window management tests
+testPostWindowSeconds :: NominalDiffTime
+testPostWindowSeconds = 5
+
+testDetectionRules :: [DetectionRule]
+testDetectionRules = [RegexRule "ERROR"]
+
+{- | Helper to create test options with specific pre-window and minContext values
+preWinSec: pre-window duration in seconds
+minCtx: minimum context events to keep
+-}
+mkTestOpts :: NominalDiffTime -> Int -> CaptureOptions
+mkTestOpts preWinSec minCtx = case mkCaptureOptions preWinSec testPostWindowSeconds minCtx testDetectionRules of
+    Right opts -> opts
+    Left err -> error $ "Invalid test options: " <> err
 
 windowManagementTests :: Spec
 windowManagementTests = do
     describe "Pre-window management" $ do
         it "adds event to empty pre-window" $ do
-            let opts = defaultCaptureOptions
+            let opts = mkTestOpts 5 10
             let event = mockEvent 1 ("INFO message")
             let result = addToPreWindow opts Seq.empty event
 
             Seq.length result `shouldBe` 1
 
         it "drops events older than preWindowDuration" $ do
-            opts <- case mkCaptureOptions 5 (postWindowDuration defaultCaptureOptions) 1 (detectionRules defaultCaptureOptions) of
-                Right o -> pure o
-                Left err -> fail $ "Invalid options: " <> err
+            let opts = mkTestOpts 5 1
             let old = mockEvent 0 ("old")
             let recent = mockEvent 6 ("recent")
             let current = mockEvent 10 ("current")
@@ -34,9 +49,7 @@ windowManagementTests = do
             toList result `shouldBe` [recent, current]
 
         it "keeps minContextEvents even if all expired" $ do
-            opts <- case mkCaptureOptions 5 (postWindowDuration defaultCaptureOptions) 3 (detectionRules defaultCaptureOptions) of
-                Right o -> pure o
-                Left err -> fail $ "Invalid options: " <> err
+            let opts = mkTestOpts 5 3
             let e1 = mockEvent 0 ("e1")
             let e2 = mockEvent 1 ("e2")
             let e3 = mockEvent 2 ("e3")
@@ -49,9 +62,7 @@ windowManagementTests = do
             toList result `shouldBe` [e2, e3, current]
 
         it "applies time filter when enough events remain" $ do
-            opts <- case mkCaptureOptions 5 (postWindowDuration defaultCaptureOptions) 2 (detectionRules defaultCaptureOptions) of
-                Right o -> pure o
-                Left err -> fail $ "Invalid options: " <> err
+            let opts = mkTestOpts 5 2
             let e1 = mockEvent 0 ("old")
             let e2 = mockEvent 6 ("recent1")
             let e3 = mockEvent 7 ("recent2")
@@ -64,9 +75,7 @@ windowManagementTests = do
             toList result `shouldBe` [e2, e3, e4, current]
 
         it "keeps events exactly at the time boundary" $ do
-            opts <- case mkCaptureOptions 5 (postWindowDuration defaultCaptureOptions) 1 (detectionRules defaultCaptureOptions) of
-                Right o -> pure o
-                Left err -> fail $ "Invalid options: " <> err
+            let opts = mkTestOpts 5 1
             let boundary = mockEvent 5 ("boundary")
             let current = mockEvent 10 ("current")
             let buffer = Seq.fromList [boundary]
