@@ -10,6 +10,8 @@ on:
 jobs:
   trigger-codex:
     runs-on: ubuntu-latest
+    permissions:
+      issues: write
     steps:
       - name: Trigger Codex via issue comment
         env:
@@ -17,4 +19,4 @@ jobs:
         run: |
           gh issue comment 9 \
             --repo ${{ github.repository }} \
-            --body "@codex Please sync the README following the instructions in prompts/readme-sync.md"
+            --body "@codex Please sync the README following the instructions in prompts/readme-sync.md. If any changes are needed, open a PR."
