@@ -237,7 +237,6 @@ Order of precedence (lowest to highest):
 loadConfigFrom :: FilePath -> IO Config
 loadConfigFrom startDir = do
     -- Start with defaults
-    let baseConfig = defaultConfig
 
     -- Load user config (full Config)
     userConfig <- loadUserConfig
