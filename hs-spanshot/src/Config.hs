@@ -1,36 +1,76 @@
 {-# LANGUAGE DeriveGeneric #-}
 
 module Config (
+    -- * Configuration Types
     Config (..),
     CaptureConfig (..),
     PartialConfig (..),
     PartialCaptureConfig (..),
+
+    -- * Config Path Types
     ConfigPathInfo (..),
     ConfigPaths (..),
+
+    -- * Error Types
     InitConfigError (..),
+
+    -- * Warning Types
+    ConfigWarning (..),
+
+    -- * Constants
+    projectConfigFileName,
+    gitDirName,
+    userConfigFileName,
+
+    -- * Default Configuration
     defaultConfig,
+
+    -- * Config Loading
     loadConfig,
     loadConfigFrom,
+
+    -- * Path Operations
     getConfigPath,
     getProjectConfigPath,
     getConfigPaths,
     findProjectRoot,
+
+    -- * Config Conversion
     toCaptureOptions,
     fromCaptureOptions,
+
+    -- * Config Merging
     mergeConfig,
+
+    -- * Config Initialization
     initConfigFile,
 ) where
 
+import Control.Exception (IOException, try)
 import Data.Aeson (FromJSON, Options (fieldLabelModifier), ToJSON, camelTo2, defaultOptions, genericParseJSON, genericToJSON)
 import Data.ByteString qualified as BS
+import Data.Maybe (fromMaybe)
 import Data.Time (NominalDiffTime)
 import Data.Yaml qualified as Yaml
 import GHC.Generics (Generic)
 import System.Directory (XdgDirectory (XdgConfig), createDirectoryIfMissing, doesDirectoryExist, doesFileExist, getCurrentDirectory, getXdgDirectory)
 import System.FilePath (takeDirectory, (</>))
-import System.IO (hPutStrLn, stderr)
 
 import Types (CaptureOptions (..), DetectionRule, defaultCaptureOptions, mkCaptureOptions)
+
+-- * Constants
+
+-- | Name of the project-level config file
+projectConfigFileName :: FilePath
+projectConfigFileName = ".spanshot.yaml"
+
+-- | Name of the git directory (used for project root detection)
+gitDirName :: FilePath
+gitDirName = ".git"
+
+-- | Name of the user config file
+userConfigFileName :: FilePath
+userConfigFileName = "config.yaml"
 
 -- | Top-level config wrapping all sections
 data Config = Config
@@ -118,10 +158,10 @@ mergeCaptureConfig :: CaptureConfig -> Maybe PartialCaptureConfig -> CaptureConf
 mergeCaptureConfig base Nothing = base
 mergeCaptureConfig base (Just partial) =
     CaptureConfig
-        { ccPreWindowDuration = maybe (ccPreWindowDuration base) id (pccPreWindowDuration partial)
-        , ccPostWindowDuration = maybe (ccPostWindowDuration base) id (pccPostWindowDuration partial)
-        , ccMinContextEvents = maybe (ccMinContextEvents base) id (pccMinContextEvents partial)
-        , ccDetectionRules = maybe (ccDetectionRules base) id (pccDetectionRules partial)
+        { ccPreWindowDuration = fromMaybe (ccPreWindowDuration base) (pccPreWindowDuration partial)
+        , ccPostWindowDuration = fromMaybe (ccPostWindowDuration base) (pccPostWindowDuration partial)
+        , ccMinContextEvents = fromMaybe (ccMinContextEvents base) (pccMinContextEvents partial)
+        , ccDetectionRules = fromMaybe (ccDetectionRules base) (pccDetectionRules partial)
         }
 
 -- | Default configuration (matches defaultCaptureOptions)
@@ -154,18 +194,41 @@ fromCaptureOptions opts =
 getConfigPath :: IO FilePath
 getConfigPath = do
     configDir <- getXdgDirectory XdgConfig "spanshot"
-    pure $ configDir </> "config.yaml"
+    pure $ configDir </> userConfigFileName
 
-{- | Find the project root by looking for a .git directory or file
-Traverses up from the given directory until .git is found or root is reached.
+{- | Find the project root by looking for a .git directory or file.
 
-Note: .git can be either:
-- A directory (normal git repository)
-- A file (git worktree, contains "gitdir: /path/to/main/repo/.git/worktrees/name")
+Traverses up the directory tree from the given starting directory until
+a .git marker is found or the filesystem root is reached.
+
+== Git Detection
+
+The function checks for .git as either:
+
+* A __directory__ (normal git repository)
+* A __file__ (git worktree - contains "gitdir: /path/to/main/repo/.git/worktrees/name")
+
+This ensures proper detection in both standard git repositories and
+worktree checkouts.
+
+== Algorithm
+
+1. Check if @startDir \/ .git@ exists (as file or directory)
+2. If found, return @Just startDir@
+3. If not found, recurse to parent directory
+4. If parent == current (filesystem root), return @Nothing@
+
+== Examples
+
+>>> findProjectRoot "/home/user/project/src/module"
+Just "/home/user/project"  -- if /home/user/project/.git exists
+
+>>> findProjectRoot "/tmp/not-a-repo"
+Nothing  -- if no .git found up to root
 -}
 findProjectRoot :: FilePath -> IO (Maybe FilePath)
 findProjectRoot dir = do
-    let gitPath = dir </> ".git"
+    let gitPath = dir </> gitDirName
     -- Check for .git as directory (normal repo) or file (worktree)
     isGitDir <- doesDirectoryExist gitPath
     isGitFile <- doesFileExist gitPath
@@ -178,13 +241,15 @@ findProjectRoot dir = do
                 then pure Nothing
                 else findProjectRoot parent
 
-{- | Get the project config file path (.spanshot.yaml in project root)
-Returns Nothing if no project root is found
+{- | Get the project config file path (.spanshot.yaml in project root).
+
+Returns @Nothing@ if no project root is found (i.e., not inside a git repository).
+The project config path is @\<project-root\> \/ .spanshot.yaml@.
 -}
 getProjectConfigPath :: FilePath -> IO (Maybe FilePath)
 getProjectConfigPath startDir = do
     projectRoot <- findProjectRoot startDir
-    pure $ fmap (\root -> root </> ".spanshot.yaml") projectRoot
+    pure $ fmap (\root -> root </> projectConfigFileName) projectRoot
 
 -- | Information about a config file path
 data ConfigPathInfo = ConfigPathInfo
@@ -220,39 +285,41 @@ getConfigPaths startDir = do
 
     pure ConfigPaths{cpiUser = userInfo, cpiProject = projectInfo}
 
-{- | Load config from current directory with hierarchical loading
-Loads user config first, then merges project config on top
+{- | Load config from current directory with hierarchical loading.
+Loads user config first, then merges project config on top.
+Returns the merged config along with any warnings encountered during loading.
 -}
-loadConfig :: IO Config
+loadConfig :: IO (Config, [ConfigWarning])
 loadConfig = do
     cwd <- getCurrentDirectory
     loadConfigFrom cwd
 
-{- | Load config from a specific directory with hierarchical loading
+{- | Load config from a specific directory with hierarchical loading.
 Order of precedence (lowest to highest):
 1. Default config
 2. User config (~/.config/spanshot/config.yaml)
 3. Project config (.spanshot.yaml in project root)
--}
-loadConfigFrom :: FilePath -> IO Config
-loadConfigFrom startDir = do
-    -- Start with defaults
 
+Returns the merged config along with any warnings encountered during loading.
+-}
+loadConfigFrom :: FilePath -> IO (Config, [ConfigWarning])
+loadConfigFrom startDir = do
     -- Load user config (full Config)
-    userConfig <- loadUserConfig
+    (userConfig, userWarnings) <- loadUserConfig
 
     -- Load project config (partial, for merging)
-    projectPartial <- loadProjectConfig startDir
+    (projectPartial, projectWarnings) <- loadProjectConfig startDir
 
     -- Merge: defaults -> user -> project
     -- User config replaces defaults entirely (it's a full Config)
     -- Project config merges field-by-field on top
     let mergedConfig = mergeConfig userConfig projectPartial
+        allWarnings = userWarnings ++ projectWarnings
 
-    pure mergedConfig
+    pure (mergedConfig, allWarnings)
 
--- | Load user config from XDG path
-loadUserConfig :: IO Config
+-- | Load user config from XDG path, returning any parse warnings
+loadUserConfig :: IO (Config, [ConfigWarning])
 loadUserConfig = do
     path <- getConfigPath
     exists <- doesFileExist path
@@ -260,31 +327,29 @@ loadUserConfig = do
         then do
             result <- Yaml.decodeFileEither path
             case result of
-                Left err -> do
-                    hPutStrLn stderr $ "Warning: Failed to parse user config file " ++ path ++ ": " ++ show err
-                    hPutStrLn stderr "Using default configuration."
-                    pure defaultConfig
-                Right config -> pure config
-        else pure defaultConfig
+                Left err ->
+                    let warning = ConfigParseWarning path (show err)
+                     in pure (defaultConfig, [warning])
+                Right config -> pure (config, [])
+        else pure (defaultConfig, [])
 
--- | Load project config as PartialConfig for merging
-loadProjectConfig :: FilePath -> IO PartialConfig
+-- | Load project config as PartialConfig for merging, returning any parse warnings
+loadProjectConfig :: FilePath -> IO (PartialConfig, [ConfigWarning])
 loadProjectConfig startDir = do
     projectPathMaybe <- getProjectConfigPath startDir
     case projectPathMaybe of
-        Nothing -> pure emptyPartialConfig
+        Nothing -> pure (emptyPartialConfig, [])
         Just path -> do
             exists <- doesFileExist path
             if exists
                 then do
                     result <- Yaml.decodeFileEither path
                     case result of
-                        Left err -> do
-                            hPutStrLn stderr $ "Warning: Failed to parse project config file " ++ path ++ ": " ++ show err
-                            hPutStrLn stderr "Using user/default configuration."
-                            pure emptyPartialConfig
-                        Right partial -> pure partial
-                else pure emptyPartialConfig
+                        Left err ->
+                            let warning = ConfigParseWarning path (show err)
+                             in pure (emptyPartialConfig, [warning])
+                        Right partial -> pure (partial, [])
+                else pure (emptyPartialConfig, [])
 
 -- | Empty partial config (no overrides)
 emptyPartialConfig :: PartialConfig
@@ -294,6 +359,12 @@ emptyPartialConfig = PartialConfig{pcCapture = Nothing}
 data InitConfigError
     = ConfigFileExists FilePath
     | InitIOError FilePath String
+    deriving (Show, Eq)
+
+-- | Warnings that can occur during config loading
+data ConfigWarning
+    = -- | A config file failed to parse (path, error message)
+      ConfigParseWarning FilePath String
     deriving (Show, Eq)
 
 {- | Initialize a config file at the specified path
@@ -322,11 +393,12 @@ initConfigFile path force = do
     if exists && not force
         then pure $ Left (ConfigFileExists targetPath)
         else do
-            -- Create parent directories if needed
+            -- Create parent directories and write file, catching IO exceptions
             let parentDir = takeDirectory targetPath
-            createDirectoryIfMissing True parentDir
-
-            -- Write default config as YAML
-            let configYaml = Yaml.encode defaultConfig
-            BS.writeFile targetPath configYaml
-            pure $ Right ()
+            result <- try $ do
+                createDirectoryIfMissing True parentDir
+                let configYaml = Yaml.encode defaultConfig
+                BS.writeFile targetPath configYaml
+            case result of
+                Left (e :: IOException) -> pure $ Left (InitIOError targetPath (show e))
+                Right () -> pure $ Right ()

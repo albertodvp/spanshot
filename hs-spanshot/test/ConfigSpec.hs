@@ -13,6 +13,7 @@ import Config (
     Config (..),
     ConfigPathInfo (..),
     ConfigPaths (..),
+    ConfigWarning (..),
     InitConfigError (..),
     PartialCaptureConfig (..),
     PartialConfig (..),
@@ -350,8 +351,9 @@ configTests = do
         it "returns default config when no config files exist" $ do
             withSystemTempDirectory "spanshot-test" $ \tmpDir -> do
                 -- No .git, no config files
-                config <- loadConfigFrom tmpDir
+                (config, warnings) <- loadConfigFrom tmpDir
                 config `shouldBe` defaultConfig
+                warnings `shouldBe` []
 
         it "loads project config and merges with defaults" $ do
             withSystemTempDirectory "spanshot-test" $ \tmpDir -> do
@@ -360,7 +362,8 @@ configTests = do
                 writeFile
                     (tmpDir </> ".spanshot.yaml")
                     "capture:\n  pre_window_duration: 30\n"
-                config <- loadConfigFrom tmpDir
+                (config, warnings) <- loadConfigFrom tmpDir
+                warnings `shouldBe` []
                 -- Pre-window should be overridden
                 ccPreWindowDuration (capture config) `shouldBe` 30
                 -- Other fields should remain as defaults
@@ -381,20 +384,26 @@ configTests = do
                         , "    - regex_pattern: \"FATAL\""
                         ]
                     )
-                config <- loadConfigFrom tmpDir
+                (config, warnings) <- loadConfigFrom tmpDir
+                warnings `shouldBe` []
                 ccPreWindowDuration (capture config) `shouldBe` 20
                 ccPostWindowDuration (capture config) `shouldBe` 15
                 ccMinContextEvents (capture config) `shouldBe` 25
                 ccDetectionRules (capture config) `shouldBe` [RegexRule "FATAL"]
 
-        it "handles invalid project config gracefully (uses defaults)" $ do
+        it "handles invalid project config gracefully (uses defaults with warning)" $ do
             withSystemTempDirectory "spanshot-test" $ \tmpDir -> do
                 createDirectory (tmpDir </> ".git")
                 -- Create invalid YAML
                 writeFile (tmpDir </> ".spanshot.yaml") "invalid: yaml: content: ["
-                config <- loadConfigFrom tmpDir
+                (config, warnings) <- loadConfigFrom tmpDir
                 -- Should fall back to defaults
                 config `shouldBe` defaultConfig
+                -- Should have a warning about the parse failure
+                length warnings `shouldBe` 1
+                case warnings of
+                    [ConfigParseWarning path _] -> path `shouldBe` (tmpDir </> ".spanshot.yaml")
+                    _ -> fail "Expected a single ConfigParseWarning"
 
     describe "initConfigFile" $ do
         it "creates config file at specified path" $ do
