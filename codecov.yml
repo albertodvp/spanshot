@@ -1,0 +1,15 @@
+coverage:
+  status:
+    project:
+      default:
+        target: 80%
+        threshold: 5%
+    patch:
+      default:
+        target: 80%
+        threshold: 5%
+ignore:
+  - "hs-spanshot/app/**"
+  - "hs-spanshot/test/**"
+  - "**/Paths_hs_spanshot.hs"
+comment: false
