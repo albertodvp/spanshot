@@ -1,0 +1,31 @@
+name: Nix
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  nix:
+    name: Nix flake check and build
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@v27
+
+      - name: Nix flake check
+        run: nix flake check --show-trace
+
+      - name: Build package
+        run: nix build .#hs-spanshot
+
+      - name: Run CLI
+        run: nix run .# -- --help

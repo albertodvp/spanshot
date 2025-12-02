@@ -54,7 +54,16 @@
           };
         };
 
-        packages = {
+        packages = let
+          hs-spanshot = pkgs.haskell.packages.ghc912.callCabal2nix "hs-spanshot" ./hs-spanshot {};
+        in {
+          inherit hs-spanshot;
+          default = hs-spanshot;
+        };
+
+        apps.default = {
+          type = "app";
+          program = "${config.packages.hs-spanshot}/bin/spanshot";
         };
 
         devShells.default = pkgs.mkShell {
