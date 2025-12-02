@@ -1,7 +1,7 @@
 module Main where
 
 import Collect (collectFromFileWithCleanup)
-import Config (ConfigPathInfo (..), ConfigPaths (..), InitConfigError (..), capture, getConfigPath, getConfigPaths, getProjectConfigPath, initConfigFile, loadConfig, toCaptureOptions)
+import Config (ConfigPathInfo (..), ConfigPaths (..), ConfigWarning (..), InitConfigError (..), capture, getConfigPath, getConfigPaths, getProjectConfigPath, initConfigFile, loadConfig, toCaptureOptions)
 import Control.Exception (IOException, catch)
 import Data.Aeson qualified as Aeson
 import Data.ByteString.Char8 qualified as BS
@@ -140,7 +140,9 @@ main = do
 
 runCollect :: FilePath -> IO ()
 runCollect logfilePath = do
-    config <- loadConfig
+    (config, warnings) <- loadConfig
+    -- Print any config warnings to stderr
+    printConfigWarnings warnings
     -- Validate config (including regex patterns) before starting collection
     case toCaptureOptions (capture config) of
         Left err -> do
@@ -153,7 +155,9 @@ runCollect logfilePath = do
 
 runConfig :: ConfigCommand -> IO ()
 runConfig ConfigShow = do
-    config <- loadConfig
+    (config, warnings) <- loadConfig
+    -- Print any config warnings to stderr
+    printConfigWarnings warnings
     BS.putStrLn $ Yaml.encode config
 runConfig ConfigPath = do
     cwd <- getCurrentDirectory
@@ -203,6 +207,16 @@ printPathInfo :: String -> ConfigPathInfo -> IO ()
 printPathInfo label info = do
     let status = if cpiExists info then "[found]" else "[not found]"
     putStrLn $ label ++ ": " ++ cpiPath info ++ " " ++ status
+
+-- | Print config warnings to stderr
+printConfigWarnings :: [ConfigWarning] -> IO ()
+printConfigWarnings [] = pure ()
+printConfigWarnings warnings = do
+    mapM_ printWarning warnings
+    hPutStrLn stderr "Using default configuration for failed config files."
+  where
+    printWarning (ConfigParseWarning path err) =
+        hPutStrLn stderr $ "Warning: Failed to parse config file " ++ path ++ ": " ++ err
 
 handleIOError :: FilePath -> IOException -> IO ()
 handleIOError path e
