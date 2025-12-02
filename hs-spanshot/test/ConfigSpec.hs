@@ -443,6 +443,7 @@ configTests = do
         it "creates config in directory if path is a directory" $ do
             withSystemTempDirectory "spanshot-test" $ \tmpDir -> do
                 let subDir = tmpDir </> "myproject"
+
                 createDirectory subDir
                 result <- initConfigFile subDir False
                 result `shouldSatisfy` isRight
