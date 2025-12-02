@@ -1,12 +1,12 @@
 module Main where
 
 import Collect (collectFromFileWithCleanup)
-import Config (ConfigPathInfo (..), ConfigPaths (..), InitConfigError (..), capture, getConfigPath, getConfigPaths, initConfigFile, loadConfig, toCaptureOptions)
+import Config (ConfigPathInfo (..), ConfigPaths (..), InitConfigError (..), capture, getConfigPath, getConfigPaths, getProjectConfigPath, initConfigFile, loadConfig, toCaptureOptions)
 import Control.Exception (IOException, catch)
 import Data.Aeson qualified as Aeson
 import Data.ByteString.Char8 qualified as BS
 import Data.ByteString.Lazy.Char8 qualified as BL
-import Data.Maybe (fromMaybe)
+
 import Data.Yaml qualified as Yaml
 import OptEnvConf (
     HasParser (settingsParser),
@@ -168,9 +168,17 @@ runConfig (ConfigInit settings) = do
     targetPath <-
         if initUser settings
             then getConfigPath
-            else do
-                cwd <- getCurrentDirectory
-                pure $ fromMaybe cwd (initPath settings)
+            else case initPath settings of
+                -- Explicit path provided - use it directly
+                Just path -> pure path
+                -- No path provided - find project root
+                Nothing -> do
+                    cwd <- getCurrentDirectory
+                    projectPath <- getProjectConfigPath cwd
+                    case projectPath of
+                        Just p -> pure p
+                        -- Not in a project, use cwd
+                        Nothing -> pure $ cwd </> ".spanshot.yaml"
     result <- initConfigFile targetPath (initForce settings)
     case result of
         Left (ConfigFileExists path) -> do
@@ -182,18 +190,12 @@ runConfig (ConfigInit settings) = do
             exitFailure
         Right () -> do
             -- Determine the actual file path for the message
-            actualPath <-
-                if initUser settings
-                    then getConfigPath
-                    else do
-                        cwd <- getCurrentDirectory
-                        let basePath = fromMaybe cwd (initPath settings)
-                        -- If basePath is directory, file will be .spanshot.yaml inside
-                        isDir <- doesDirectoryExist basePath
-                        pure $
-                            if isDir
-                                then basePath </> ".spanshot.yaml"
-                                else basePath
+            -- If targetPath is a directory, initConfigFile creates .spanshot.yaml inside
+            isDir <- doesDirectoryExist targetPath
+            let actualPath =
+                    if isDir
+                        then targetPath </> ".spanshot.yaml"
+                        else targetPath
             putStrLn $ "Created config file: " ++ actualPath
 
 -- | Print a config path with existence indicator
