@@ -104,6 +104,39 @@ spanshot capture --logfile app.log --regex-pattern "ERROR" --pre-window 5 --post
 spanshot run --logfile app.log --regex-pattern "ERROR|FATAL"
 ```
 
+## Configuration
+
+SpanShot uses hierarchical configuration with project-level overrides:
+
+1. **User config**: `~/.config/spanshot/config.yaml`
+1. **Project config**: `.spanshot.yaml` (in git project root)
+
+Project config overrides user config field-by-field. If no config is found, sensible defaults are used.
+
+### Config Commands
+
+```bash
+# Show config file paths and status
+spanshot config path
+
+# Initialize a config file (optional - defaults work out of the box)
+spanshot config init              # creates .spanshot.yaml at project root
+spanshot config init --user       # creates user config
+spanshot config init --force      # overwrite existing
+```
+
+### Example Config
+
+```yaml
+capture:
+  pre_window_duration: 5    # seconds before error
+  post_window_duration: 5   # seconds after error
+  min_context_events: 10
+  detection_rules:
+    - regex_pattern: "ERROR"
+    - regex_pattern: "FATAL"
+```
+
 ## Output Format
 
 ### Collection Events (Current)
@@ -270,7 +303,9 @@ This project follows the [Angular Commit Message Convention](https://github.com/
 
 **Configuration**
 
-- [ ] YAML configuration file support for detection rules
+- [x] YAML configuration file support
+- [x] Hierarchical config (user + project)
+- [x] `config init` command
 
 **Analyze** (spec in progress)
 
