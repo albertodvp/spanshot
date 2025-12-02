@@ -1,10 +1,12 @@
 <div align="center">
-  <img src="spanshot-logo.svg" alt="SpanShot Logo" width="600"/>
+  <img src="spanshot-logo.svg" alt="SpanShot Logo" width="400"/>
 </div>
 
 # SpanShot
 
 [![CI](https://github.com/albertodvp/spanshot/actions/workflows/ci.yml/badge.svg)](https://github.com/albertodvp/spanshot/actions/workflows/ci.yml)
+![CodeRabbit Pull Request Reviews](https://img.shields.io/coderabbit/prs/github/albertodvp/spanshot?utm_source=oss&utm_medium=github&utm_campaign=albertodvp%2Fspanshot&labelColor=171717&color=FF570A&link=https%3A%2F%2Fcoderabbit.ai&label=CodeRabbit+Reviews)
+[![License](https://img.shields.io/github/license/albertodvp/spanshot)](LICENSE)
 
 > Catch the error. Keep the flow.
 
@@ -36,11 +38,11 @@ All **without leaving your terminal**.
 
 **Reduces error diagnosis time from 10-30 minutes to under 1 minute** by automating context gathering and AI analysis, while keeping you in flow state.
 
-- ✅ No cloud backend
-- ✅ No signup
-- ✅ BYOK (bring your own API key)
-- ✅ Open source
-- ✅ Privacy-first (local-first, optional local AI)
+- No cloud backend
+- No signup
+- BYOK (bring your own API key)
+- Open source
+- Privacy-first (local-first, optional local AI)
 
 ## Pipeline Vision
 
@@ -147,26 +149,26 @@ Each line is a JSON event:
 
 **Scope:**
 
-- ❌ Single file only (no Docker logs, stdout, multiple sources yet)
-- ❌ No log rotation handling
-- ❌ Line-based parsing (multi-line stack traces split into separate events)
-- ❌ No structured field extraction from JSON/logfmt logs
-- ❌ In-memory state only (no persistence)
+- Single file only (no Docker logs, stdout, multiple sources yet)
+- No log rotation handling
+- Line-based parsing (multi-line stack traces split into separate events)
+- No structured field extraction from JSON/logfmt logs
+- In-memory state only (no persistence)
 
 **Capture (in progress):**
 
-- ❌ Regex patterns only (no keyword or log-level detectors yet)
-- ❌ No YAML configuration file support yet (CLI flags only)
-- ❌ No hard limit on post-window event count (bounded by `postWindowDuration` only; in high-throughput scenarios, memory usage scales with log volume within that time window)
+- Regex patterns only (no keyword or log-level detectors yet)
+- No YAML configuration file support yet (CLI flags only)
+- No hard limit on post-window event count (bounded by `postWindowDuration` only; in high-throughput scenarios, memory usage scales with log volume within that time window)
 
 **Not Yet Built:**
 
-- ❌ Analyze phase (AI diagnosis)
-- ❌ Deliver phase (notifications)
+- Analyze phase (AI diagnosis)
+- Deliver phase (notifications)
 
 **Platform-Specific:**
 
-- ❌ **Windows**: Concurrent file access limitation - When `spanshot` is reading a log file, other processes cannot append to it simultaneously due to Windows' strict file locking. This affects real-time log tailing scenarios where logs are actively being written. Future versions will implement proper file sharing using Win32 API. **Workaround**: Use log rotation or batch processing instead of real-time tailing on Windows.
+- **Windows**: Concurrent file access limitation - When `spanshot` is reading a log file, other processes cannot append to it simultaneously due to Windows' strict file locking. This affects real-time log tailing scenarios where logs are actively being written. Future versions will implement proper file sharing using Win32 API. **Workaround**: Use log rotation or batch processing instead of real-time tailing on Windows.
 
 ## Development
 
