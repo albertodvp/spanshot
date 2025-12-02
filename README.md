@@ -6,7 +6,7 @@
 
 [![CI](https://github.com/albertodvp/spanshot/actions/workflows/ci.yml/badge.svg)](https://github.com/albertodvp/spanshot/actions/workflows/ci.yml)
 ![CodeRabbit Pull Request Reviews](https://img.shields.io/coderabbit/prs/github/albertodvp/spanshot?utm_source=oss&utm_medium=github&utm_campaign=albertodvp%2Fspanshot&labelColor=171717&color=FF570A&link=https%3A%2F%2Fcoderabbit.ai&label=CodeRabbit+Reviews)
-[![License](https://img.shields.io/github/license/albertodvp/spanshot)](LICENSE)
+[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 
 > Catch the error. Keep the flow.
 
@@ -56,10 +56,10 @@ All **without leaving your terminal**.
 
 | Phase | Purpose | Input | Output | AI Used? |
 |-------|---------|-------|--------|----------|
-| **Collect** | Unify scattered error sources into one stream | Raw logs, stdout, Docker | Normalized event stream | ❌ No |
-| **Capture** | Identify errors + capture temporal context (span) | Event stream | Error event + span window | ❌ No |
-| **Analyze** | Understand *why* error happened + *how* to fix | Error + span + code context | Diagnosis + solution | ✅ Yes |
-| **Deliver** | Present insights without disrupting workflow | Diagnosis | Notification/alert | ❌ No |
+| **Collect** | Unify scattered error sources into one stream | Raw logs, stdout, Docker | Normalized event stream | No |
+| **Capture** | Identify errors + capture temporal context (span) | Event stream | Error event + span window | No |
+| **Analyze** | Understand *why* error happened + *how* to fix | Error + span + code context | Diagnosis + solution | Yes |
+| **Deliver** | Present insights without disrupting workflow | Diagnosis | Notification/alert | No |
 
 **Key Insight:** Capture doesn't just find the error line—it captures a **time-window snapshot** (e.g., 5 seconds before/after) to give AI the full story of what led to the failure.
 

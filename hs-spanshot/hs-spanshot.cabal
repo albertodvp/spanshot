@@ -3,8 +3,8 @@ name:               hs-spanshot
 version:            0.1.0.0
 -- synopsis:
 -- description:
-license:            BSD-3-Clause
-license-file:       LICENSE
+license:            Apache-2.0
+license-file:       ../LICENSE
 author:             Alberto Fanton
 maintainer:         alberto.fanton@protonmail.com
 -- copyright:
