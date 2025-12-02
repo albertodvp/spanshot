@@ -65,6 +65,14 @@ captureTypesTests = do
             let result = mkCaptureOptions 5 5 10 []
             result `shouldSatisfy` isLeft
 
+        it "rejects invalid regex patterns" $ do
+            let result = mkCaptureOptions 5 5 10 [RegexRule "[invalid"]
+            result `shouldSatisfy` isLeft
+
+        it "accepts valid regex patterns" $ do
+            let result = mkCaptureOptions 5 5 10 [RegexRule "ERROR|FATAL", RegexRule "\\[ERROR\\]"]
+            result `shouldSatisfy` isRight
+
     describe "ActiveCapture" $ do
         it "creates capture with snapshot and empty post-window" $ do
             let err = mockEvent 5 ("ERROR occurred")

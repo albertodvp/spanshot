@@ -22,6 +22,8 @@ module Types (
     spanShotFromSeq,
 ) where
 
+import Control.Exception (SomeException, evaluate, try)
+import Control.Monad (forM_)
 import Data.Aeson (FromJSON (parseJSON), Options (fieldLabelModifier), ToJSON (toJSON), camelTo2, defaultOptions, genericParseJSON, genericToJSON)
 import Data.Foldable (toList)
 import Data.Sequence (Seq)
@@ -29,6 +31,9 @@ import Data.Sequence qualified as Seq
 import Data.Text (Text)
 import Data.Time (NominalDiffTime, UTCTime)
 import GHC.Generics (Generic)
+import System.IO.Unsafe (unsafePerformIO)
+import Text.Regex.TDFA (Regex, makeRegex)
+import Text.Regex.TDFA.String ()
 
 data CollectEvent = CollectEvent
     { source :: !Text
@@ -137,13 +142,36 @@ mkCaptureOptions preWin postWin minCtx rules
     | minCtx < 1 = Left "minContextEvents must be at least 1"
     | null rules = Left "detectionRules cannot be empty"
     | otherwise =
-        Right $
-            CaptureOptions
-                { preWindowDuration = preWin
-                , postWindowDuration = postWin
-                , minContextEvents = minCtx
-                , detectionRules = rules
-                }
+        case validateDetectionRules rules of
+            Left err -> Left err
+            Right () ->
+                Right $
+                    CaptureOptions
+                        { preWindowDuration = preWin
+                        , postWindowDuration = postWin
+                        , minContextEvents = minCtx
+                        , detectionRules = rules
+                        }
+
+-- | Validate that all detection rules have valid regex patterns
+validateDetectionRules :: [DetectionRule] -> Either String ()
+validateDetectionRules rules = do
+    forM_ rules $ \case
+        RegexRule pat ->
+            case validateRegex pat of
+                Left err -> Left $ "Invalid regex pattern '" ++ pat ++ "': " ++ err
+                Right () -> Right ()
+
+{- | Validate a regex pattern by attempting to compile it
+Uses unsafePerformIO to catch compilation errors from makeRegex
+-}
+validateRegex :: String -> Either String ()
+validateRegex pat =
+    unsafePerformIO $ do
+        result <- try (evaluate (makeRegex pat :: Regex))
+        pure $ case result of
+            Left (e :: SomeException) -> Left (show e)
+            Right _ -> Right ()
 
 defaultCaptureOptions :: CaptureOptions
 defaultCaptureOptions =

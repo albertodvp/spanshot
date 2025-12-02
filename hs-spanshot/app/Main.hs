@@ -1,7 +1,7 @@
 module Main where
 
 import Collect (collectFromFileWithCleanup)
-import Config (getConfigPath, loadConfig)
+import Config (ConfigPathInfo (..), ConfigPaths (..), capture, getConfigPaths, loadConfig, toCaptureOptions)
 import Control.Exception (IOException, catch)
 import Data.Aeson qualified as Aeson
 import Data.ByteString.Char8 qualified as BS
@@ -22,6 +22,7 @@ import OptEnvConf (
  )
 import Paths_hs_spanshot (version)
 import Streaming.Prelude qualified as S
+import System.Directory (getCurrentDirectory)
 import System.Exit (exitFailure)
 import System.IO (hFlush, hPutStrLn, stderr, stdout)
 import System.IO.Error (isDoesNotExistError, isPermissionError)
@@ -89,17 +90,37 @@ main = do
             runConfig cmd
 
 runCollect :: FilePath -> IO ()
-runCollect logfilePath =
-    collectFromFileWithCleanup defaultCollectOptions logfilePath $ \events ->
-        S.mapM_ printEvent events
+runCollect logfilePath = do
+    config <- loadConfig
+    -- Validate config (including regex patterns) before starting collection
+    case toCaptureOptions (capture config) of
+        Left err -> do
+            hPutStrLn stderr $ "Error: Invalid configuration: " ++ err
+            exitFailure
+        Right _captureOpts ->
+            -- TODO: Use captureOpts when capture processing is integrated
+            collectFromFileWithCleanup defaultCollectOptions logfilePath $ \events ->
+                S.mapM_ printEvent events
 
 runConfig :: ConfigCommand -> IO ()
 runConfig ConfigShow = do
     config <- loadConfig
     BS.putStrLn $ Yaml.encode config
 runConfig ConfigPath = do
-    path <- getConfigPath
-    putStrLn path
+    cwd <- getCurrentDirectory
+    paths <- getConfigPaths cwd
+    -- Print user config path with status
+    printPathInfo "user" (cpiUser paths)
+    -- Print project config path with status (if in a project)
+    case cpiProject paths of
+        Nothing -> putStrLn "project: (not in a git project)"
+        Just projInfo -> printPathInfo "project" projInfo
+
+-- | Print a config path with existence indicator
+printPathInfo :: String -> ConfigPathInfo -> IO ()
+printPathInfo label info = do
+    let status = if cpiExists info then "[found]" else "[not found]"
+    putStrLn $ label ++ ": " ++ cpiPath info ++ " " ++ status
 
 handleIOError :: FilePath -> IOException -> IO ()
 handleIOError path e
