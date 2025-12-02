@@ -129,15 +129,35 @@ Each line is a JSON event:
     "line": "ERROR: Database connection failed"
   },
   "pre_window": [
-    {"line": "INFO: Connecting to database..."},
-    {"line": "INFO: Retrying connection..."}
+    {
+      "source": "./app.log",
+      "session_order_id": 40,
+      "read_at_utc": "2025-10-15T16:32:10.000Z",
+      "line": "INFO: Connecting to database..."
+    },
+    {
+      "source": "./app.log",
+      "session_order_id": 41,
+      "read_at_utc": "2025-10-15T16:32:12.000Z",
+      "line": "INFO: Retrying connection..."
+    }
   ],
   "post_window": [
-    {"line": "WARN: Falling back to cache"},
-    {"line": "INFO: Request completed with degraded service"}
+    {
+      "source": "./app.log",
+      "session_order_id": 43,
+      "read_at_utc": "2025-10-15T16:32:16.000Z",
+      "line": "WARN: Falling back to cache"
+    },
+    {
+      "source": "./app.log",
+      "session_order_id": 44,
+      "read_at_utc": "2025-10-15T16:32:18.000Z",
+      "line": "INFO: Request completed with degraded service"
+    }
   ],
   "detected_by": [
-    {"pattern": "ERROR"}
+    {"regex_pattern": "ERROR"}
   ],
   "captured_at_utc": "2025-10-15T16:32:20.456Z"
 }
@@ -233,7 +253,7 @@ This project follows the [Angular Commit Message Convention](https://github.com/
 
 - [x] Core types (DetectionRule, SpanShot, CaptureOptions)
 - [x] Regex-based error detection
-- [ ] Time-based window buffering (span window: pre/post context)
+- [x] Time-based window buffering (span window: pre/post context)
 - [ ] Stream combinator (`captureFromStream`)
 - [ ] CLI commands (`capture` and `run`)
 - [ ] CLI integration tests
