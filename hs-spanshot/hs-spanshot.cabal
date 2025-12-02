@@ -52,6 +52,7 @@ executable spanshot
         aeson ^>=2.2,
         bytestring ^>=0.12,
         directory ^>=1.3,
+        filepath ^>=1.5,
         hs-spanshot,
         opt-env-conf ^>=0.13,
         streaming ^>=0.2

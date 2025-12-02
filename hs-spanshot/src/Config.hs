@@ -7,6 +7,7 @@ module Config (
     PartialCaptureConfig (..),
     ConfigPathInfo (..),
     ConfigPaths (..),
+    InitConfigError (..),
     defaultConfig,
     loadConfig,
     loadConfigFrom,
@@ -17,13 +18,15 @@ module Config (
     toCaptureOptions,
     fromCaptureOptions,
     mergeConfig,
+    initConfigFile,
 ) where
 
 import Data.Aeson (FromJSON, Options (fieldLabelModifier), ToJSON, camelTo2, defaultOptions, genericParseJSON, genericToJSON)
+import Data.ByteString qualified as BS
 import Data.Time (NominalDiffTime)
 import Data.Yaml qualified as Yaml
 import GHC.Generics (Generic)
-import System.Directory (XdgDirectory (XdgConfig), doesDirectoryExist, doesFileExist, getCurrentDirectory, getXdgDirectory)
+import System.Directory (XdgDirectory (XdgConfig), createDirectoryIfMissing, doesDirectoryExist, doesFileExist, getCurrentDirectory, getXdgDirectory)
 import System.FilePath (takeDirectory, (</>))
 import System.IO (hPutStrLn, stderr)
 
@@ -281,3 +284,44 @@ loadProjectConfig startDir = do
 -- | Empty partial config (no overrides)
 emptyPartialConfig :: PartialConfig
 emptyPartialConfig = PartialConfig{pcCapture = Nothing}
+
+-- | Errors that can occur when initializing a config file
+data InitConfigError
+    = ConfigFileExists FilePath
+    | InitIOError FilePath String
+    deriving (Show, Eq)
+
+{- | Initialize a config file at the specified path
+
+If the path is a directory, creates .spanshot.yaml inside it.
+If the path is a file path, creates the file at that path.
+Creates parent directories if they don't exist.
+
+Returns Left error if:
+- File already exists and force is False
+- IO error occurs
+
+Returns Right () on success.
+-}
+initConfigFile :: FilePath -> Bool -> IO (Either InitConfigError ())
+initConfigFile path force = do
+    -- Check if path is an existing directory
+    isDir <- doesDirectoryExist path
+    let targetPath =
+            if isDir
+                then path </> ".spanshot.yaml"
+                else path
+
+    -- Check if file already exists
+    exists <- doesFileExist targetPath
+    if exists && not force
+        then pure $ Left (ConfigFileExists targetPath)
+        else do
+            -- Create parent directories if needed
+            let parentDir = takeDirectory targetPath
+            createDirectoryIfMissing True parentDir
+
+            -- Write default config as YAML
+            let configYaml = Yaml.encode defaultConfig
+            BS.writeFile targetPath configYaml
+            pure $ Right ()
