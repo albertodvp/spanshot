@@ -156,14 +156,20 @@ getConfigPath = do
     configDir <- getXdgDirectory XdgConfig "spanshot"
     pure $ configDir </> "config.yaml"
 
-{- | Find the project root by looking for a .git directory
-Traverses up from the given directory until .git is found or root is reached
+{- | Find the project root by looking for a .git directory or file
+Traverses up from the given directory until .git is found or root is reached.
+
+Note: .git can be either:
+- A directory (normal git repository)
+- A file (git worktree, contains "gitdir: /path/to/main/repo/.git/worktrees/name")
 -}
 findProjectRoot :: FilePath -> IO (Maybe FilePath)
 findProjectRoot dir = do
-    let gitDir = dir </> ".git"
-    hasGit <- doesDirectoryExist gitDir
-    if hasGit
+    let gitPath = dir </> ".git"
+    -- Check for .git as directory (normal repo) or file (worktree)
+    isGitDir <- doesDirectoryExist gitPath
+    isGitFile <- doesFileExist gitPath
+    if isGitDir || isGitFile
         then pure (Just dir)
         else do
             let parent = takeDirectory dir

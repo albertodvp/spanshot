@@ -275,6 +275,22 @@ configTests = do
             result <- findProjectRoot "/"
             result `shouldBe` Nothing
 
+        it "finds .git file in current directory (worktree)" $ do
+            withSystemTempDirectory "spanshot-test" $ \tmpDir -> do
+                -- Create .git as a FILE (like in a worktree)
+                writeFile (tmpDir </> ".git") "gitdir: /some/path/.git/worktrees/foo"
+                result <- findProjectRoot tmpDir
+                result `shouldBe` Just tmpDir
+
+        it "finds .git file in parent directory (worktree)" $ do
+            withSystemTempDirectory "spanshot-test" $ \tmpDir -> do
+                -- Create .git as a FILE in root
+                writeFile (tmpDir </> ".git") "gitdir: /some/path/.git/worktrees/foo"
+                let subDir = tmpDir </> "src" </> "deep"
+                createDirectoryIfMissing True subDir
+                result <- findProjectRoot subDir
+                result `shouldBe` Just tmpDir
+
     describe "getProjectConfigPath" $ do
         it "returns path when project root exists" $ do
             withSystemTempDirectory "spanshot-test" $ \tmpDir -> do
