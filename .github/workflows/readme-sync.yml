@@ -1,0 +1,20 @@
+name: README Sync
+
+on:
+  schedule:
+    # Run weekly on Sunday at midnight UTC
+    - cron: '0 0 * * 0'
+  workflow_dispatch:
+    # Allow manual trigger from Actions tab
+
+jobs:
+  trigger-codex:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Codex via issue comment
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh issue comment ISSUE_NUMBER_PLACEHOLDER \
+            --repo ${{ github.repository }} \
+            --body "@codex Please sync the README following the instructions in prompts/readme-sync.md"
