@@ -15,6 +15,6 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh issue comment ISSUE_NUMBER_PLACEHOLDER \
+          gh issue comment 9 \
             --repo ${{ github.repository }} \
             --body "@codex Please sync the README following the instructions in prompts/readme-sync.md"
