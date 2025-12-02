@@ -5,6 +5,7 @@
 # SpanShot
 
 [![CI](https://github.com/albertodvp/spanshot/actions/workflows/ci.yml/badge.svg)](https://github.com/albertodvp/spanshot/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/albertodvp/spanshot/branch/main/graph/badge.svg)](https://codecov.io/gh/albertodvp/spanshot)
 ![CodeRabbit Pull Request Reviews](https://img.shields.io/coderabbit/prs/github/albertodvp/spanshot?utm_source=oss&utm_medium=github&utm_campaign=albertodvp%2Fspanshot&labelColor=171717&color=FF570A&link=https%3A%2F%2Fcoderabbit.ai&label=CodeRabbit+Reviews)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 
@@ -199,6 +200,10 @@ just test
 # Run specific test suite
 just test-unit
 just test-integration-cli
+
+# Generate coverage report
+just test-coverage
+just coverage-report
 
 # Build
 just build
