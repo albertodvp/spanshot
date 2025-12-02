@@ -1,9 +1,9 @@
 module ConfigSpec (configTests) where
 
 import Data.ByteString.Char8 qualified as BS
-import Data.Either (isLeft)
+import Data.Either (isLeft, isRight)
 import Data.Yaml qualified as Yaml
-import System.Directory (createDirectory, createDirectoryIfMissing)
+import System.Directory (createDirectory, createDirectoryIfMissing, doesFileExist)
 import System.FilePath ((</>))
 import System.IO.Temp (withSystemTempDirectory)
 import Test.Hspec (Spec, describe, it, shouldBe, shouldReturn, shouldSatisfy)
@@ -13,6 +13,7 @@ import Config (
     Config (..),
     ConfigPathInfo (..),
     ConfigPaths (..),
+    InitConfigError (..),
     PartialCaptureConfig (..),
     PartialConfig (..),
     defaultConfig,
@@ -20,6 +21,7 @@ import Config (
     fromCaptureOptions,
     getConfigPaths,
     getProjectConfigPath,
+    initConfigFile,
     loadConfigFrom,
     mergeConfig,
     toCaptureOptions,
@@ -299,9 +301,9 @@ configTests = do
             withSystemTempDirectory "spanshot-test" $ \tmpDir -> do
                 -- No .git directory
                 paths <- getConfigPaths tmpDir
-                -- User path should always be present
+                -- User path should always be present (existence depends on user's system)
                 cpiPath (cpiUser paths) `shouldSatisfy` not . null
-                cpiExists (cpiUser paths) `shouldBe` False -- temp dir won't have user config
+                -- No project path since no .git
                 cpiProject paths `shouldBe` Nothing
 
         it "returns both paths when in a project" $ do
@@ -377,3 +379,56 @@ configTests = do
                 config <- loadConfigFrom tmpDir
                 -- Should fall back to defaults
                 config `shouldBe` defaultConfig
+
+    describe "initConfigFile" $ do
+        it "creates config file at specified path" $ do
+            withSystemTempDirectory "spanshot-test" $ \tmpDir -> do
+                let configPath = tmpDir </> ".spanshot.yaml"
+                result <- initConfigFile configPath False
+                result `shouldSatisfy` isRight
+                -- File should exist
+                doesFileExist configPath `shouldReturn` True
+                -- File should contain valid config
+                content <- BS.readFile configPath
+                let parsed = Yaml.decodeEither' content :: Either Yaml.ParseException Config
+                case parsed of
+                    Left err -> fail $ "Failed to parse created config: " ++ show err
+                    Right config -> config `shouldBe` defaultConfig
+
+        it "creates parent directories if they don't exist" $ do
+            withSystemTempDirectory "spanshot-test" $ \tmpDir -> do
+                let configPath = tmpDir </> "deep" </> "nested" </> "path" </> ".spanshot.yaml"
+                result <- initConfigFile configPath False
+                result `shouldSatisfy` isRight
+                doesFileExist configPath `shouldReturn` True
+
+        it "fails if file already exists without force flag" $ do
+            withSystemTempDirectory "spanshot-test" $ \tmpDir -> do
+                let configPath = tmpDir </> ".spanshot.yaml"
+                -- Create file first
+                writeFile configPath "existing content"
+                result <- initConfigFile configPath False
+                result `shouldBe` Left (ConfigFileExists configPath)
+
+        it "overwrites existing file with force flag" $ do
+            withSystemTempDirectory "spanshot-test" $ \tmpDir -> do
+                let configPath = tmpDir </> ".spanshot.yaml"
+                -- Create file with different content
+                writeFile configPath "old content"
+                result <- initConfigFile configPath True
+                result `shouldSatisfy` isRight
+                -- File should now contain default config
+                content <- BS.readFile configPath
+                let parsed = Yaml.decodeEither' content :: Either Yaml.ParseException Config
+                case parsed of
+                    Left err -> fail $ "Failed to parse created config: " ++ show err
+                    Right config -> config `shouldBe` defaultConfig
+
+        it "creates config in directory if path is a directory" $ do
+            withSystemTempDirectory "spanshot-test" $ \tmpDir -> do
+                let subDir = tmpDir </> "myproject"
+                createDirectory subDir
+                result <- initConfigFile subDir False
+                result `shouldSatisfy` isRight
+                -- Should create .spanshot.yaml in that directory
+                doesFileExist (subDir </> ".spanshot.yaml") `shouldReturn` True

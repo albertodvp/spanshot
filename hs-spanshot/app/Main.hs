@@ -1,29 +1,37 @@
 module Main where
 
 import Collect (collectFromFileWithCleanup)
-import Config (ConfigPathInfo (..), ConfigPaths (..), capture, getConfigPaths, loadConfig, toCaptureOptions)
+import Config (ConfigPathInfo (..), ConfigPaths (..), InitConfigError (..), capture, getConfigPath, getConfigPaths, initConfigFile, loadConfig, toCaptureOptions)
 import Control.Exception (IOException, catch)
 import Data.Aeson qualified as Aeson
 import Data.ByteString.Char8 qualified as BS
 import Data.ByteString.Lazy.Char8 qualified as BL
+import Data.Maybe (fromMaybe)
 import Data.Yaml qualified as Yaml
 import OptEnvConf (
     HasParser (settingsParser),
+    argument,
     command,
     commands,
     help,
+    long,
     metavar,
     name,
+    optional,
     reader,
     runSettingsParser,
     setting,
+    short,
     str,
+    switch,
+    value,
     withoutConfig,
  )
 import Paths_hs_spanshot (version)
 import Streaming.Prelude qualified as S
-import System.Directory (getCurrentDirectory)
+import System.Directory (doesDirectoryExist, getCurrentDirectory)
 import System.Exit (exitFailure)
+import System.FilePath ((</>))
 import System.IO (hFlush, hPutStrLn, stderr, stdout)
 import System.IO.Error (isDoesNotExistError, isPermissionError)
 import Types (CollectEvent, defaultCollectOptions)
@@ -51,6 +59,7 @@ instance HasParser Dispatch where
 data ConfigCommand
     = ConfigShow
     | ConfigPath
+    | ConfigInit ConfigInitSettings
     deriving (Show)
 
 instance HasParser ConfigCommand where
@@ -58,7 +67,47 @@ instance HasParser ConfigCommand where
         commands
             [ command "show" "Show current configuration" $ pure ConfigShow
             , command "path" "Show configuration file path" $ pure ConfigPath
+            , command "init" "Initialize a new config file" $ ConfigInit <$> settingsParser
             ]
+
+data ConfigInitSettings = ConfigInitSettings
+    { initPath :: Maybe FilePath
+    , initForce :: Bool
+    , initUser :: Bool
+    }
+    deriving (Show)
+
+instance HasParser ConfigInitSettings where
+    settingsParser =
+        ConfigInitSettings
+            <$> optional
+                ( withoutConfig
+                    ( setting
+                        [ help "Path where to create the config file (default: current directory)"
+                        , reader str
+                        , argument
+                        , metavar "PATH"
+                        ]
+                    )
+                )
+            <*> withoutConfig
+                ( setting
+                    [ help "Overwrite existing config file"
+                    , switch True
+                    , long "force"
+                    , short 'f'
+                    , value False
+                    ]
+                )
+            <*> withoutConfig
+                ( setting
+                    [ help "Create user config at ~/.config/spanshot/config.yaml instead of project config"
+                    , switch True
+                    , long "user"
+                    , short 'u'
+                    , value False
+                    ]
+                )
 
 newtype CollectSettings = CollectSettings
     { collectLogfile :: FilePath
@@ -115,6 +164,37 @@ runConfig ConfigPath = do
     case cpiProject paths of
         Nothing -> putStrLn "project: (not in a git project)"
         Just projInfo -> printPathInfo "project" projInfo
+runConfig (ConfigInit settings) = do
+    targetPath <-
+        if initUser settings
+            then getConfigPath
+            else do
+                cwd <- getCurrentDirectory
+                pure $ fromMaybe cwd (initPath settings)
+    result <- initConfigFile targetPath (initForce settings)
+    case result of
+        Left (ConfigFileExists path) -> do
+            hPutStrLn stderr $ "Error: Config file already exists: " ++ path
+            hPutStrLn stderr "Use --force to overwrite."
+            exitFailure
+        Left (InitIOError path err) -> do
+            hPutStrLn stderr $ "Error: Failed to create config at " ++ path ++ ": " ++ err
+            exitFailure
+        Right () -> do
+            -- Determine the actual file path for the message
+            actualPath <-
+                if initUser settings
+                    then getConfigPath
+                    else do
+                        cwd <- getCurrentDirectory
+                        let basePath = fromMaybe cwd (initPath settings)
+                        -- If basePath is directory, file will be .spanshot.yaml inside
+                        isDir <- doesDirectoryExist basePath
+                        pure $
+                            if isDir
+                                then basePath </> ".spanshot.yaml"
+                                else basePath
+            putStrLn $ "Created config file: " ++ actualPath
 
 -- | Print a config path with existence indicator
 printPathInfo :: String -> ConfigPathInfo -> IO ()
