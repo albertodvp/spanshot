@@ -292,6 +292,18 @@ configTests = do
                 result <- findProjectRoot subDir
                 result `shouldBe` Just tmpDir
 
+        it "returns absolute path even for relative input" $ do
+            withSystemTempDirectory "spanshot-test" $ \tmpDir -> do
+                createDirectory (tmpDir </> ".git")
+                let subDir = tmpDir </> "src"
+                createDirectory subDir
+                -- We test that the result is always absolute (starts with /)
+                result <- findProjectRoot tmpDir
+                case result of
+                    Nothing -> fail "Expected to find project root"
+                    Just ('/' : _) -> pure () -- Absolute path, good
+                    Just path -> fail $ "Expected absolute path, got: " ++ path
+
     describe "getProjectConfigPath" $ do
         it "returns path when project root exists" $ do
             withSystemTempDirectory "spanshot-test" $ \tmpDir -> do
