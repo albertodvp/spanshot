@@ -319,6 +319,8 @@ Order of precedence (lowest to highest):
 3. Project config (.spanshot.yaml in project root)
 
 Returns the merged config along with any warnings encountered during loading.
+The merged config is validated, and any validation errors are reported as warnings
+(with the config falling back to defaults for invalid sections).
 -}
 loadConfigFrom :: FilePath -> IO (Config, [ConfigWarning])
 loadConfigFrom startDir = do
@@ -332,9 +334,26 @@ loadConfigFrom startDir = do
     -- User config replaces defaults entirely (it's a full Config)
     -- Project config merges field-by-field on top
     let mergedConfig = mergeConfig userConfig projectPartial
-        allWarnings = userWarnings ++ projectWarnings
+        loadWarnings = userWarnings ++ projectWarnings
 
-    pure (mergedConfig, allWarnings)
+    -- Validate the merged config
+    let (validatedConfig, validationWarnings) = validateConfig mergedConfig
+        allWarnings = loadWarnings ++ validationWarnings
+
+    pure (validatedConfig, allWarnings)
+
+{- | Validate a config by attempting to convert to CaptureOptions.
+If validation fails, returns defaultConfig with a warning.
+-}
+validateConfig :: Config -> (Config, [ConfigWarning])
+validateConfig config =
+    case toCaptureOptions (capture config) of
+        Left err ->
+            -- Validation failed - return default config with warning
+            (defaultConfig, [ConfigValidationWarning "(merged config)" err])
+        Right _ ->
+            -- Validation passed - return original config
+            (config, [])
 
 -- | Load user config from XDG path, returning any parse warnings
 loadUserConfig :: IO (Config, [ConfigWarning])
@@ -383,6 +402,8 @@ data InitConfigError
 data ConfigWarning
     = -- | A config file failed to parse (path, error message)
       ConfigParseWarning FilePath String
+    | -- | A config file parsed but contains invalid values (path, error message)
+      ConfigValidationWarning FilePath String
     deriving (Show, Eq)
 
 {- | Initialize a config file at the specified path
