@@ -113,51 +113,23 @@ jobs:
         run: just test-integration-cli
 
   coverage:
-    name: Coverage - GHC 9.12 - ubuntu-latest
+    name: Coverage (Nix)
     runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Haskell
-        uses: haskell-actions/setup@v2
-        id: setup
-        with:
-          ghc-version: "9.12"
-          cabal-version: "3.14"
-          cabal-update: true
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@main
 
-      - name: Show installed versions
-        run: |
-          cabal --version
-          ghc --version
+      - name: Setup Nix cache
+        uses: DeterminateSystems/magic-nix-cache-action@main
 
-      - name: Install just
-        uses: extractions/setup-just@v2
-
-      - name: Cache cabal store
-        uses: actions/cache@v4
-        with:
-          path: ${{ steps.setup.outputs.cabal-store }}
-          key: ${{ runner.os }}-ghc-${{ steps.setup.outputs.ghc-version }}-cabal-${{ hashFiles('**/*.cabal', '**/cabal.project') }}
-          restore-keys: |
-            ${{ runner.os }}-ghc-${{ steps.setup.outputs.ghc-version }}-
-
-      - name: Run coverage tests
-        run: just test-coverage
-
-      - name: Generate coverage report
-        id: coverage
-        uses: 8c6794b6/hpc-codecov-action@v4
-        with:
-          target: cabal:hs-spanshot-test
-          root: hs-spanshot
-          src: src
-          skip: app,test
-          excludes: Main,Paths_hs_spanshot
+      - name: Build coverage report
+        run: nix build .#hs-spanshot-codecov-report
 
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          files: ${{ steps.coverage.outputs.report }}
+          files: result/codecov.json

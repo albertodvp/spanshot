@@ -21,15 +21,6 @@ test-unit: build
 test-integration-cli: build
     cabal test hs-spanshot-integration-cli
 
-# Run coverage-instrumented tests
-test-coverage:
-    cabal test --enable-coverage --test-show-details=direct hs-spanshot-test hs-spanshot-integration-cli
-
-# Generate HTML coverage report after running coverage tests
-coverage-report: test-coverage
-    cabal hpc markup --destdir=dist-newstyle/coverage hs-spanshot-test
-    @echo "Open dist-newstyle/coverage/hpc/vanilla/html/hs-spanshot-test for coverage HTML output"
-
 # Get the path to the compiled binary in dist-newstyle/
 bin-path:
     @cabal list-bin spanshot
