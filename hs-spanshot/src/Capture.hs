@@ -3,12 +3,15 @@ module Capture (
     runAllDetectors,
     addToPreWindow,
     processEvent,
+    captureFromStream,
 ) where
 
 import Data.Foldable (toList)
 import Data.Sequence (Seq)
 import Data.Sequence qualified as Seq
 import Data.Time (addUTCTime, diffUTCTime)
+import Streaming (Of, Stream, lift)
+import Streaming.Prelude qualified as S
 import Text.Regex.TDFA ((=~))
 import Text.Regex.TDFA.Text ()
 
@@ -19,6 +22,7 @@ import Types (
     CollectEvent (line, readAtUtc),
     DetectionRule (RegexRule),
     SpanShot (SpanShot, capturedAtUtc, detectedBy, errorEvent, postWindow, preWindow),
+    initialCaptureState,
  )
 
 {- | Check if a detection rule matches a collect event.
@@ -221,3 +225,45 @@ processEvent opts state newEvent =
                 }
      in
         (newState, emittedShots)
+
+{- | Transform a stream of CollectEvents into a stream of SpanShots.
+
+This is the main entry point for streaming capture. It maintains internal
+state and emits SpanShots when errors are detected and post-windows complete.
+
+The function processes events one by one, threading state through the stream,
+and emitting a SpanShot only when a post-window duration has elapsed after
+an error detection.
+
+Note: When the input stream ends, any active capture that hasn't completed
+its post-window will be dropped. This is a deliberate simplification for v0.1.
+
+Example:
+
+@
+let events = collectFromFile opts "app.log"
+let captureOpts = defaultCaptureOptions { detectionRules = [RegexRule "ERROR"] }
+S.mapM_ printSpanShot $ captureFromStream captureOpts events
+@
+
+Time Complexity: O(1) per event (delegates to processEvent)
+Space Complexity: O(n) where n = max(preWindow size, postWindow size)
+-}
+captureFromStream ::
+    (Monad m) =>
+    CaptureOptions ->
+    Stream (Of CollectEvent) m r ->
+    Stream (Of SpanShot) m r
+captureFromStream opts = go initialCaptureState
+  where
+    go state stream = do
+        result <- lift $ S.next stream
+        case result of
+            Left r -> pure r
+            Right (event, rest) ->
+                let (newState, maybeShot) = processEvent opts state event
+                 in case maybeShot of
+                        Nothing -> go newState rest
+                        Just shot -> do
+                            S.yield shot
+                            go newState rest
