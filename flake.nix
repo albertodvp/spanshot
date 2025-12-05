@@ -55,10 +55,17 @@
         };
 
         packages = let
-          hs-spanshot = pkgs.haskell.packages.ghc912.callCabal2nix "hs-spanshot" ./hs-spanshot {};
+          hsPkgs = pkgs.haskell.packages.ghc912.extend (final: prev: {
+            # Override opt-env-conf with version from Hackage (nixpkgs has 0.9, we need 0.13)
+            opt-env-conf = final.callPackage ./nix/opt-env-conf.nix {};
+            # dontCheck: CLI integration tests require 'cabal' which isn't available in the Nix sandbox.
+            # Unit tests pass, but the integration test suite fails with "posix_spawnp: does not exist".
+            # Run tests via 'cabal test' in the devShell instead.
+            hs-spanshot = pkgs.haskell.lib.dontCheck (final.callCabal2nix "hs-spanshot" ./hs-spanshot {});
+          });
         in {
-          inherit hs-spanshot;
-          default = hs-spanshot;
+          hs-spanshot = hsPkgs.hs-spanshot;
+          default = hsPkgs.hs-spanshot;
         };
 
         apps.default = {
