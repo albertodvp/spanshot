@@ -87,7 +87,6 @@
             haskell.compiler.ghc912
             ghcid
             hlint
-            haskellPackages.apply-refact
             pkgs.haskell.packages.ghc912.fourmolu
             just
           ];
