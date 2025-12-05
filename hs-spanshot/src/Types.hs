@@ -11,8 +11,9 @@ module Types (
     maxPollIntervalMs,
     minPollIntervalMs,
     DetectionRule (RegexRule, regexPattern),
+    CompiledRule (..),
     SpanShot (..),
-    CaptureOptions (preWindowDuration, postWindowDuration, minContextEvents, detectionRules),
+    CaptureOptions (preWindowDuration, postWindowDuration, minContextEvents, detectionRules, compiledRules),
     mkCaptureOptions,
     defaultCaptureOptions,
     ActiveCapture (..),
@@ -22,8 +23,6 @@ module Types (
     spanShotFromSeq,
 ) where
 
-import Control.Exception (SomeException, evaluate, try)
-import Control.Monad (forM_)
 import Data.Aeson (FromJSON (parseJSON), Options (fieldLabelModifier), ToJSON (toJSON), camelTo2, defaultOptions, genericParseJSON, genericToJSON)
 import Data.Foldable (toList)
 import Data.Sequence (Seq)
@@ -31,8 +30,7 @@ import Data.Sequence qualified as Seq
 import Data.Text (Text)
 import Data.Time (NominalDiffTime, UTCTime)
 import GHC.Generics (Generic)
-import System.IO.Unsafe (unsafePerformIO)
-import Text.Regex.TDFA (Regex, makeRegex)
+import Text.Regex.TDFA (Regex, makeRegexM)
 import Text.Regex.TDFA.String ()
 
 data CollectEvent = CollectEvent
@@ -98,6 +96,25 @@ instance FromJSON DetectionRule where
                 { fieldLabelModifier = camelTo2 '_'
                 }
 
+{- | A compiled detection rule with pre-compiled regex for efficient matching.
+
+This is used internally by 'CaptureOptions' to avoid re-compiling regex patterns
+on every event. The 'crRule' field stores the original rule for serialization
+and display, while 'crRegex' stores the compiled regex for matching.
+-}
+data CompiledRule = CompiledRule
+    { crRule :: !DetectionRule
+    , crRegex :: !Regex
+    }
+
+-- | Show instance that only shows the pattern (Regex has no Show instance)
+instance Show CompiledRule where
+    show (CompiledRule rule _) = "CompiledRule " ++ show rule
+
+-- | Eq instance that compares only the original rule (Regex has no Eq instance)
+instance Eq CompiledRule where
+    (CompiledRule r1 _) == (CompiledRule r2 _) = r1 == r2
+
 data SpanShot = SpanShot
     { errorEvent :: !CollectEvent
     , preWindow :: ![CollectEvent]
@@ -121,14 +138,30 @@ instance FromJSON SpanShot where
                 { fieldLabelModifier = camelTo2 '_'
                 }
 
+{- | Capture options with pre-compiled regex patterns.
+
+The 'detectionRules' field stores the original rules for serialization,
+while 'compiledRules' stores pre-compiled versions for efficient matching.
+-}
 data CaptureOptions = CaptureOptions
     { preWindowDuration :: !NominalDiffTime
     , postWindowDuration :: !NominalDiffTime
     , minContextEvents :: !Int
     , detectionRules :: ![DetectionRule]
+    , compiledRules :: ![CompiledRule]
     }
     deriving (Show, Eq)
 
+{- | Create capture options with validation and regex pre-compilation.
+
+This function validates all inputs and pre-compiles regex patterns for efficient
+matching. If any regex pattern is invalid, returns Left with an error message.
+
+Pre-compiling regexes is important for performance: without it, each event would
+require re-compiling all regex patterns, which is expensive (O(m) per pattern
+where m is the pattern length). With pre-compilation, matching is O(n) where n
+is the input line length.
+-}
 mkCaptureOptions ::
     NominalDiffTime ->
     NominalDiffTime ->
@@ -142,46 +175,51 @@ mkCaptureOptions preWin postWin minCtx rules
     | minCtx < 1 = Left "minContextEvents must be at least 1"
     | null rules = Left "detectionRules cannot be empty"
     | otherwise =
-        case validateDetectionRules rules of
+        case compileDetectionRules rules of
             Left err -> Left err
-            Right () ->
+            Right compiled ->
                 Right $
                     CaptureOptions
                         { preWindowDuration = preWin
                         , postWindowDuration = postWin
                         , minContextEvents = minCtx
                         , detectionRules = rules
+                        , compiledRules = compiled
                         }
 
--- | Validate that all detection rules have valid regex patterns
-validateDetectionRules :: [DetectionRule] -> Either String ()
-validateDetectionRules rules = do
-    forM_ rules $ \case
-        RegexRule pat ->
-            case validateRegex pat of
-                Left err -> Left $ "Invalid regex pattern '" ++ pat ++ "': " ++ err
-                Right () -> Right ()
+{- | Compile all detection rules, returning an error if any regex is invalid.
 
-{- | Validate a regex pattern by attempting to compile it
-Uses unsafePerformIO to catch compilation errors from makeRegex
+This is a pure function that uses 'makeRegexM' which returns in 'MonadFail',
+avoiding the need for 'unsafePerformIO'.
 -}
-{-# NOINLINE validateRegex #-}
-validateRegex :: String -> Either String ()
-validateRegex pat =
-    unsafePerformIO $ do
-        result <- try (evaluate (makeRegex pat :: Regex))
-        pure $ case result of
-            Left (e :: SomeException) -> Left (show e)
-            Right _ -> Right ()
+compileDetectionRules :: [DetectionRule] -> Either String [CompiledRule]
+compileDetectionRules = traverse compileRule
+  where
+    compileRule rule@(RegexRule pat) =
+        case compileRegex pat of
+            Nothing -> Left $ "Invalid regex pattern: " ++ pat
+            Just regex -> Right $ CompiledRule rule regex
+
+{- | Compile a regex pattern, returning Nothing if invalid.
+
+Uses 'makeRegexM' with 'Maybe' as the MonadFail instance, providing a pure
+way to attempt regex compilation without exceptions.
+-}
+compileRegex :: String -> Maybe Regex
+compileRegex = makeRegexM
 
 defaultCaptureOptions :: CaptureOptions
 defaultCaptureOptions =
-    CaptureOptions
-        { preWindowDuration = 5
-        , postWindowDuration = 5
-        , minContextEvents = 10
-        , detectionRules = [RegexRule "ERROR"]
-        }
+    let defaultRules = [RegexRule "ERROR"]
+        -- "ERROR" is a valid regex, so this is safe
+        Right defaultCompiled = compileDetectionRules defaultRules
+     in CaptureOptions
+            { preWindowDuration = 5
+            , postWindowDuration = 5
+            , minContextEvents = 10
+            , detectionRules = defaultRules
+            , compiledRules = defaultCompiled
+            }
 
 {- | Active capture state during post-window collection.
 
