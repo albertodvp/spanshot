@@ -1,6 +1,8 @@
 module Capture (
     detectError,
+    detectErrorCompiled,
     runAllDetectors,
+    runAllDetectorsCompiled,
     addToPreWindow,
     processEvent,
 ) where
@@ -8,15 +10,17 @@ module Capture (
 import Data.Foldable (toList)
 import Data.Sequence (Seq)
 import Data.Sequence qualified as Seq
+import Data.Text qualified as T
 import Data.Time (addUTCTime, diffUTCTime)
-import Text.Regex.TDFA ((=~))
+import Text.Regex.TDFA (matchTest, (=~))
 import Text.Regex.TDFA.Text ()
 
 import Types (
     ActiveCapture (ActiveCapture, acDetectedBy, acErrorEvent, acPostEvents, acPreWindowSnapshot),
-    CaptureOptions (detectionRules, minContextEvents, postWindowDuration, preWindowDuration),
+    CaptureOptions (compiledRules, minContextEvents, postWindowDuration, preWindowDuration),
     CaptureState (CaptureState, csActiveCapture, csPreWindow),
     CollectEvent (line, readAtUtc),
+    CompiledRule (..),
     DetectionRule (RegexRule),
     SpanShot (SpanShot, capturedAtUtc, detectedBy, errorEvent, postWindow, preWindow),
  )
@@ -38,12 +42,28 @@ detectError rule event  -- Returns True
 @
 
 Time Complexity: O(n × m) where n = line length, m = pattern length
-  (typical regex matching complexity)
+  (typical regex matching complexity, includes regex compilation)
 Space Complexity: O(1) - no additional allocation beyond regex engine
+
+Note: This function re-compiles the regex on each call. For better performance
+in hot paths, use 'detectErrorCompiled' with pre-compiled rules.
 -}
 detectError :: DetectionRule -> CollectEvent -> Bool
 detectError (RegexRule pat) event =
     line event =~ pat
+
+{- | Check if a pre-compiled rule matches a collect event.
+
+This is the high-performance version of 'detectError' that uses a pre-compiled
+regex pattern. Use this in hot paths (e.g., when processing log streams) to
+avoid the overhead of regex compilation on every event.
+
+Time Complexity: O(n) where n = line length (matching only, no compilation)
+Space Complexity: O(1)
+-}
+detectErrorCompiled :: CompiledRule -> CollectEvent -> Bool
+detectErrorCompiled (CompiledRule _ regex) event =
+    matchTest regex (T.unpack $ line event)
 
 {- | Run all detection rules against an event.
 
@@ -62,17 +82,30 @@ runAllDetectors rules event  -- Returns [RegexRule "ERROR", RegexRule "FATAL"]
 Time Complexity: O(k × n × m) where:
   k = number of rules
   n = line length
-  m = average pattern length
+  m = average pattern length (includes regex compilation per rule)
 Space Complexity: O(k') where k' = number of matching rules (≤ k)
 
-Design note: We use filter for simplicity. For large rule sets (100s+),
-consider optimizing with:
-- Compiled regex caching
-- Parallel rule evaluation
-- Short-circuit on first match (if only one match needed)
+Note: This function re-compiles regexes on each call. For better performance
+in hot paths, use 'runAllDetectorsCompiled' with pre-compiled rules.
 -}
 runAllDetectors :: [DetectionRule] -> CollectEvent -> [DetectionRule]
 runAllDetectors rules event = filter (`detectError` event) rules
+
+{- | Run all pre-compiled detection rules against an event.
+
+This is the high-performance version of 'runAllDetectors' that uses pre-compiled
+regex patterns from 'CaptureOptions.compiledRules'.
+
+Returns the original 'DetectionRule' for each match (for serialization).
+
+Time Complexity: O(k × n) where:
+  k = number of rules
+  n = line length (matching only, no compilation)
+Space Complexity: O(k') where k' = number of matching rules (≤ k)
+-}
+runAllDetectorsCompiled :: [CompiledRule] -> CollectEvent -> [DetectionRule]
+runAllDetectorsCompiled rules event =
+    [crRule cr | cr <- rules, detectErrorCompiled cr event]
 
 {- | Add an event to the pre-window buffer with smart cleanup.
 
@@ -173,7 +206,8 @@ Memory considerations:
 processEvent :: CaptureOptions -> CaptureState -> CollectEvent -> (CaptureState, Maybe SpanShot)
 processEvent opts state newEvent =
     let
-        matchedRules = runAllDetectors (detectionRules opts) newEvent
+        -- Use compiled rules for efficient matching (no re-compilation per event)
+        matchedRules = runAllDetectorsCompiled (compiledRules opts) newEvent
         isError = not (null matchedRules)
         updatedPreWindow = addToPreWindow opts (csPreWindow state) newEvent
 
