@@ -165,6 +165,7 @@ validateDetectionRules rules = do
 {- | Validate a regex pattern by attempting to compile it
 Uses unsafePerformIO to catch compilation errors from makeRegex
 -}
+{-# NOINLINE validateRegex #-}
 validateRegex :: String -> Either String ()
 validateRegex pat =
     unsafePerformIO $ do
