@@ -417,6 +417,19 @@ Returns Left error if:
 - IO error occurs
 
 Returns Right () on success.
+
+== Race Condition Note
+
+When @force@ is False, this function checks for file existence before writing.
+There is a small TOCTOU (Time-of-Check-Time-of-Use) race window where another
+process could create the file between the check and write. In practice:
+
+- This is acceptable for CLI usage where concurrent config creation is rare
+- The worst case is overwriting a file created in the race window
+- For critical applications, platform-specific atomic APIs should be used
+
+The implementation prioritizes clear error messages and cross-platform
+compatibility over perfect atomicity.
 -}
 initConfigFile :: FilePath -> Bool -> IO (Either InitConfigError ())
 initConfigFile path force = do
@@ -427,16 +440,16 @@ initConfigFile path force = do
                 then path </> ".spanshot.yaml"
                 else path
 
-    -- Check if file already exists
-    exists <- doesFileExist targetPath
-    if exists && not force
+    let parentDir = takeDirectory targetPath
+    let configYaml = Yaml.encode defaultConfig
+
+    -- Check for existing file when not forcing
+    existsBeforeWrite <- doesFileExist targetPath
+    if existsBeforeWrite && not force
         then pure $ Left (ConfigFileExists targetPath)
         else do
-            -- Create parent directories and write file, catching IO exceptions
-            let parentDir = takeDirectory targetPath
             result <- try $ do
                 createDirectoryIfMissing True parentDir
-                let configYaml = Yaml.encode defaultConfig
                 BS.writeFile targetPath configYaml
             case result of
                 Left (e :: IOException) -> pure $ Left (InitIOError targetPath (show e))
