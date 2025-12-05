@@ -48,6 +48,29 @@ collectionTests = do
                 Left _ -> pure ()
                 Right _ -> expectationFailure "Expected an exception but got success"
 
+    describe "CollectOptions validation" $ do
+        it "accepts valid poll interval" $ do
+            let result = mkCollectOptions 100
+            result `shouldSatisfy` isRight
+
+        it "rejects poll interval less than 10ms" $ do
+            let result = mkCollectOptions 5
+            result `shouldSatisfy` isLeft
+
+        it "rejects negative poll interval" $ do
+            let result = mkCollectOptions (-1)
+            result `shouldSatisfy` isLeft
+
+        it "rejects poll interval greater than 60 seconds" $ do
+            let result = mkCollectOptions (maxPollIntervalMs + 1)
+            result `shouldSatisfy` isLeft
+
+        it "accepts boundary values" $ do
+            let result1 = mkCollectOptions minPollIntervalMs
+            let result2 = mkCollectOptions maxPollIntervalMs
+            result1 `shouldSatisfy` isRight
+            result2 `shouldSatisfy` isRight
+
 #ifndef mingw32_HOST_OS
         -- NOTE: This test is skipped on Windows due to file locking limitations.
         -- On Windows, when collectFromFile opens a file in ReadMode, it prevents
@@ -82,26 +105,3 @@ collectionTests = do
             map sessionOrderId events `shouldBe` [0, 1, 2, 3, 4]
             map line events `shouldBe` [T.pack "line 1", T.pack "line 2", T.pack "line 3", T.pack "line 4", T.pack "line 5"]
 #endif
-
-describe "CollectOptions validation" $ do
-    it "accepts valid poll interval" $ do
-        let result = mkCollectOptions 100
-        result `shouldSatisfy` isRight
-
-    it "rejects poll interval less than 10ms" $ do
-        let result = mkCollectOptions 5
-        result `shouldSatisfy` isLeft
-
-    it "rejects negative poll interval" $ do
-        let result = mkCollectOptions (-1)
-        result `shouldSatisfy` isLeft
-
-    it "rejects poll interval greater than 60 seconds" $ do
-        let result = mkCollectOptions (maxPollIntervalMs + 1)
-        result `shouldSatisfy` isLeft
-
-    it "accepts boundary values" $ do
-        let result1 = mkCollectOptions minPollIntervalMs
-        let result2 = mkCollectOptions maxPollIntervalMs
-        result1 `shouldSatisfy` isRight
-        result2 `shouldSatisfy` isRight

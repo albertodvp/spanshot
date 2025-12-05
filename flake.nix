@@ -132,9 +132,5 @@
           '';
         };
       };
-
-      flake = {
-        # Add any flake-level configurations here
-      };
     };
 }
