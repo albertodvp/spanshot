@@ -53,7 +53,7 @@ import Data.Maybe (fromMaybe)
 import Data.Time (NominalDiffTime)
 import Data.Yaml qualified as Yaml
 import GHC.Generics (Generic)
-import System.Directory (XdgDirectory (XdgConfig), createDirectoryIfMissing, doesDirectoryExist, doesFileExist, getCurrentDirectory, getXdgDirectory)
+import System.Directory (XdgDirectory (XdgConfig), canonicalizePath, createDirectoryIfMissing, doesDirectoryExist, doesFileExist, getCurrentDirectory, getXdgDirectory)
 import System.FilePath (takeDirectory, (</>))
 
 import Types (CaptureOptions (..), DetectionRule, defaultCaptureOptions, mkCaptureOptions)
@@ -211,12 +211,22 @@ The function checks for .git as either:
 This ensures proper detection in both standard git repositories and
 worktree checkouts.
 
+== Path Handling
+
+The input path is canonicalized (resolved to an absolute path with symlinks
+resolved) to ensure consistent behavior regardless of:
+
+* Relative vs absolute input paths
+* Symlinks in the path
+* Current working directory changes
+
 == Algorithm
 
-1. Check if @startDir \/ .git@ exists (as file or directory)
-2. If found, return @Just startDir@
-3. If not found, recurse to parent directory
-4. If parent == current (filesystem root), return @Nothing@
+1. Canonicalize the input path to an absolute path
+2. Check if @startDir \/ .git@ exists (as file or directory)
+3. If found, return @Just startDir@
+4. If not found, recurse to parent directory
+5. If parent == current (filesystem root), return @Nothing@
 
 == Examples
 
@@ -225,21 +235,29 @@ Just "/home/user/project"  -- if /home/user/project/.git exists
 
 >>> findProjectRoot "/tmp/not-a-repo"
 Nothing  -- if no .git found up to root
+
+>>> findProjectRoot "."
+Just "/home/user/project"  -- relative paths are resolved
 -}
 findProjectRoot :: FilePath -> IO (Maybe FilePath)
 findProjectRoot dir = do
-    let gitPath = dir </> gitDirName
-    -- Check for .git as directory (normal repo) or file (worktree)
-    isGitDir <- doesDirectoryExist gitPath
-    isGitFile <- doesFileExist gitPath
-    if isGitDir || isGitFile
-        then pure (Just dir)
-        else do
-            let parent = takeDirectory dir
-            -- Stop if we've reached the filesystem root
-            if parent == dir
-                then pure Nothing
-                else findProjectRoot parent
+    -- Canonicalize to absolute path, resolving symlinks
+    absDir <- canonicalizePath dir
+    go absDir
+  where
+    go d = do
+        let gitPath = d </> gitDirName
+        -- Check for .git as directory (normal repo) or file (worktree)
+        isGitDir <- doesDirectoryExist gitPath
+        isGitFile <- doesFileExist gitPath
+        if isGitDir || isGitFile
+            then pure (Just d)
+            else do
+                let parent = takeDirectory d
+                -- Stop if we've reached the filesystem root
+                if parent == d
+                    then pure Nothing
+                    else go parent
 
 {- | Get the project config file path (.spanshot.yaml in project root).
 
