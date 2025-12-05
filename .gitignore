@@ -4,3 +4,4 @@ dist-newstyle
 *.excalidraw
 .pre-commit-config.yaml
 git-worktrees
+result

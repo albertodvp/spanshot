@@ -18,7 +18,7 @@ module Main (main) where
 --
 -- How these tests work:
 --
--- - Uses 'cabal list-bin' to locate the compiled spanshot binary
+-- - The spanshot binary is available via 'build-tool-depends' in the cabal file
 -- - Runs the binary as a subprocess with various arguments
 -- - Validates output structure (JSONL format) and content
 -- - Uses 'timeout' to handle streaming behavior (since spanshot tails files)
@@ -30,6 +30,8 @@ import Data.Aeson (Value, eitherDecode)
 import Data.ByteString.Lazy qualified as BL
 import Data.ByteString.Lazy.Char8 qualified as BLC
 import Data.List (isInfixOf)
+import Data.Maybe (fromMaybe)
+import System.Environment (lookupEnv)
 import System.Exit (ExitCode (..))
 import System.IO (BufferMode (..), hGetLine, hSetBuffering)
 import System.Process (CreateProcess (..), StdStream (..), createProcess, proc, readProcessWithExitCode, terminateProcess, waitForProcess)
@@ -48,14 +50,23 @@ main = do
             , errorHandlingTests binaryPath
             ]
 
+{- | Get the path to the spanshot binary.
+
+The binary is available in PATH thanks to 'build-tool-depends: hs-spanshot:spanshot'
+in the cabal file. This declaration tells Cabal to build the spanshot executable
+and add it to PATH before running this test suite.
+
+This approach works in both:
+  - Cabal builds: Cabal handles the dependency and PATH setup
+  - Nix builds: Nix respects build-tool-depends and provides the binary in PATH
+
+The SPANSHOT_BIN environment variable can override this for manual testing
+with a specific binary location.
+-}
 getBinaryPath :: IO FilePath
 getBinaryPath = do
-    (exitCode, stdout, stderr) <- readProcessWithExitCode "cabal" ["list-bin", "spanshot"] ""
-    case exitCode of
-        ExitSuccess -> case lines stdout of
-            (binaryPath : _) -> pure binaryPath
-            [] -> error "cabal list-bin returned no output"
-        ExitFailure code -> error $ "Failed to get binary path (exit " ++ show code ++ "): " ++ stderr
+    mPath <- lookupEnv "SPANSHOT_BIN"
+    pure $ fromMaybe "spanshot" mPath
 
 outputValidationTests :: FilePath -> TestTree
 outputValidationTests binary =
