@@ -2,6 +2,7 @@ module ConfigSpec (configTests) where
 
 import Data.ByteString.Char8 qualified as BS
 import Data.Either (isLeft, isRight)
+import Data.List (isInfixOf)
 import Data.Yaml qualified as Yaml
 import System.Directory (createDirectory, createDirectoryIfMissing, doesFileExist)
 import System.FilePath ((</>))
@@ -416,6 +417,40 @@ configTests = do
                 case warnings of
                     [ConfigParseWarning path _] -> path `shouldBe` (tmpDir </> ".spanshot.yaml")
                     _ -> fail "Expected a single ConfigParseWarning"
+
+        it "validates merged config and returns validation warning for invalid values" $ do
+            withSystemTempDirectory "spanshot-test" $ \tmpDir -> do
+                createDirectory (tmpDir </> ".git")
+                -- Create config with invalid value (negative duration)
+                writeFile
+                    (tmpDir </> ".spanshot.yaml")
+                    "capture:\n  pre_window_duration: -10\n"
+                (config, warnings) <- loadConfigFrom tmpDir
+                -- Should fall back to defaults due to validation failure
+                config `shouldBe` defaultConfig
+                -- Should have a validation warning
+                length warnings `shouldBe` 1
+                case warnings of
+                    [ConfigValidationWarning _ msg] ->
+                        msg `shouldSatisfy` ("non-negative" `isInfixOf`)
+                    _ -> fail "Expected a single ConfigValidationWarning"
+
+        it "validates merged config and returns validation warning for empty rules" $ do
+            withSystemTempDirectory "spanshot-test" $ \tmpDir -> do
+                createDirectory (tmpDir </> ".git")
+                -- Create config with empty detection rules
+                writeFile
+                    (tmpDir </> ".spanshot.yaml")
+                    "capture:\n  detection_rules: []\n"
+                (config, warnings) <- loadConfigFrom tmpDir
+                -- Should fall back to defaults due to validation failure
+                config `shouldBe` defaultConfig
+                -- Should have a validation warning
+                length warnings `shouldBe` 1
+                case warnings of
+                    [ConfigValidationWarning _ msg] ->
+                        msg `shouldSatisfy` ("empty" `isInfixOf`)
+                    _ -> fail "Expected a single ConfigValidationWarning"
 
     describe "initConfigFile" $ do
         it "creates config file at specified path" $ do

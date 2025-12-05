@@ -217,6 +217,8 @@ printConfigWarnings warnings = do
   where
     printWarning (ConfigParseWarning path err) =
         hPutStrLn stderr $ "Warning: Failed to parse config file " ++ path ++ ": " ++ err
+    printWarning (ConfigValidationWarning path err) =
+        hPutStrLn stderr $ "Warning: Invalid configuration in " ++ path ++ ": " ++ err
 
 handleIOError :: FilePath -> IOException -> IO ()
 handleIOError path e
