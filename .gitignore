@@ -3,3 +3,4 @@ dist-newstyle
 *.mp4
 *.excalidraw
 .pre-commit-config.yaml
+git-worktrees
