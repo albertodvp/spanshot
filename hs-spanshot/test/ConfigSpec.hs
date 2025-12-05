@@ -5,7 +5,7 @@ import Data.Either (isLeft, isRight)
 import Data.List (isInfixOf)
 import Data.Yaml qualified as Yaml
 import System.Directory (createDirectory, createDirectoryIfMissing, doesFileExist)
-import System.FilePath ((</>))
+import System.FilePath (isAbsolute, (</>))
 import System.IO.Temp (withSystemTempDirectory)
 import Test.Hspec (Spec, describe, it, shouldBe, shouldReturn, shouldSatisfy)
 
@@ -298,11 +298,11 @@ configTests = do
                 createDirectory (tmpDir </> ".git")
                 let subDir = tmpDir </> "src"
                 createDirectory subDir
-                -- We test that the result is always absolute (starts with /)
+                -- We test that the result is always absolute (works on both Unix and Windows)
                 result <- findProjectRoot tmpDir
                 case result of
                     Nothing -> fail "Expected to find project root"
-                    Just ('/' : _) -> pure () -- Absolute path, good
+                    Just p | isAbsolute p -> pure () -- Absolute path, good
                     Just path -> fail $ "Expected absolute path, got: " ++ path
 
     describe "getProjectConfigPath" $ do
