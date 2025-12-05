@@ -4,7 +4,7 @@ version:            0.1.0.0
 -- synopsis:
 -- description:
 license:            Apache-2.0
-license-file:       ../LICENSE
+license-file:       LICENSE
 author:             Alberto Fanton
 maintainer:         alberto.fanton@protonmail.com
 -- copyright:
@@ -81,7 +81,7 @@ test-suite hs-spanshot-test
         hs-spanshot,
         hspec ^>=2.11,
         process ^>=1.6,
-        QuickCheck ^>=2.14,
+        QuickCheck >=2.14 && <2.17,
         quickcheck-instances ^>=0.3,
         streaming ^>=0.2,
         tasty ^>=1.5,
@@ -109,4 +109,6 @@ test-suite hs-spanshot-integration-cli
         tasty-hunit ^>=0.10,
         temporary ^>=1.3,
         text ^>=2.1
+    -- This ensures the spanshot binary is built and available in PATH
+    -- before running the integration tests. Works in both Cabal and Nix builds.
     build-tool-depends: hs-spanshot:spanshot
