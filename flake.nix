@@ -74,6 +74,7 @@
         };
 
         devShells.default = pkgs.mkShell {
+          inputsFrom = [config.pre-commit.devShell];
           buildInputs = with pkgs; [
             hello
             ollama
