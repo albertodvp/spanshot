@@ -1,5 +1,5 @@
 let
-  users = builtins.fromJSON (builtins.readFile ../users.json);
+  users = builtins.fromJSON (builtins.readFile ../../users.json);
   publicKeys =
     builtins.foldl'
     (acc: user:
