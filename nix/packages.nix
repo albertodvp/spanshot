@@ -27,6 +27,14 @@
           runHook postCheck
         '';
       });
+      # Wrap package to include 'spns' alias alongside 'spanshot'
+      hs-spanshot-with-alias = pkgs.symlinkJoin {
+        name = "spanshot";
+        paths = [hs-spanshot-tested];
+        postBuild = ''
+          ln -s $out/bin/spanshot $out/bin/spns
+        '';
+      };
       # Codecov JSON report - converts HPC coverage data to Codecov format
       hs-spanshot-codecov-report =
         pkgs.runCommand "hs-spanshot-codecov-report" {
@@ -65,8 +73,8 @@
           rm $out/codecov-raw.json
         '';
     in {
-      hs-spanshot = hs-spanshot-tested;
-      default = hs-spanshot-tested;
+      hs-spanshot = hs-spanshot-with-alias;
+      default = hs-spanshot-with-alias;
       inherit hs-spanshot-coverage hs-spanshot-codecov-report;
     };
   };
