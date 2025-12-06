@@ -8,6 +8,7 @@
     apps.default = {
       type = "app";
       program = "${config.packages.hs-spanshot}/bin/spanshot";
+      meta.description = "SpanShot log collector and analyzer";
     };
 
     # CI app: Configure Cachix with auth token from agenix
@@ -24,6 +25,7 @@
           ${pkgs.cachix}/bin/cachix use spanshot
         '';
       in "${script}";
+      meta.description = "Configure Cachix with auth token from agenix";
     };
 
     # CI app: Build package and push to Cachix (including all dependencies)
@@ -38,6 +40,7 @@
             nix build .#hs-spanshot --print-build-logs
         '';
       in "${script}";
+      meta.description = "Build package and push to Cachix cache";
     };
 
     # CI app: Export secrets to GITHUB_ENV for use in subsequent steps
@@ -53,6 +56,7 @@
           echo "CODECOV_TOKEN=$CODECOV_TOKEN"
         '';
       in "${script}";
+      meta.description = "Export secrets to GITHUB_ENV for CI";
     };
 
     # CI app: Trigger README sync via Codex
@@ -71,6 +75,7 @@
             --body "@codex Please sync the README following the instructions in prompts/readme-sync.md. If any changes are needed, open a PR."
         '';
       in "${script}";
+      meta.description = "Trigger README sync via Codex";
     };
   };
 }
