@@ -111,25 +111,3 @@ jobs:
 
       - name: Run CLI integration tests
         run: just test-integration-cli
-
-  coverage:
-    name: Coverage (Nix)
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install Nix
-        uses: DeterminateSystems/nix-installer-action@main
-
-      - name: Setup Nix cache
-        uses: DeterminateSystems/magic-nix-cache-action@main
-
-      - name: Build coverage report
-        run: nix build .#hs-spanshot-codecov-report
-
-      - name: Upload coverage reports to Codecov
-        uses: codecov/codecov-action@v5
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          files: result/codecov.json

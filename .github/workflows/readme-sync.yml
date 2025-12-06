@@ -2,21 +2,28 @@ name: README Sync
 
 on:
   schedule:
-    # Run weekly on Sunday at midnight UTC
     - cron: '0 0 * * 0'
   workflow_dispatch:
-    # Allow manual trigger from Actions tab
 
 jobs:
   trigger-codex:
     runs-on: ubuntu-latest
-    permissions:
-      issues: write
     steps:
-      - name: Trigger Codex via issue comment
-        env:
-          GH_TOKEN: ${{ secrets.PAT_TOKEN }}
+      - name: Install agenix private key
         run: |
-          gh issue comment 9 \
-            --repo ${{ github.repository }} \
-            --body "@codex Please sync the README following the instructions in prompts/readme-sync.md. If any changes are needed, open a PR."
+          install -d -m 700 "$HOME/.ssh"
+          printf '%s' "${{ secrets.AGENIX_SSH_PRIVATE_KEY }}" > "$HOME/.ssh/id_ed25519"
+          chmod 600 "$HOME/.ssh/id_ed25519"
+
+      - uses: actions/checkout@v4
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@v31
+        with:
+          extra_nix_config: |
+            accept-flake-config = true
+
+      - name: Trigger Codex
+        env:
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: nix run .#trigger-readme-sync
