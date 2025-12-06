@@ -36,8 +36,6 @@
           set -euo pipefail
           source ${lib.getExe config.agenix-shell.installationScript} 2>/dev/null
 
-          # Output in GITHUB_ENV format, masked for security
-          echo "::add-mask::$CODECOV_TOKEN"
           echo "CODECOV_TOKEN=$CODECOV_TOKEN"
         '';
       in "${script}";
