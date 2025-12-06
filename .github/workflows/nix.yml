@@ -26,14 +26,16 @@ jobs:
         uses: cachix/install-nix-action@v31
 
       - name: Install agenix private key
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        # TODO: restore condition before merging
+        # if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: |
           install -d -m 700 "$HOME/.ssh"
           printf '%s' "${{ secrets.AGENIX_SSH_PRIVATE_KEY }}" > "$HOME/.ssh/id_ed25519"
           chmod 600 "$HOME/.ssh/id_ed25519"
 
       - name: Configure Cachix cache
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        # TODO: restore condition before merging
+        # if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: nix run .#configure-cachix
 
       - name: Nix flake check
@@ -46,15 +48,21 @@ jobs:
         run: nix run .# -- --help
 
       - name: Export secrets for coverage upload
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && matrix.os == 'ubuntu-latest'
+        # TODO: restore condition before merging
+        # if: github.event_name == 'push' && github.ref == 'refs/heads/main' && matrix.os == 'ubuntu-latest'
+        if: matrix.os == 'ubuntu-latest'
         run: nix run .#export-secrets >> "$GITHUB_ENV"
 
       - name: Build coverage report
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && matrix.os == 'ubuntu-latest'
+        # TODO: restore condition before merging
+        # if: github.event_name == 'push' && github.ref == 'refs/heads/main' && matrix.os == 'ubuntu-latest'
+        if: matrix.os == 'ubuntu-latest'
         run: nix build .#hs-spanshot-codecov-report
 
       - name: Upload coverage to Codecov
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && matrix.os == 'ubuntu-latest'
+        # TODO: restore condition before merging
+        # if: github.event_name == 'push' && github.ref == 'refs/heads/main' && matrix.os == 'ubuntu-latest'
+        if: matrix.os == 'ubuntu-latest'
         uses: codecov/codecov-action@v5
         with:
           token: ${{ env.CODECOV_TOKEN }}
