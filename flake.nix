@@ -119,6 +119,67 @@
           program = "${config.packages.hs-spanshot}/bin/spanshot";
         };
 
+        # CI app: Configure Cachix with auth token from agenix
+        # Usage: nix run .#configure-cachix
+        # Requires: SSH key for agenix decryption
+        apps.configure-cachix = {
+          type = "app";
+          program = let
+            script = pkgs.writeShellScript "configure-cachix" ''
+              set -euo pipefail
+              FLAKE_ROOT="''${FLAKE_ROOT:-.}"
+              source "$(${pkgs.nix}/bin/nix eval "$FLAKE_ROOT#agenix-shell.installationScript" --raw)"
+
+              ${pkgs.cachix}/bin/cachix authtoken "$CACHIX_AUTH_TOKEN"
+              ${pkgs.cachix}/bin/cachix use spanshot
+            '';
+          in "${script}";
+        };
+
+        # CI app: Upload coverage to Codecov
+        # Usage: nix run .#upload-codecov
+        # Requires: SSH key for agenix decryption
+        apps.upload-codecov = {
+          type = "app";
+          program = let
+            script = pkgs.writeShellScript "upload-codecov" ''
+              set -euo pipefail
+              FLAKE_ROOT="''${FLAKE_ROOT:-.}"
+              source "$(${pkgs.nix}/bin/nix eval "$FLAKE_ROOT#agenix-shell.installationScript" --raw)"
+
+              if [ ! -f result/codecov.json ]; then
+                ${pkgs.nix}/bin/nix build "$FLAKE_ROOT#hs-spanshot-codecov-report"
+              fi
+
+              ${pkgs.curl}/bin/curl -X POST \
+                --fail \
+                --data-binary @result/codecov.json \
+                -H "Authorization: token $CODECOV_TOKEN" \
+                -H "Content-Type: application/json" \
+                "https://codecov.io/upload/v2?service=github&commit=$GITHUB_SHA&branch=$GITHUB_REF_NAME&slug=$GITHUB_REPOSITORY"
+            '';
+          in "${script}";
+        };
+
+        # CI app: Trigger README sync via Codex
+        # Usage: nix run .#trigger-readme-sync
+        # Requires: SSH key for agenix decryption, GITHUB_REPOSITORY env var
+        apps.trigger-readme-sync = {
+          type = "app";
+          program = let
+            script = pkgs.writeShellScript "trigger-readme-sync" ''
+              set -euo pipefail
+              FLAKE_ROOT="''${FLAKE_ROOT:-.}"
+              source "$(${pkgs.nix}/bin/nix eval "$FLAKE_ROOT#agenix-shell.installationScript" --raw)"
+
+              export GH_TOKEN="$PAT_CODEX_SPANSHOT_WRITE"
+              ${pkgs.gh}/bin/gh issue comment 9 \
+                --repo "''${GITHUB_REPOSITORY:-albertodvp/spanshot}" \
+                --body "@codex Please sync the README following the instructions in prompts/readme-sync.md. If any changes are needed, open a PR."
+            '';
+          in "${script}";
+        };
+
         devShells.default = pkgs.mkShell {
           inputsFrom = [config.pre-commit.devShell];
           buildInputs = with pkgs; [
