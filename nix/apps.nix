@@ -26,6 +26,20 @@
       in "${script}";
     };
 
+    # CI app: Build package and push to Cachix (including all dependencies)
+    # Usage: nix run .#build-and-push
+    # Requires: SSH key for agenix decryption, authenticated cachix
+    apps.build-and-push = {
+      type = "app";
+      program = let
+        script = pkgs.writeShellScript "build-and-push" ''
+          set -euo pipefail
+          ${pkgs.cachix}/bin/cachix watch-exec spanshot -- \
+            nix build .#hs-spanshot --print-build-logs
+        '';
+      in "${script}";
+    };
+
     # CI app: Export secrets to GITHUB_ENV for use in subsequent steps
     # Usage: nix run .#export-secrets >> "$GITHUB_ENV"
     # Requires: SSH key for agenix decryption
