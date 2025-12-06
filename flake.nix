@@ -1,9 +1,18 @@
 {
   description = "Relage project powered by flake-parts";
 
+  nixConfig = {
+    extra-substituters = ["https://spanshot.cachix.org"];
+    extra-trusted-public-keys = ["spanshot.cachix.org-1:3TOagW6wPJNA18zei8rkUWT9eZn13fj86qJ2JN2rUQk="];
+  };
+
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs?ref=nixos-unstable";
     flake-parts.url = "github:hercules-ci/flake-parts";
+    agenix-shell = {
+      url = "github:aciceri/agenix-shell";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
     treefmt-nix = {
       url = "github:numtide/treefmt-nix";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -19,6 +28,7 @@
       imports = [
         inputs.treefmt-nix.flakeModule
         inputs.pre-commit-hooks.flakeModule
+        ./secrets
       ];
 
       systems = [
@@ -31,6 +41,7 @@
       perSystem = {
         config,
         pkgs,
+        lib,
         ...
       }: {
         treefmt = {
@@ -123,12 +134,14 @@
             ghcid
             hlint
             pkgs.haskell.packages.ghc912.fourmolu
+            ragenix
+            age
             just
           ];
           shellHook = ''
             ${config.pre-commit.installationScript}
             echo "Welcome to the Relage development environment!"
-            echo "Available packages: hello"
+            source ${lib.getExe config.agenix-shell.installationScript}
           '';
         };
       };

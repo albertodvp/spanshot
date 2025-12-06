@@ -1,0 +1,10 @@
+[
+  {
+    "username": "albertodvp",
+    "publicKey": "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFcH6SFgp2hFog79YE0T3eft/Fq3gciYJi+msTCgZMtO"
+  },
+  {
+    "username": "gha",
+    "publicKey": "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOj2SzHAy8aWN5Ag9Q/PLEbrTdYcFvzRvIx3RerFXady"
+  }
+]
