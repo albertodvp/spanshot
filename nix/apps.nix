@@ -51,7 +51,7 @@
       program = let
         script = pkgs.writeShellScript "export-secrets" ''
           set -euo pipefail
-          source ${lib.getExe config.agenix-shell.installationScript} 2>/dev/null
+          source ${lib.getExe config.agenix-shell.installationScript}
 
           echo "CODECOV_TOKEN=$CODECOV_TOKEN"
         '';

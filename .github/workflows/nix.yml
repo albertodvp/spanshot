@@ -40,15 +40,11 @@ jobs:
         run: nix flake check --show-trace
 
       - name: Build and push to Cachix
-        # TODO: restore condition before merging
-        # if: github.event_name == 'push' && github.ref == 'refs/heads/main' && matrix.os == 'ubuntu-latest'
-        if: matrix.os == 'ubuntu-latest'
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && matrix.os == 'ubuntu-latest'
         run: nix run .#build-and-push
 
       - name: Build package (without push)
-        # TODO: restore condition before merging
-        # if: github.event_name != 'push' || github.ref != 'refs/heads/main' || matrix.os != 'ubuntu-latest'
-        if: matrix.os != 'ubuntu-latest'
+        if: github.event_name != 'push' || github.ref != 'refs/heads/main' || matrix.os != 'ubuntu-latest'
         run: nix build .#hs-spanshot
 
       - name: Run CLI
