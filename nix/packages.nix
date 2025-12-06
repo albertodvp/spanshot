@@ -54,7 +54,7 @@
           hpc-codecov \
             --mix="$MIX_DIR" \
             --src=${../hs-spanshot} \
-            --exclude=Main,Paths_hs_spanshot,WindowManagementSpec,SerializationProperties,Fixtures,DetectionSpec,CollectionSpec,CaptureTypesSpec,CaptureStreamSpec,ConfigSpec,CLIIntegration \
+            --exclude=Main,Paths_hs_spanshot,WindowManagementSpec,SerializationProperties,Fixtures,DetectionSpec,CollectionSpec,CaptureTypesSpec,CaptureStreamSpec,CLIIntegration \
             --out=$out/codecov-raw.json \
             "$TIX_FILE"
 
