@@ -127,8 +127,7 @@
           program = let
             script = pkgs.writeShellScript "configure-cachix" ''
               set -euo pipefail
-              FLAKE_ROOT="''${FLAKE_ROOT:-.}"
-              source "$(${pkgs.nix}/bin/nix eval "$FLAKE_ROOT#agenix-shell.installationScript" --raw)"
+              source ${lib.getExe config.agenix-shell.installationScript}
 
               ${pkgs.cachix}/bin/cachix authtoken "$CACHIX_AUTH_TOKEN"
               ${pkgs.cachix}/bin/cachix use spanshot
@@ -136,27 +135,19 @@
           in "${script}";
         };
 
-        # CI app: Upload coverage to Codecov
-        # Usage: nix run .#upload-codecov
+        # CI app: Export secrets to GITHUB_ENV for use in subsequent steps
+        # Usage: nix run .#export-secrets >> "$GITHUB_ENV"
         # Requires: SSH key for agenix decryption
-        apps.upload-codecov = {
+        apps.export-secrets = {
           type = "app";
           program = let
-            script = pkgs.writeShellScript "upload-codecov" ''
+            script = pkgs.writeShellScript "export-secrets" ''
               set -euo pipefail
-              FLAKE_ROOT="''${FLAKE_ROOT:-.}"
-              source "$(${pkgs.nix}/bin/nix eval "$FLAKE_ROOT#agenix-shell.installationScript" --raw)"
+              source ${lib.getExe config.agenix-shell.installationScript} 2>/dev/null
 
-              if [ ! -f result/codecov.json ]; then
-                ${pkgs.nix}/bin/nix build "$FLAKE_ROOT#hs-spanshot-codecov-report"
-              fi
-
-              ${pkgs.curl}/bin/curl -X POST \
-                --fail \
-                --data-binary @result/codecov.json \
-                -H "Authorization: token $CODECOV_TOKEN" \
-                -H "Content-Type: application/json" \
-                "https://codecov.io/upload/v2?service=github&commit=$GITHUB_SHA&branch=$GITHUB_REF_NAME&slug=$GITHUB_REPOSITORY"
+              # Output in GITHUB_ENV format, masked for security
+              echo "::add-mask::$CODECOV_TOKEN"
+              echo "CODECOV_TOKEN=$CODECOV_TOKEN"
             '';
           in "${script}";
         };
@@ -169,8 +160,7 @@
           program = let
             script = pkgs.writeShellScript "trigger-readme-sync" ''
               set -euo pipefail
-              FLAKE_ROOT="''${FLAKE_ROOT:-.}"
-              source "$(${pkgs.nix}/bin/nix eval "$FLAKE_ROOT#agenix-shell.installationScript" --raw)"
+              source ${lib.getExe config.agenix-shell.installationScript}
 
               export GH_TOKEN="$PAT_CODEX_SPANSHOT_WRITE"
               ${pkgs.gh}/bin/gh issue comment 9 \
