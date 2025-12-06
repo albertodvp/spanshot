@@ -16,16 +16,37 @@
             export SPANSHOT_BIN="$PWD/dist/build/spanshot/spanshot"
           '';
       });
-      # Coverage build - runs tests with HPC instrumentation, outputs to $out/share/hpc/
-      hs-spanshot-coverage = pkgs.haskell.lib.doCoverage hs-spanshot-tested;
+      # Coverage build - runs only unit tests (not integration-cli) with HPC instrumentation
+      # The integration-cli tests don't import the library, so they don't contribute
+      # to library coverage and would overwrite the unit test coverage data.
+      hs-spanshot-coverage = (pkgs.haskell.lib.doCoverage hs-spanshot-tested).overrideAttrs (old: {
+        # Only run unit tests for coverage, skip integration-cli
+        checkPhase = ''
+          runHook preCheck
+          ./Setup test hs-spanshot-test
+          runHook postCheck
+        '';
+      });
       # Codecov JSON report - converts HPC coverage data to Codecov format
       hs-spanshot-codecov-report =
         pkgs.runCommand "hs-spanshot-codecov-report" {
           nativeBuildInputs = [pkgs.haskellPackages.hpc-codecov pkgs.jq];
           coverage = hs-spanshot-coverage;
         } ''
-          MIX_DIR=$(find $coverage/lib -type d -path "*/vanilla/mix" | head -1)
-          TIX_FILE=$(find $coverage/share/hpc -name "*.tix" | head -1)
+          # Find the mix directory containing the library module coverage data
+          # The tix file references modules as "<package-id>/Module" so we need the
+          # parent directory that contains the package-id subdirectory
+          # Path structure: lib/.../extra-compilation-artifacts/hpc/vanilla/mix/
+          MIX_DIR=$(find $coverage/lib -type d -name "mix" -path "*/hpc/vanilla/*" | head -1)
+
+          # Prefer unit test tix (has library coverage) over integration-cli tix
+          TIX_FILE=$(find $coverage/share/hpc -name "hs-spanshot-test.tix" 2>/dev/null | head -1)
+          if [ -z "$TIX_FILE" ]; then
+            TIX_FILE=$(find $coverage/share/hpc -name "*.tix" | head -1)
+          fi
+
+          echo "Using MIX_DIR: $MIX_DIR"
+          echo "Using TIX_FILE: $TIX_FILE"
 
           mkdir -p $out
 
@@ -33,7 +54,7 @@
           hpc-codecov \
             --mix="$MIX_DIR" \
             --src=${../hs-spanshot} \
-            --exclude=Main,Paths_hs_spanshot,WindowManagementSpec,SerializationProperties,Fixtures,DetectionSpec,CollectionSpec,CaptureTypesSpec,CaptureStreamSpec \
+            --exclude=Main,Paths_hs_spanshot,WindowManagementSpec,SerializationProperties,Fixtures,DetectionSpec,CollectionSpec,CaptureTypesSpec,CaptureStreamSpec,ConfigSpec,CLIIntegration \
             --out=$out/codecov-raw.json \
             "$TIX_FILE"
 
