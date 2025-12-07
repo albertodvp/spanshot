@@ -4,13 +4,14 @@ module CaptureTypesSpec (captureTypesTests) where
 
 import Data.Either (isLeft, isRight)
 import Data.Foldable (toList)
+import Data.List (isInfixOf, isPrefixOf)
 import Data.Sequence qualified as Seq
 import Test.Hspec (Spec, describe, it, shouldBe, shouldSatisfy)
 
 import Fixtures (mockEvent, mockTime)
 import Types (
     ActiveCapture (ActiveCapture, acDetectedBy, acErrorEvent, acPostEvents, acPreWindowSnapshot),
-    CaptureOptions (detectionRules, minContextEvents, postWindowDuration, preWindowDuration),
+    CaptureOptions (compiledRules, detectionRules, minContextEvents, postWindowDuration, preWindowDuration),
     CaptureState (csActiveCapture, csPreWindow),
     DetectionRule (RegexRule),
     SpanShot (..),
@@ -137,3 +138,31 @@ captureTypesTests = do
             errOut `shouldBe` err
             Seq.null preSeq `shouldBe` True
             Seq.null postSeq `shouldBe` True
+
+    describe "CompiledRule instances" $ do
+        it "Show instance displays rule pattern without regex" $ do
+            case mkCaptureOptions 5 5 10 [RegexRule "ERROR"] of
+                Right opts -> do
+                    let compiled = compiledRules opts
+                    length compiled `shouldBe` 1
+                    -- Show should include the pattern but not expose internal Regex
+                    show (head compiled) `shouldSatisfy` ("ERROR" `isInfixOf`)
+                    show (head compiled) `shouldSatisfy` ("CompiledRule" `isPrefixOf`)
+                Left err -> fail err
+
+        it "Eq instance compares by original rule only" $ do
+            -- Create two CaptureOptions with same rules - compiled regexes should be equal
+            case (mkCaptureOptions 5 5 10 [RegexRule "ERROR"], mkCaptureOptions 10 10 20 [RegexRule "ERROR"]) of
+                (Right opts1, Right opts2) -> do
+                    let c1 = head (compiledRules opts1)
+                    let c2 = head (compiledRules opts2)
+                    c1 `shouldBe` c2
+                _ -> fail "Failed to create options"
+
+        it "Eq instance distinguishes different patterns" $ do
+            case (mkCaptureOptions 5 5 10 [RegexRule "ERROR"], mkCaptureOptions 5 5 10 [RegexRule "FATAL"]) of
+                (Right opts1, Right opts2) -> do
+                    let c1 = head (compiledRules opts1)
+                    let c2 = head (compiledRules opts2)
+                    (c1 == c2) `shouldBe` False
+                _ -> fail "Failed to create options"
