@@ -33,7 +33,7 @@ jobs:
           chmod 600 "$HOME/.ssh/id_ed25519"
 
       - name: Configure Cachix cache
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && matrix.os == 'ubuntu-latest'
         run: nix run .#configure-cachix
 
       - name: Nix flake check
