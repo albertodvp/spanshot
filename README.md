@@ -116,6 +116,9 @@ Project config overrides user config field-by-field. If no config is found, sens
 ### Config Commands
 
 ```bash
+# Show merged configuration (defaults + user + project overrides)
+spanshot config show
+
 # Show config file paths and status
 spanshot config path
 
@@ -212,7 +215,7 @@ Each line is a JSON event:
 **Capture (in progress):**
 
 - Regex patterns only (no keyword or log-level detectors yet)
-- No YAML configuration file support yet (CLI flags only)
+- Capture pipeline implemented in library only (CLI commands `capture`/`run` not yet wired)
 - No hard limit on post-window event count (bounded by `postWindowDuration` only; in high-throughput scenarios, memory usage scales with log volume within that time window)
 
 **Not Yet Built:**
