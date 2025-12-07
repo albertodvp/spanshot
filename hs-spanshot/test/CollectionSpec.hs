@@ -8,17 +8,19 @@ import Data.Either (isLeft, isRight)
 import Data.Text qualified as T
 import Streaming.Prelude qualified as S
 import System.IO (IOMode (WriteMode), hClose, hPutStrLn, openFile, stderr)
-import System.IO.Temp (emptySystemTempFile)
+import System.IO.Temp (emptySystemTempFile, withSystemTempFile)
 import System.Process (createProcess, shell, waitForProcess)
 import Test.Hspec (Spec, describe, expectationFailure, it, shouldBe, shouldSatisfy)
 
-import Collect (collectFromFile)
+import Collect (collectFromFile, collectFromFileWithCleanup)
 import Types (
     CollectEvent (line, sessionOrderId, source),
     CollectOptions,
+    defaultCollectOptions,
     maxPollIntervalMs,
     minPollIntervalMs,
     mkCollectOptions,
+    pollIntervalMs,
  )
 
 testOptions :: CollectOptions
@@ -48,6 +50,44 @@ collectionTests = do
                 Left _ -> pure ()
                 Right _ -> expectationFailure "Expected an exception but got success"
 
+    describe "collectFromFileWithCleanup" $ do
+        it "reads lines and properly cleans up resources" $ do
+            withSystemTempFile "cleanup_test.log" $ \path handle -> do
+                hPutStrLn handle "line 1"
+                hPutStrLn handle "line 2"
+                hPutStrLn handle "line 3"
+                hClose handle
+
+                events <- collectFromFileWithCleanup testOptions path $ \stream ->
+                    S.toList_ $ S.take 3 stream
+
+                length events `shouldBe` 3
+                map line events `shouldBe` [T.pack "line 1", T.pack "line 2", T.pack "line 3"]
+
+        it "cleans up even when action throws" $ do
+            withSystemTempFile "cleanup_error_test.log" $ \path handle -> do
+                hPutStrLn handle "test line"
+                hClose handle
+
+                -- The action throws but bracket should still cleanup
+                result <- try @SomeException $ collectFromFileWithCleanup testOptions path $ \_ ->
+                    error "Intentional test error" :: IO ()
+
+                -- We expect an exception
+                result `shouldSatisfy` isLeft
+
+        it "returns result from action callback" $ do
+            withSystemTempFile "callback_test.log" $ \path handle -> do
+                hPutStrLn handle "line 1"
+                hPutStrLn handle "line 2"
+                hClose handle
+
+                -- The callback can return any type
+                count <- collectFromFileWithCleanup testOptions path $ \stream ->
+                    S.length_ $ S.take 2 stream
+
+                count `shouldBe` 2
+
     describe "CollectOptions validation" $ do
         it "accepts valid poll interval" $ do
             let result = mkCollectOptions 100
@@ -70,6 +110,15 @@ collectionTests = do
             let result2 = mkCollectOptions maxPollIntervalMs
             result1 `shouldSatisfy` isRight
             result2 `shouldSatisfy` isRight
+
+    describe "defaultCollectOptions" $ do
+        it "has sensible default poll interval" $ do
+            let opts = defaultCollectOptions
+            pollIntervalMs opts `shouldSatisfy` (>= minPollIntervalMs)
+            pollIntervalMs opts `shouldSatisfy` (<= maxPollIntervalMs)
+
+        it "default poll interval is 150ms" $ do
+            pollIntervalMs defaultCollectOptions `shouldBe` 150
 
 #ifndef mingw32_HOST_OS
         -- NOTE: This test is skipped on Windows due to file locking limitations.
