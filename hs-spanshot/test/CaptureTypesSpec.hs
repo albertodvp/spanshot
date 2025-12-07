@@ -3,18 +3,22 @@
 module CaptureTypesSpec (captureTypesTests) where
 
 import Data.Either (isLeft, isRight)
+import Data.Foldable (toList)
 import Data.Sequence qualified as Seq
 import Test.Hspec (Spec, describe, it, shouldBe, shouldSatisfy)
 
-import Fixtures (mockEvent)
+import Fixtures (mockEvent, mockTime)
 import Types (
     ActiveCapture (ActiveCapture, acDetectedBy, acErrorEvent, acPostEvents, acPreWindowSnapshot),
     CaptureOptions (detectionRules, minContextEvents, postWindowDuration, preWindowDuration),
     CaptureState (csActiveCapture, csPreWindow),
     DetectionRule (RegexRule),
+    SpanShot (..),
     defaultCaptureOptions,
     initialCaptureState,
     mkCaptureOptions,
+    spanShotFromSeq,
+    spanShotToSeq,
  )
 
 captureTypesTests :: Spec
@@ -86,3 +90,50 @@ captureTypesTests = do
             let state = initialCaptureState
             Seq.length (csPreWindow state) `shouldBe` 0
             csActiveCapture state `shouldBe` Nothing
+
+    describe "SpanShot conversion functions" $ do
+        it "spanShotToSeq extracts components correctly" $ do
+            let err = mockEvent 5 "ERROR occurred"
+            let pre = [mockEvent 1 "pre1", mockEvent 2 "pre2"]
+            let post = [mockEvent 6 "post1", mockEvent 7 "post2"]
+            let rules = [RegexRule "ERROR"]
+            let time = mockTime 10
+            let shot = SpanShot err pre post rules time
+            let (errOut, preSeq, postSeq) = spanShotToSeq shot
+            errOut `shouldBe` err
+            toList preSeq `shouldBe` pre
+            toList postSeq `shouldBe` post
+
+        it "spanShotFromSeq constructs SpanShot correctly" $ do
+            let err = mockEvent 5 "ERROR occurred"
+            let preSeq = Seq.fromList [mockEvent 1 "pre1", mockEvent 2 "pre2"]
+            let postSeq = Seq.fromList [mockEvent 6 "post1"]
+            let rules = [RegexRule "ERROR", RegexRule "FATAL"]
+            let time = mockTime 10
+            let shot = spanShotFromSeq err preSeq postSeq rules time
+            errorEvent shot `shouldBe` err
+            preWindow shot `shouldBe` toList preSeq
+            postWindow shot `shouldBe` toList postSeq
+            detectedBy shot `shouldBe` rules
+            capturedAtUtc shot `shouldBe` time
+
+        it "round-trips SpanShot through Seq conversions" $ do
+            let err = mockEvent 5 "ERROR"
+            let pre = [mockEvent 1 "pre1", mockEvent 2 "pre2", mockEvent 3 "pre3"]
+            let post = [mockEvent 6 "post1", mockEvent 7 "post2"]
+            let rules = [RegexRule "ERROR"]
+            let time = mockTime 100
+            let original = SpanShot err pre post rules time
+            let (errOut, preSeq, postSeq) = spanShotToSeq original
+            let reconstructed = spanShotFromSeq errOut preSeq postSeq rules time
+            reconstructed `shouldBe` original
+
+        it "handles empty pre and post windows" $ do
+            let err = mockEvent 5 "ERROR"
+            let rules = [RegexRule "ERROR"]
+            let time = mockTime 10
+            let shot = SpanShot err [] [] rules time
+            let (errOut, preSeq, postSeq) = spanShotToSeq shot
+            errOut `shouldBe` err
+            Seq.null preSeq `shouldBe` True
+            Seq.null postSeq `shouldBe` True
