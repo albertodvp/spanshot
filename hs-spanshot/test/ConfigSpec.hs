@@ -107,6 +107,20 @@ configTests = do
                         }
             toCaptureOptions invalidConfig `shouldSatisfy` isLeft
 
+        it "round-trips CaptureConfig through YAML" $ do
+            let cc =
+                    CaptureConfig
+                        { ccPreWindowDuration = 15
+                        , ccPostWindowDuration = 10
+                        , ccMinContextEvents = 20
+                        , ccDetectionRules = [RegexRule "FATAL", RegexRule "CRITICAL"]
+                        }
+            let encoded = Yaml.encode cc
+            let decoded = Yaml.decodeEither' encoded :: Either Yaml.ParseException CaptureConfig
+            case decoded of
+                Left err -> fail $ "Failed to decode: " ++ show err
+                Right result -> result `shouldBe` cc
+
     describe "Config merging" $ do
         it "returns base config when override is empty" $ do
             let base = defaultConfig
@@ -245,6 +259,59 @@ configTests = do
                         Just pcc -> do
                             pccDetectionRules pcc `shouldBe` Just [RegexRule "FATAL"]
                             pccPreWindowDuration pcc `shouldBe` Nothing
+
+    describe "PartialConfig YAML serialization (ToJSON)" $ do
+        it "round-trips PartialConfig with all fields set" $ do
+            let pcc =
+                    PartialCaptureConfig
+                        { pccPreWindowDuration = Just 30
+                        , pccPostWindowDuration = Just 20
+                        , pccMinContextEvents = Just 15
+                        , pccDetectionRules = Just [RegexRule "WARN", RegexRule "ERROR"]
+                        }
+            let pc = PartialConfig{pcCapture = Just pcc}
+            let encoded = Yaml.encode pc
+            let decoded = Yaml.decodeEither' encoded :: Either Yaml.ParseException PartialConfig
+            case decoded of
+                Left err -> fail $ "Failed to decode: " ++ show err
+                Right result -> result `shouldBe` pc
+
+        it "round-trips PartialConfig with some fields set" $ do
+            let pcc =
+                    PartialCaptureConfig
+                        { pccPreWindowDuration = Just 25
+                        , pccPostWindowDuration = Nothing
+                        , pccMinContextEvents = Nothing
+                        , pccDetectionRules = Just [RegexRule "CRITICAL"]
+                        }
+            let pc = PartialConfig{pcCapture = Just pcc}
+            let encoded = Yaml.encode pc
+            let decoded = Yaml.decodeEither' encoded :: Either Yaml.ParseException PartialConfig
+            case decoded of
+                Left err -> fail $ "Failed to decode: " ++ show err
+                Right result -> result `shouldBe` pc
+
+        it "round-trips empty PartialConfig" $ do
+            let pc = PartialConfig{pcCapture = Nothing}
+            let encoded = Yaml.encode pc
+            let decoded = Yaml.decodeEither' encoded :: Either Yaml.ParseException PartialConfig
+            case decoded of
+                Left err -> fail $ "Failed to decode: " ++ show err
+                Right result -> result `shouldBe` pc
+
+        it "round-trips PartialCaptureConfig with only rules" $ do
+            let pcc =
+                    PartialCaptureConfig
+                        { pccPreWindowDuration = Nothing
+                        , pccPostWindowDuration = Nothing
+                        , pccMinContextEvents = Nothing
+                        , pccDetectionRules = Just [RegexRule "EXCEPTION"]
+                        }
+            let encoded = Yaml.encode pcc
+            let decoded = Yaml.decodeEither' encoded :: Either Yaml.ParseException PartialCaptureConfig
+            case decoded of
+                Left err -> fail $ "Failed to decode: " ++ show err
+                Right result -> result `shouldBe` pcc
 
     describe "findProjectRoot" $ do
         it "finds .git in current directory" $ do
