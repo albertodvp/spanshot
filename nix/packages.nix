@@ -58,11 +58,16 @@
 
           mkdir -p $out
 
+          # Auto-generate exclude list from test modules (any .hs file in test/)
+          # This avoids manually maintaining the list when adding new test files
+          TEST_MODULES=$(find ${../hs-spanshot}/test -name "*.hs" -exec basename {} .hs \; | tr '\n' ',' | sed 's/,$//')
+          EXCLUDES="Main,Paths_hs_spanshot,$TEST_MODULES"
+
           # Generate report with nix store paths
           hpc-codecov \
             --mix="$MIX_DIR" \
             --src=${../hs-spanshot} \
-            --exclude=Main,Paths_hs_spanshot,WindowManagementSpec,SerializationProperties,Fixtures,DetectionSpec,CollectionSpec,CaptureTypesSpec,CaptureStreamSpec,CLIIntegration \
+            --exclude="$EXCLUDES" \
             --out=$out/codecov-raw.json \
             "$TIX_FILE"
 
