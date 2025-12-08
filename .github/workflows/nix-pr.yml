@@ -1,0 +1,64 @@
+name: Nix PR
+
+on:
+  pull_request:
+
+jobs:
+  nix:
+    name: Nix flake check and build
+    runs-on: ${{ matrix.os }}
+    env:
+      NIX_CONFIG: |
+        accept-flake-config = true
+        experimental-features = nix-command flakes
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@v31
+
+      - name: Nix flake check
+        run: nix flake check --show-trace
+
+      - name: Build package
+        run: nix build .#hs-spanshot
+
+      - name: Run CLI
+        run: nix run .# -- --help
+
+  coverage:
+    name: Coverage report
+    runs-on: ubuntu-latest
+    env:
+      NIX_CONFIG: |
+        accept-flake-config = true
+        experimental-features = nix-command flakes
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@v31
+
+      - name: Install agenix private key
+        run: |
+          install -d -m 700 "$HOME/.ssh"
+          printf '%s' "${{ secrets.AGENIX_SSH_PRIVATE_KEY }}" > "$HOME/.ssh/id_ed25519"
+          chmod 600 "$HOME/.ssh/id_ed25519"
+
+      - name: Export secrets for coverage upload
+        run: nix run .#export-secrets >> "$GITHUB_ENV"
+
+      - name: Build coverage report
+        run: nix build .#hs-spanshot-codecov-report
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ env.CODECOV_TOKEN }}
+          files: result/codecov.json
