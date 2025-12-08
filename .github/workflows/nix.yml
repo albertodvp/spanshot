@@ -51,15 +51,15 @@ jobs:
         run: nix run .# -- --help
 
       - name: Export secrets for coverage upload
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && matrix.os == 'ubuntu-latest'
+        if: matrix.os == 'ubuntu-latest'
         run: nix run .#export-secrets >> "$GITHUB_ENV"
 
       - name: Build coverage report
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && matrix.os == 'ubuntu-latest'
+        if: matrix.os == 'ubuntu-latest'
         run: nix build .#hs-spanshot-codecov-report
 
       - name: Upload coverage to Codecov
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && matrix.os == 'ubuntu-latest'
+        if: matrix.os == 'ubuntu-latest'
         uses: codecov/codecov-action@v5
         with:
           token: ${{ env.CODECOV_TOKEN }}
