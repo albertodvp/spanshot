@@ -65,12 +65,12 @@ collectionTests = do
                 length events `shouldBe` 3
                 map line events `shouldBe` [T.pack "line 1", T.pack "line 2", T.pack "line 3"]
 
-        it "cleans up even when action throws" $ do
+        it "propagates exceptions from action callback" $ do
             withSystemTempFile "cleanup_error_test.log" $ \path handle -> do
                 hPutStrLn handle "test line"
                 hClose handle
 
-                -- The action throws but bracket should still cleanup
+                -- The action throws and the exception should propagate
                 result <- try @SomeException $ collectFromFileWithCleanup testOptions path $ \_ ->
                     error "Intentional test error" :: IO ()
 
