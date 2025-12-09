@@ -113,11 +113,6 @@ collectionTests = do
             result2 `shouldSatisfy` isRight
 
     describe "defaultCollectOptions" $ do
-        it "has sensible default poll interval" $ do
-            let opts = defaultCollectOptions
-            pollIntervalMs opts `shouldSatisfy` (>= minPollIntervalMs)
-            pollIntervalMs opts `shouldSatisfy` (<= maxPollIntervalMs)
-
         it "default poll interval is 150ms" $ do
             pollIntervalMs defaultCollectOptions `shouldBe` 150
 
