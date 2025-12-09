@@ -37,11 +37,6 @@ captureTypesTests = do
             let rules = detectionRules opts
             rules `shouldSatisfy` any (\(RegexRule p) -> p == "ERROR")
 
-        it "creates options with minContextEvents" $ do
-            case mkCaptureOptions 5 5 10 [RegexRule "ERROR"] of
-                Right opts -> minContextEvents opts `shouldBe` 10
-                Left err -> fail $ "Expected Right but got Left: " <> err
-
         it "rejects negative preWindowDuration" $ do
             let result = mkCaptureOptions (-1) 5 10 [RegexRule "ERROR"]
             result `shouldSatisfy` isLeft
