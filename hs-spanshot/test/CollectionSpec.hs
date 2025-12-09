@@ -4,6 +4,7 @@ module CollectionSpec (collectionTests) where
 
 import Control.Concurrent (threadDelay)
 import Control.Exception (SomeException, try)
+import Data.ByteString qualified as BS
 import Data.Either (isLeft, isRight)
 import Data.Text qualified as T
 import Streaming.Prelude qualified as S
@@ -119,6 +120,105 @@ collectionTests = do
 
         it "default poll interval is 150ms" $ do
             pollIntervalMs defaultCollectOptions `shouldBe` 150
+
+    describe "UTF-8 handling" $ do
+        it "replaces invalid UTF-8 bytes with replacement character" $ do
+            withSystemTempFile "utf8_invalid.log" $ \path handle -> do
+                -- Write "hello" + invalid byte 0xFF + "world" + newline
+                -- 0xFF is never valid in UTF-8
+                BS.hPut handle (BS.pack [0x68, 0x65, 0x6C, 0x6C, 0x6F, 0xFF, 0x77, 0x6F, 0x72, 0x6C, 0x64, 0x0A])
+                hClose handle
+
+                events <- S.toList_ $ S.take 1 $ collectFromFile testOptions path
+                case events of
+                    [event] -> line event `shouldBe` T.pack "hello\xFFFDworld"
+                    _ -> expectationFailure "Expected exactly one event"
+
+        it "handles truncated multi-byte UTF-8 sequences" $ do
+            withSystemTempFile "utf8_truncated.log" $ \path handle -> do
+                -- Write "test" + start of 3-byte sequence (0xE2) without continuation bytes + newline
+                -- 0xE2 expects two more continuation bytes (0x80-0xBF)
+                BS.hPut handle (BS.pack [0x74, 0x65, 0x73, 0x74, 0xE2, 0x0A])
+                hClose handle
+
+                events <- S.toList_ $ S.take 1 $ collectFromFile testOptions path
+                case events of
+                    [event] -> line event `shouldBe` T.pack "test\xFFFD"
+                    _ -> expectationFailure "Expected exactly one event"
+
+        it "handles mixed valid and invalid UTF-8" $ do
+            withSystemTempFile "utf8_mixed.log" $ \path handle -> do
+                -- Write "caf" + invalid 0xFF + valid UTF-8 "é" (0xC3 0xA9) + newline
+                BS.hPut handle (BS.pack [0x63, 0x61, 0x66, 0xFF, 0xC3, 0xA9, 0x0A])
+                hClose handle
+
+                events <- S.toList_ $ S.take 1 $ collectFromFile testOptions path
+                case events of
+                    [event] -> line event `shouldBe` T.pack "caf\xFFFD\x00E9"
+                    _ -> expectationFailure "Expected exactly one event"
+
+        it "handles incomplete 2-byte UTF-8 sequence at end of line" $ do
+            withSystemTempFile "utf8_incomplete_2byte.log" $ \path handle -> do
+                -- Write "abc" + start of 2-byte sequence (0xC3) without continuation + newline
+                BS.hPut handle (BS.pack [0x61, 0x62, 0x63, 0xC3, 0x0A])
+                hClose handle
+
+                events <- S.toList_ $ S.take 1 $ collectFromFile testOptions path
+                case events of
+                    [event] -> line event `shouldBe` T.pack "abc\xFFFD"
+                    _ -> expectationFailure "Expected exactly one event"
+
+        it "handles multiple consecutive invalid bytes" $ do
+            withSystemTempFile "utf8_consecutive_invalid.log" $ \path handle -> do
+                -- Write "hi" + three invalid bytes (0xFF, 0xFE, 0x80) + "bye" + newline
+                -- 0xFF, 0xFE are never valid in UTF-8; 0x80 is a continuation byte without a start byte
+                BS.hPut handle (BS.pack [0x68, 0x69, 0xFF, 0xFE, 0x80, 0x62, 0x79, 0x65, 0x0A])
+                hClose handle
+
+                events <- S.toList_ $ S.take 1 $ collectFromFile testOptions path
+                -- Each invalid byte becomes U+FFFD (replacement character)
+                let replacementChar = '\xFFFD'
+                let expected = T.pack $ "hi" ++ [replacementChar, replacementChar, replacementChar] ++ "bye"
+                case events of
+                    [event] -> line event `shouldBe` expected
+                    _ -> expectationFailure "Expected exactly one event"
+
+        it "handles valid UTF-8 with multibyte characters correctly" $ do
+            withSystemTempFile "utf8_valid_multibyte.log" $ \path handle -> do
+                -- Write valid UTF-8: "日本語" (Japanese) + newline
+                -- 日 = 0xE6 0x97 0xA5
+                -- 本 = 0xE6 0x9C 0xAC
+                -- 語 = 0xE8 0xAA 0x9E
+                BS.hPut handle (BS.pack [0xE6, 0x97, 0xA5, 0xE6, 0x9C, 0xAC, 0xE8, 0xAA, 0x9E, 0x0A])
+                hClose handle
+
+                events <- S.toList_ $ S.take 1 $ collectFromFile testOptions path
+                case events of
+                    [event] -> line event `shouldBe` T.pack "日本語"
+                    _ -> expectationFailure "Expected exactly one event"
+
+        it "handles emoji (4-byte UTF-8 sequences)" $ do
+            withSystemTempFile "utf8_emoji.log" $ \path handle -> do
+                -- Write "test " + 🎉 (0xF0 0x9F 0x8E 0x89) + newline
+                BS.hPut handle (BS.pack [0x74, 0x65, 0x73, 0x74, 0x20, 0xF0, 0x9F, 0x8E, 0x89, 0x0A])
+                hClose handle
+
+                events <- S.toList_ $ S.take 1 $ collectFromFile testOptions path
+                case events of
+                    [event] -> line event `shouldBe` T.pack "test \x1F389"
+                    _ -> expectationFailure "Expected exactly one event"
+
+        it "handles truncated 4-byte UTF-8 sequence" $ do
+            withSystemTempFile "utf8_truncated_4byte.log" $ \path handle -> do
+                -- Write "ok" + incomplete emoji (only first 2 bytes of 4-byte sequence) + newline
+                BS.hPut handle (BS.pack [0x6F, 0x6B, 0xF0, 0x9F, 0x0A])
+                hClose handle
+
+                events <- S.toList_ $ S.take 1 $ collectFromFile testOptions path
+                -- lenientDecode replaces each invalid byte with replacement char
+                case events of
+                    [event] -> line event `shouldBe` T.pack "ok\xFFFD\xFFFD"
+                    _ -> expectationFailure "Expected exactly one event"
 
 #ifndef mingw32_HOST_OS
         -- NOTE: This test is skipped on Windows due to file locking limitations.
