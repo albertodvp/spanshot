@@ -383,18 +383,22 @@ withInactivityTimeout timeoutDuration stream = S.unfoldr go (stream, False)
   where
     timeoutMicros = floor (timeoutDuration * 1_000_000) :: Int
 
-    go (s, _) = do
+    go (s, flushedAlready) = do
         -- Try to get next event with timeout
         result <- timeout timeoutMicros (S.next s)
         case result of
-            Nothing ->
-                -- Timeout occurred - emit flush signal and continue with same stream
-                pure $ Right (InactivityFlush, (s, True))
+            Nothing
+                | flushedAlready ->
+                    -- Already flushed, just wait again without emitting
+                    go (s, True)
+                | otherwise ->
+                    -- First timeout - emit flush signal
+                    pure $ Right (InactivityFlush, (s, True))
             Just (Left r) ->
                 -- Stream ended
                 pure $ Left r
             Just (Right (event, rest)) ->
-                -- Got an event
+                -- Got an event - reset flush flag
                 pure $ Right (LogEvent event, (rest, False))
 
 {- | Transform a stream of CollectEvents into SpanShots with timeout support.
