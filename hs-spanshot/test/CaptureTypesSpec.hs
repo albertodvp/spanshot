@@ -79,11 +79,13 @@ captureTypesTests = do
             result `shouldSatisfy` isRight
 
         it "mkCaptureOptions defaults inactivityTimeout to 2 * postWindowDuration" $ do
-            let Right opts = mkCaptureOptions 5 10 10 [RegexRule "ERROR"]
-            inactivityTimeout opts `shouldBe` 20 -- 2 * 10
+            case mkCaptureOptions 5 10 10 [RegexRule "ERROR"] of
+                Left err -> fail $ "Expected Right but got Left: " ++ err
+                Right opts -> inactivityTimeout opts `shouldBe` 20 -- 2 * 10
         it "mkCaptureOptionsWithTimeout allows custom inactivityTimeout" $ do
-            let Right opts = mkCaptureOptionsWithTimeout 5 5 10 [RegexRule "ERROR"] 30
-            inactivityTimeout opts `shouldBe` 30
+            case mkCaptureOptionsWithTimeout 5 5 10 [RegexRule "ERROR"] 30 of
+                Left err -> fail $ "Expected Right but got Left: " ++ err
+                Right opts -> inactivityTimeout opts `shouldBe` 30
 
         it "rejects inactivityTimeout less than postWindowDuration" $ do
             let result = mkCaptureOptionsWithTimeout 5 10 10 [RegexRule "ERROR"] 5
@@ -166,26 +168,27 @@ captureTypesTests = do
         it "Show instance displays rule pattern without regex" $ do
             case mkCaptureOptions 5 5 10 [RegexRule "ERROR"] of
                 Right opts -> do
-                    let compiled = compiledRules opts
-                    length compiled `shouldBe` 1
-                    -- Show should include the pattern but not expose internal Regex
-                    show (head compiled) `shouldSatisfy` ("ERROR" `isInfixOf`)
-                    show (head compiled) `shouldSatisfy` ("CompiledRule" `isPrefixOf`)
+                    case compiledRules opts of
+                        (x : _) -> do
+                            -- Show should include the pattern but not expose internal Regex
+                            show x `shouldSatisfy` ("ERROR" `isInfixOf`)
+                            show x `shouldSatisfy` ("CompiledRule" `isPrefixOf`)
+                        [] -> fail "Expected non-empty compiled rules"
                 Left err -> fail err
 
         it "Eq instance compares by original rule only" $ do
             -- Create two CaptureOptions with same rules - compiled regexes should be equal
             case (mkCaptureOptions 5 5 10 [RegexRule "ERROR"], mkCaptureOptions 10 10 20 [RegexRule "ERROR"]) of
                 (Right opts1, Right opts2) -> do
-                    let c1 = head (compiledRules opts1)
-                    let c2 = head (compiledRules opts2)
-                    c1 `shouldBe` c2
+                    case (compiledRules opts1, compiledRules opts2) of
+                        (c1 : _, c2 : _) -> c1 `shouldBe` c2
+                        _ -> fail "Expected non-empty compiled rules"
                 _ -> fail "Failed to create options"
 
         it "Eq instance distinguishes different patterns" $ do
             case (mkCaptureOptions 5 5 10 [RegexRule "ERROR"], mkCaptureOptions 5 5 10 [RegexRule "FATAL"]) of
                 (Right opts1, Right opts2) -> do
-                    let c1 = head (compiledRules opts1)
-                    let c2 = head (compiledRules opts2)
-                    (c1 == c2) `shouldBe` False
+                    case (compiledRules opts1, compiledRules opts2) of
+                        (c1 : _, c2 : _) -> (c1 == c2) `shouldBe` False
+                        _ -> fail "Expected non-empty compiled rules"
                 _ -> fail "Failed to create options"
