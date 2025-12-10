@@ -94,15 +94,17 @@ spanshot collect --logfile /var/log/app.log
 spanshot collect --logfile app.log | jq 'select(.line | contains("ERROR"))'
 ```
 
-### Coming Soon (v0.1 - Capture)
+### Capture (v0.1)
 
 ```bash
-# Capture errors with temporal context
-spanshot capture --logfile app.log --regex-pattern "ERROR" --pre-window 5 --post-window 5
+# Capture errors with temporal context (uses detection rules from config)
+spanshot capture --logfile app.log
 
 # Run full pipeline (collect + capture)
-spanshot run --logfile app.log --regex-pattern "ERROR|FATAL"
+spanshot run --logfile app.log
 ```
+
+> **Note:** The `capture` and `run` commands tail the log file continuously (like `tail -f`). Detection rules and window settings are read from your `.spanshot.yaml` config file. See [Configuration](#configuration).
 
 ## Configuration
 
@@ -212,11 +214,11 @@ Each line is a JSON event:
 - No structured field extraction from JSON/logfmt logs
 - In-memory state only (no persistence)
 
-**Capture (in progress):**
+**Capture:**
 
 - Regex patterns only (no keyword or log-level detectors yet)
-- Capture pipeline implemented in library only (CLI commands `capture`/`run` not yet wired)
 - No hard limit on post-window event count (bounded by `postWindowDuration` only; in high-throughput scenarios, memory usage scales with log volume within that time window)
+- **Timestamps use reception time**: Time-based windowing uses when the line was *read*, not timestamps embedded in log content. This works well for live monitoring but means batch processing of static files won't respect original event timing. See [#18](https://github.com/albertodvp/spanshot/issues/18) for planned timestamp parsing support.
 
 **Not Yet Built:**
 
@@ -297,10 +299,11 @@ This project follows the [Angular Commit Message Convention](https://github.com/
 - [x] Core types (DetectionRule, SpanShot, CaptureOptions)
 - [x] Regex-based error detection
 - [x] Time-based window buffering (span window: pre/post context)
-- [ ] Stream combinator (`captureFromStream`)
-- [ ] CLI commands (`capture` and `run`)
-- [ ] CLI integration tests
-- [ ] Documentation and examples
+- [x] Stream combinator (`captureFromStream`)
+- [x] CLI commands (`capture` and `run`)
+- [x] CLI integration tests
+- [ ] Inactivity timeout for pending captures
+- [ ] Parse timestamps from log content ([#18](https://github.com/albertodvp/spanshot/issues/18))
 
 ### v0.2+ - Future Phases
 

@@ -12,7 +12,6 @@ import Data.Yaml qualified as Yaml
 import OptEnvConf (
     HasParser (settingsParser),
     argument,
-    auto,
     command,
     commands,
     help,
@@ -27,7 +26,6 @@ import OptEnvConf (
     str,
     switch,
     value,
-    value,
     withoutConfig,
  )
 import Paths_hs_spanshot (version)
@@ -38,12 +36,9 @@ import System.FilePath ((</>))
 import System.IO (hFlush, hPutStrLn, stderr, stdout)
 import System.IO.Error (isDoesNotExistError, isPermissionError)
 import Types (
-    CaptureOptions,
     CollectEvent,
-    DetectionRule (RegexRule),
     SpanShot,
     defaultCollectOptions,
-    mkCaptureOptions,
  )
 
 newtype Instructions = Instructions Dispatch
@@ -142,13 +137,11 @@ instance HasParser CollectSettings where
                     ]
                 )
 
--- | Settings for capture and run commands
+{- | Settings for capture and run commands
+These are CLI overrides - config file values are used as defaults
+-}
 data CaptureSettings = CaptureSettings
     { captureLogfile :: FilePath
-    , captureRegexPattern :: String
-    , capturePreWindow :: Int -- seconds (integer for simplicity)
-    , capturePostWindow :: Int -- seconds (integer for simplicity)
-    , captureMinContext :: Int
     }
     deriving (Show)
 
@@ -161,41 +154,6 @@ instance HasParser CaptureSettings where
                     , reader str
                     , name "logfile"
                     , metavar "PATH"
-                    ]
-                )
-            <*> withoutConfig
-                ( setting
-                    [ help "Regex pattern to detect errors"
-                    , reader str
-                    , name "regex-pattern"
-                    , metavar "PATTERN"
-                    ]
-                )
-            <*> withoutConfig
-                ( setting
-                    [ help "Pre-window duration in seconds"
-                    , reader auto
-                    , name "pre-window"
-                    , metavar "SECONDS"
-                    , value 5
-                    ]
-                )
-            <*> withoutConfig
-                ( setting
-                    [ help "Post-window duration in seconds"
-                    , reader auto
-                    , name "post-window"
-                    , metavar "SECONDS"
-                    , value 5
-                    ]
-                )
-            <*> withoutConfig
-                ( setting
-                    [ help "Minimum context events to keep"
-                    , reader auto
-                    , name "min-context"
-                    , metavar "COUNT"
-                    , value 10
                     ]
                 )
 
@@ -302,9 +260,13 @@ printConfigWarnings warnings = do
 
 runCapture :: CaptureSettings -> IO ()
 runCapture settings = do
-    case mkCaptureOptionsFromSettings settings of
+    (config, warnings) <- loadConfig
+    -- Print any config warnings to stderr
+    printConfigWarnings warnings
+    -- Validate config and run capture
+    case toCaptureOptions (capture config) of
         Left err -> do
-            hPutStrLn stderr $ "Error: " ++ err
+            hPutStrLn stderr $ "Error: Invalid configuration: " ++ err
             exitFailure
         Right opts ->
             collectFromFileWithCleanup defaultCollectOptions (captureLogfile settings) $ \events ->
@@ -313,15 +275,6 @@ runCapture settings = do
 -- | Full pipeline (collect + capture combined) - same implementation as capture
 runFullPipeline :: RunSettings -> IO ()
 runFullPipeline = runCapture
-
--- | Convert CLI settings to CaptureOptions
-mkCaptureOptionsFromSettings :: CaptureSettings -> Either String CaptureOptions
-mkCaptureOptionsFromSettings settings =
-    mkCaptureOptions
-        (fromIntegral $ capturePreWindow settings)
-        (fromIntegral $ capturePostWindow settings)
-        (captureMinContext settings)
-        [RegexRule (captureRegexPattern settings)]
 
 handleIOError :: FilePath -> IOException -> IO ()
 handleIOError path e

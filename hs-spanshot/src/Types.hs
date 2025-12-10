@@ -211,8 +211,9 @@ compileRegex = makeRegexM
 defaultCaptureOptions :: CaptureOptions
 defaultCaptureOptions =
     let defaultRules = [RegexRule "ERROR"]
-        -- "ERROR" is a valid regex, so this is safe
-        Right defaultCompiled = compileDetectionRules defaultRules
+        defaultCompiled = case compileDetectionRules defaultRules of
+            Right compiled -> compiled
+            Left e -> error $ "defaultCaptureOptions: invalid default rule: " <> e
      in CaptureOptions
             { preWindowDuration = 5
             , postWindowDuration = 5

@@ -110,14 +110,10 @@ behaviorTests binary =
             (exitCode, stdout, _) <- readProcessWithExitCode binary ["capture", "--help"] ""
             exitCode @?= ExitSuccess
             assertBool "Help mentions logfile" $ "logfile" `isInfixOf` stdout
-            assertBool "Help mentions regex-pattern" $ "regex-pattern" `isInfixOf` stdout
-            assertBool "Help mentions pre-window" $ "pre-window" `isInfixOf` stdout
-            assertBool "Help mentions post-window" $ "post-window" `isInfixOf` stdout
         , testCase "run subcommand shows help" $ do
             (exitCode, stdout, _) <- readProcessWithExitCode binary ["run", "--help"] ""
             exitCode @?= ExitSuccess
             assertBool "Help mentions logfile" $ "logfile" `isInfixOf` stdout
-            assertBool "Help mentions regex-pattern" $ "regex-pattern" `isInfixOf` stdout
         ]
 
 configTests :: FilePath -> TestTree
@@ -197,25 +193,22 @@ captureCommandTests binary =
             (exitCode, _stdout, stderr) <-
                 readProcessWithExitCode
                     binary
-                    ["capture", "--logfile", "test/fixtures/nonexistent.log", "--regex-pattern", "ERROR"]
+                    ["capture", "--logfile", "test/fixtures/nonexistent.log"]
                     ""
             case exitCode of
                 ExitFailure _ -> assertBool "Error message mentions file" $ "nonexistent.log" `isInfixOf` stderr
                 ExitSuccess -> assertFailure "Expected failure for missing file but got success"
-        , testCase "capture requires regex-pattern" $ do
-            (exitCode, _stdout, _stderr) <-
-                readProcessWithExitCode
-                    binary
-                    ["capture", "--logfile", "test/fixtures/small.log"]
-                    ""
-            case exitCode of
-                ExitFailure _ -> pure () -- Missing required arg should fail
-                ExitSuccess -> assertFailure "Expected failure when regex-pattern missing"
+        , testCase "capture uses config file for detection rules" $ do
+            -- capture now reads regex-pattern and other settings from config file
+            -- so it should work with just --logfile
+            (exitCode, stdout, _) <- readProcessWithExitCode binary ["capture", "--help"] ""
+            exitCode @?= ExitSuccess
+            assertBool "Help mentions logfile" $ "logfile" `isInfixOf` stdout
         , testCase "capture produces valid JSONL for SpanShots (empty output for static files is expected)" $ do
             -- Note: For static files read instantly, all events have nearly identical timestamps
             -- so post-windows never complete. This tests that the command runs without crashing.
-            -- SpanShot output would only appear for live tailing scenarios or with custom timing.
-            output <- runCaptureToEnd binary "test/fixtures/empty.log" "ERROR" 0
+            -- Uses default config file detection rules (ERROR pattern)
+            output <- runCaptureToEnd binary "test/fixtures/empty.log" 0
             let outputLines = filter (not . BLC.null) $ BLC.lines output
             length outputLines @?= 0
         ]
@@ -229,36 +222,26 @@ runCommandTests binary =
             (exitCode, _stdout, stderr) <-
                 readProcessWithExitCode
                     binary
-                    ["run", "--logfile", "test/fixtures/nonexistent.log", "--regex-pattern", "ERROR"]
+                    ["run", "--logfile", "test/fixtures/nonexistent.log"]
                     ""
             case exitCode of
                 ExitFailure _ -> assertBool "Error message mentions file" $ "nonexistent.log" `isInfixOf` stderr
                 ExitSuccess -> assertFailure "Expected failure for missing file but got success"
-        , testCase "run requires regex-pattern" $ do
-            (exitCode, _stdout, _stderr) <-
-                readProcessWithExitCode
-                    binary
-                    ["run", "--logfile", "test/fixtures/small.log"]
-                    ""
-            case exitCode of
-                ExitFailure _ -> pure () -- Missing required arg should fail
-                ExitSuccess -> assertFailure "Expected failure when regex-pattern missing"
-        , testCase "run accepts all capture options" $ do
-            -- Test that run accepts all the same options as capture
-            -- We just verify the help text mentions all options since the command tails files
+        , testCase "run uses config file for detection rules" $ do
+            -- run now reads capture settings from config file
             (exitCode, stdout, _) <- readProcessWithExitCode binary ["run", "--help"] ""
             exitCode @?= ExitSuccess
-            assertBool "Help mentions pre-window" $ "pre-window" `isInfixOf` stdout
-            assertBool "Help mentions post-window" $ "post-window" `isInfixOf` stdout
-            assertBool "Help mentions min-context" $ "min-context" `isInfixOf` stdout
+            assertBool "Help mentions logfile" $ "logfile" `isInfixOf` stdout
         ]
 
--- | Run capture command and collect output
-runCaptureToEnd :: FilePath -> FilePath -> String -> Int -> IO BL.ByteString
-runCaptureToEnd binary logfile pattern expectedLines = do
+{- | Run capture command and collect output
+Uses config file for detection rules (regex-pattern)
+-}
+runCaptureToEnd :: FilePath -> FilePath -> Int -> IO BL.ByteString
+runCaptureToEnd binary logfile expectedLines = do
     let timeoutMicroseconds = 3_000_000
     let procSpec =
-            (proc binary ["capture", "--logfile", logfile, "--regex-pattern", pattern])
+            (proc binary ["capture", "--logfile", logfile])
                 { std_out = CreatePipe
                 , std_err = Inherit
                 }
