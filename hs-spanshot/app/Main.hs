@@ -1,6 +1,6 @@
 module Main where
 
-import Capture (captureFromStream)
+import Capture (captureFromStreamWithTimeout, withInactivityTimeout)
 import Collect (collectFromFileWithCleanup)
 import Config (ConfigPathInfo (..), ConfigPaths (..), ConfigWarning (..), InitConfigError (..), capture, getConfigPath, getConfigPaths, getProjectConfigPath, initConfigFile, loadConfig, toCaptureOptions)
 import Control.Exception (IOException, catch)
@@ -36,6 +36,7 @@ import System.FilePath ((</>))
 import System.IO (hFlush, hPutStrLn, stderr, stdout)
 import System.IO.Error (isDoesNotExistError, isPermissionError)
 import Types (
+    CaptureOptions (inactivityTimeout),
     CollectEvent,
     SpanShot,
     defaultCollectOptions,
@@ -270,7 +271,8 @@ runCapture settings = do
             exitFailure
         Right opts ->
             collectFromFileWithCleanup defaultCollectOptions (captureLogfile settings) $ \events ->
-                S.mapM_ printSpanShot $ captureFromStream opts events
+                let timedEvents = withInactivityTimeout (inactivityTimeout opts) events
+                 in S.mapM_ printSpanShot $ captureFromStreamWithTimeout opts timedEvents
 
 -- | Full pipeline (collect + capture combined) - same implementation as capture
 runFullPipeline :: RunSettings -> IO ()

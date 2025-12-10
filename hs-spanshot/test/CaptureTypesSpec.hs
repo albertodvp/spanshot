@@ -11,13 +11,14 @@ import Test.Hspec (Spec, describe, it, shouldBe, shouldSatisfy)
 import Fixtures (mockEvent, mockTime)
 import Types (
     ActiveCapture (ActiveCapture, acDetectedBy, acErrorEvent, acPostEvents, acPreWindowSnapshot),
-    CaptureOptions (compiledRules, detectionRules, minContextEvents, postWindowDuration, preWindowDuration),
+    CaptureOptions (compiledRules, detectionRules, inactivityTimeout, minContextEvents, postWindowDuration, preWindowDuration),
     CaptureState (csActiveCapture, csPreWindow),
     DetectionRule (RegexRule),
     SpanShot (..),
     defaultCaptureOptions,
     initialCaptureState,
     mkCaptureOptions,
+    mkCaptureOptionsWithTimeout,
     spanShotFromSeq,
     spanShotToSeq,
  )
@@ -31,6 +32,10 @@ captureTypesTests = do
             postWindowDuration opts `shouldBe` 5
             minContextEvents opts `shouldBe` 10
             length (detectionRules opts) `shouldBe` 1
+
+        it "default options have inactivityTimeout = 2 * postWindowDuration" $ do
+            let opts = defaultCaptureOptions
+            inactivityTimeout opts `shouldBe` (2 * postWindowDuration opts)
 
         it "default options include ERROR pattern" $ do
             let opts = defaultCaptureOptions
@@ -72,6 +77,29 @@ captureTypesTests = do
         it "accepts valid regex patterns" $ do
             let result = mkCaptureOptions 5 5 10 [RegexRule "ERROR|FATAL", RegexRule "\\[ERROR\\]"]
             result `shouldSatisfy` isRight
+
+        it "mkCaptureOptions defaults inactivityTimeout to 2 * postWindowDuration" $ do
+            let Right opts = mkCaptureOptions 5 10 10 [RegexRule "ERROR"]
+            inactivityTimeout opts `shouldBe` 20 -- 2 * 10
+        it "mkCaptureOptionsWithTimeout allows custom inactivityTimeout" $ do
+            let Right opts = mkCaptureOptionsWithTimeout 5 5 10 [RegexRule "ERROR"] 30
+            inactivityTimeout opts `shouldBe` 30
+
+        it "rejects inactivityTimeout less than postWindowDuration" $ do
+            let result = mkCaptureOptionsWithTimeout 5 10 10 [RegexRule "ERROR"] 5
+            result `shouldSatisfy` isLeft
+
+        it "accepts inactivityTimeout equal to postWindowDuration" $ do
+            let result = mkCaptureOptionsWithTimeout 5 10 10 [RegexRule "ERROR"] 10
+            result `shouldSatisfy` isRight
+
+        it "rejects zero inactivityTimeout" $ do
+            let result = mkCaptureOptionsWithTimeout 5 5 10 [RegexRule "ERROR"] 0
+            result `shouldSatisfy` isLeft
+
+        it "rejects negative inactivityTimeout" $ do
+            let result = mkCaptureOptionsWithTimeout 5 5 10 [RegexRule "ERROR"] (-5)
+            result `shouldSatisfy` isLeft
 
     describe "ActiveCapture" $ do
         it "creates capture with snapshot and empty post-window" $ do

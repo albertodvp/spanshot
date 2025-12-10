@@ -6,17 +6,22 @@ module Capture (
     addToPreWindow,
     processEvent,
     captureFromStream,
+    captureFromStreamWithTimeout,
+    flushPendingCaptures,
+    CaptureInput (..),
+    withInactivityTimeout,
 ) where
 
+import Control.Monad.IO.Class (liftIO)
 import Data.Foldable (toList)
 import Data.Sequence (Seq)
 import Data.Sequence qualified as Seq
 import Data.Text qualified as T
-import Data.Time (addUTCTime, diffUTCTime)
-import Text.Regex.TDFA (matchTest, (=~))
+import Data.Time (NominalDiffTime, UTCTime, addUTCTime, diffUTCTime, getCurrentTime)
 import Streaming (Of, Stream, lift)
 import Streaming.Prelude qualified as S
-import Text.Regex.TDFA ((=~))
+import System.Timeout (timeout)
+import Text.Regex.TDFA (matchTest, (=~))
 import Text.Regex.TDFA.Text ()
 
 import Types (
@@ -261,6 +266,39 @@ processEvent opts state newEvent =
      in
         (newState, emittedShots)
 
+{- | Flush any pending capture, emitting a SpanShot immediately.
+
+This function is used when an inactivity timeout occurs - if there's an active
+capture that hasn't completed its post-window naturally (due to lack of new events),
+we emit a SpanShot with whatever post-window events have been collected so far.
+
+Returns 'Nothing' if there's no active capture to flush.
+Returns 'Just SpanShot' with the pending capture's data, using the provided
+timestamp as the 'capturedAtUtc'.
+
+Example:
+
+@
+-- After inactivity timeout, flush pending captures
+case flushPendingCaptures state currentTime of
+    Nothing -> pure ()  -- No pending capture
+    Just shot -> emit shot
+@
+-}
+flushPendingCaptures :: CaptureState -> UTCTime -> Maybe SpanShot
+flushPendingCaptures state flushTime =
+    case csActiveCapture state of
+        Nothing -> Nothing
+        Just cap ->
+            Just
+                SpanShot
+                    { errorEvent = acErrorEvent cap
+                    , preWindow = toList (acPreWindowSnapshot cap)
+                    , postWindow = toList (acPostEvents cap)
+                    , detectedBy = acDetectedBy cap
+                    , capturedAtUtc = flushTime
+                    }
+
 {- | Transform a stream of CollectEvents into a stream of SpanShots.
 
 This is the main entry point for streaming capture. It maintains internal
@@ -302,3 +340,105 @@ captureFromStream opts = go initialCaptureState
                         Just shot -> do
                             S.yield shot
                             go newState rest
+
+{- | Input type for capture stream processing with timeout support.
+
+This type wraps either a real log event or a flush signal triggered by
+inactivity timeout. The flush signal causes any pending captures to be
+emitted immediately, even if their post-window hasn't naturally completed.
+-}
+data CaptureInput
+    = -- | A real log event to process
+      LogEvent !CollectEvent
+    | -- | Flush signal triggered by inactivity timeout
+      InactivityFlush
+    deriving (Show, Eq)
+
+{- | Wrap an event stream with inactivity timeout detection.
+
+This combinator monitors the time between events. When no new event arrives
+within the specified timeout duration, it yields an 'InactivityFlush' signal,
+then continues waiting for more events.
+
+The timeout resets each time an event is received.
+
+Implementation: Uses 'System.Timeout.timeout' to race between getting the
+next event and the timeout. This works because we're in IO.
+
+Example:
+
+@
+let events = collectFromFile opts "app.log"
+let timedEvents = withInactivityTimeout 10 events  -- 10 second timeout
+S.mapM_ handleInput timedEvents
+@
+
+Note: This requires the underlying stream to be in IO, not a pure monad.
+-}
+withInactivityTimeout ::
+    NominalDiffTime ->
+    Stream (Of CollectEvent) IO r ->
+    Stream (Of CaptureInput) IO r
+withInactivityTimeout timeoutDuration stream = S.unfoldr go (stream, False)
+  where
+    timeoutMicros = floor (timeoutDuration * 1_000_000) :: Int
+
+    go (s, _) = do
+        -- Try to get next event with timeout
+        result <- timeout timeoutMicros (S.next s)
+        case result of
+            Nothing ->
+                -- Timeout occurred - emit flush signal and continue with same stream
+                pure $ Right (InactivityFlush, (s, True))
+            Just (Left r) ->
+                -- Stream ended
+                pure $ Left r
+            Just (Right (event, rest)) ->
+                -- Got an event
+                pure $ Right (LogEvent event, (rest, False))
+
+{- | Transform a stream of CollectEvents into SpanShots with timeout support.
+
+This is like 'captureFromStream' but handles 'InactivityFlush' signals to
+emit pending captures when no new events arrive within the timeout period.
+
+Use 'withInactivityTimeout' to wrap the input stream with timeout detection,
+then pass it to this function.
+
+Example:
+
+@
+let events = collectFromFile opts "app.log"
+let timedEvents = withInactivityTimeout (inactivityTimeout captureOpts) events
+S.mapM_ printSpanShot $ captureFromStreamWithTimeout captureOpts timedEvents
+@
+-}
+captureFromStreamWithTimeout ::
+    CaptureOptions ->
+    Stream (Of CaptureInput) IO r ->
+    Stream (Of SpanShot) IO r
+captureFromStreamWithTimeout opts = go initialCaptureState
+  where
+    go state stream = do
+        result <- lift $ S.next stream
+        case result of
+            Left r -> pure r
+            Right (input, rest) ->
+                case input of
+                    LogEvent event ->
+                        let (newState, maybeShot) = processEvent opts state event
+                         in case maybeShot of
+                                Nothing -> go newState rest
+                                Just shot -> do
+                                    S.yield shot
+                                    go newState rest
+                    InactivityFlush -> do
+                        -- Flush pending capture if any
+                        flushTime <- liftIO getCurrentTime
+                        case flushPendingCaptures state flushTime of
+                            Nothing -> go state rest
+                            Just shot -> do
+                                S.yield shot
+                                -- Clear the active capture after flushing
+                                let newState = state{csActiveCapture = Nothing}
+                                go newState rest

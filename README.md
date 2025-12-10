@@ -137,10 +137,13 @@ capture:
   pre_window_duration: 5    # seconds before error
   post_window_duration: 5   # seconds after error
   min_context_events: 10
+  inactivity_timeout: 10    # seconds to wait before flushing pending captures
   detection_rules:
     - regex_pattern: "ERROR"
     - regex_pattern: "FATAL"
 ```
+
+**Inactivity Timeout:** When no new log events arrive within `inactivity_timeout` seconds, pending captures are flushed immediately. This enables processing of static log files where all events are read instantly. Default is `2 * post_window_duration`. Must be at least as large as `post_window_duration`.
 
 ## Output Format
 
@@ -302,7 +305,7 @@ This project follows the [Angular Commit Message Convention](https://github.com/
 - [x] Stream combinator (`captureFromStream`)
 - [x] CLI commands (`capture` and `run`)
 - [x] CLI integration tests
-- [ ] Inactivity timeout for pending captures
+- [x] Inactivity timeout for pending captures
 - [ ] Parse timestamps from log content ([#18](https://github.com/albertodvp/spanshot/issues/18))
 
 ### v0.2+ - Future Phases

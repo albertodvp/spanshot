@@ -56,7 +56,7 @@ import GHC.Generics (Generic)
 import System.Directory (XdgDirectory (XdgConfig), canonicalizePath, createDirectoryIfMissing, doesDirectoryExist, doesFileExist, getCurrentDirectory, getXdgDirectory)
 import System.FilePath (takeDirectory, (</>))
 
-import Types (CaptureOptions (..), DetectionRule, defaultCaptureOptions, mkCaptureOptions)
+import Types (CaptureOptions (..), DetectionRule, defaultCaptureOptions, mkCaptureOptionsWithTimeout)
 
 -- * Constants
 
@@ -92,6 +92,7 @@ data CaptureConfig = CaptureConfig
     , ccPostWindowDuration :: !NominalDiffTime
     , ccMinContextEvents :: !Int
     , ccDetectionRules :: ![DetectionRule]
+    , ccInactivityTimeout :: !NominalDiffTime
     }
     deriving (Show, Eq, Generic)
 
@@ -128,6 +129,7 @@ data PartialCaptureConfig = PartialCaptureConfig
     , pccPostWindowDuration :: !(Maybe NominalDiffTime)
     , pccMinContextEvents :: !(Maybe Int)
     , pccDetectionRules :: !(Maybe [DetectionRule])
+    , pccInactivityTimeout :: !(Maybe NominalDiffTime)
     }
     deriving (Show, Eq, Generic)
 
@@ -162,6 +164,7 @@ mergeCaptureConfig base (Just partial) =
         , ccPostWindowDuration = fromMaybe (ccPostWindowDuration base) (pccPostWindowDuration partial)
         , ccMinContextEvents = fromMaybe (ccMinContextEvents base) (pccMinContextEvents partial)
         , ccDetectionRules = fromMaybe (ccDetectionRules base) (pccDetectionRules partial)
+        , ccInactivityTimeout = fromMaybe (ccInactivityTimeout base) (pccInactivityTimeout partial)
         }
 
 -- | Default configuration (matches defaultCaptureOptions)
@@ -174,11 +177,12 @@ defaultConfig =
 -- | Convert CaptureConfig to CaptureOptions (with validation)
 toCaptureOptions :: CaptureConfig -> Either String CaptureOptions
 toCaptureOptions cc =
-    mkCaptureOptions
+    mkCaptureOptionsWithTimeout
         (ccPreWindowDuration cc)
         (ccPostWindowDuration cc)
         (ccMinContextEvents cc)
         (ccDetectionRules cc)
+        (ccInactivityTimeout cc)
 
 -- | Convert CaptureOptions to CaptureConfig
 fromCaptureOptions :: CaptureOptions -> CaptureConfig
@@ -188,6 +192,7 @@ fromCaptureOptions opts =
         , ccPostWindowDuration = postWindowDuration opts
         , ccMinContextEvents = minContextEvents opts
         , ccDetectionRules = detectionRules opts
+        , ccInactivityTimeout = inactivityTimeout opts
         }
 
 -- | Get the user config file path (~/.config/spanshot/config.yaml)

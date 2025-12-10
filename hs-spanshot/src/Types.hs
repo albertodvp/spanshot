@@ -13,8 +13,9 @@ module Types (
     DetectionRule (RegexRule, regexPattern),
     CompiledRule (..),
     SpanShot (..),
-    CaptureOptions (preWindowDuration, postWindowDuration, minContextEvents, detectionRules, compiledRules),
+    CaptureOptions (preWindowDuration, postWindowDuration, minContextEvents, detectionRules, compiledRules, inactivityTimeout),
     mkCaptureOptions,
+    mkCaptureOptionsWithTimeout,
     defaultCaptureOptions,
     ActiveCapture (..),
     CaptureState (..),
@@ -142,6 +143,10 @@ instance FromJSON SpanShot where
 
 The 'detectionRules' field stores the original rules for serialization,
 while 'compiledRules' stores pre-compiled versions for efficient matching.
+
+The 'inactivityTimeout' specifies how long to wait for new events before
+flushing pending captures. This enables processing of static files where
+all events are read instantly with similar timestamps.
 -}
 data CaptureOptions = CaptureOptions
     { preWindowDuration :: !NominalDiffTime
@@ -149,6 +154,7 @@ data CaptureOptions = CaptureOptions
     , minContextEvents :: !Int
     , detectionRules :: ![DetectionRule]
     , compiledRules :: ![CompiledRule]
+    , inactivityTimeout :: !NominalDiffTime
     }
     deriving (Show, Eq)
 
@@ -156,6 +162,9 @@ data CaptureOptions = CaptureOptions
 
 This function validates all inputs and pre-compiles regex patterns for efficient
 matching. If any regex pattern is invalid, returns Left with an error message.
+
+The inactivityTimeout defaults to 2 * postWindowDuration, providing a buffer
+to ensure post-windows complete before flushing.
 
 Pre-compiling regexes is important for performance: without it, each event would
 require re-compiling all regex patterns, which is expensive (O(m) per pattern
@@ -168,12 +177,35 @@ mkCaptureOptions ::
     Int ->
     [DetectionRule] ->
     Either String CaptureOptions
-mkCaptureOptions preWin postWin minCtx rules
+mkCaptureOptions preWin postWin minCtx rules =
+    -- Default timeout is 2 * postWindowDuration, but at least 1 second
+    -- This handles the case where postWindowDuration is 0
+    let defaultTimeout = max 1 (2 * postWin)
+     in mkCaptureOptionsWithTimeout preWin postWin minCtx rules defaultTimeout
+
+{- | Create capture options with explicit inactivity timeout.
+
+Like 'mkCaptureOptions' but allows specifying a custom inactivity timeout
+instead of using the default (2 * postWindowDuration).
+
+The inactivity timeout must be at least as large as postWindowDuration
+to ensure post-windows have a chance to complete normally.
+-}
+mkCaptureOptionsWithTimeout ::
+    NominalDiffTime ->
+    NominalDiffTime ->
+    Int ->
+    [DetectionRule] ->
+    NominalDiffTime ->
+    Either String CaptureOptions
+mkCaptureOptionsWithTimeout preWin postWin minCtx rules timeout
     | preWin < 0 = Left "preWindowDuration must be non-negative (>= 0 seconds)"
     | postWin < 0 = Left "postWindowDuration must be non-negative (>= 0 seconds)"
     | preWin == 0 && postWin == 0 = Left "At least one of preWindowDuration or postWindowDuration must be positive (> 0)"
     | minCtx < 1 = Left "minContextEvents must be at least 1"
     | null rules = Left "detectionRules cannot be empty"
+    | timeout <= 0 = Left "inactivityTimeout must be positive (> 0 seconds)"
+    | postWin > 0 && timeout < postWin = Left "inactivityTimeout must be at least postWindowDuration"
     | otherwise =
         case compileDetectionRules rules of
             Left err -> Left err
@@ -185,6 +217,7 @@ mkCaptureOptions preWin postWin minCtx rules
                         , minContextEvents = minCtx
                         , detectionRules = rules
                         , compiledRules = compiled
+                        , inactivityTimeout = timeout
                         }
 
 {- | Compile all detection rules, returning an error if any regex is invalid.
@@ -214,12 +247,14 @@ defaultCaptureOptions =
         defaultCompiled = case compileDetectionRules defaultRules of
             Right compiled -> compiled
             Left e -> error $ "defaultCaptureOptions: invalid default rule: " <> e
+        defaultPostWindow = 5
      in CaptureOptions
             { preWindowDuration = 5
-            , postWindowDuration = 5
+            , postWindowDuration = defaultPostWindow
             , minContextEvents = 10
             , detectionRules = defaultRules
             , compiledRules = defaultCompiled
+            , inactivityTimeout = 2 * defaultPostWindow
             }
 
 {- | Active capture state during post-window collection.

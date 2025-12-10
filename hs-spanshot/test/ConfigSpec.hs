@@ -40,6 +40,7 @@ configTests = do
                         , "  pre_window_duration: 10"
                         , "  post_window_duration: 3"
                         , "  min_context_events: 5"
+                        , "  inactivity_timeout: 6"
                         , "  detection_rules:"
                         , "    - regex_pattern: \"ERROR\""
                         , "    - regex_pattern: \"WARN\""
@@ -51,6 +52,7 @@ configTests = do
                     ccPreWindowDuration (capture config) `shouldBe` 10
                     ccPostWindowDuration (capture config) `shouldBe` 3
                     ccMinContextEvents (capture config) `shouldBe` 5
+                    ccInactivityTimeout (capture config) `shouldBe` 6
                     length (ccDetectionRules (capture config)) `shouldBe` 2
 
         it "round-trips defaultConfig through YAML" $ do
@@ -69,6 +71,7 @@ configTests = do
                     ccPreWindowDuration (capture config) `shouldBe` 10
                     ccPostWindowDuration (capture config) `shouldBe` 3
                     ccMinContextEvents (capture config) `shouldBe` 5
+                    ccInactivityTimeout (capture config) `shouldBe` 6
                     ccDetectionRules (capture config)
                         `shouldBe` [ RegexRule "ERROR"
                                    , RegexRule "WARN"
@@ -94,6 +97,7 @@ configTests = do
                         , ccPostWindowDuration = 5
                         , ccMinContextEvents = 10
                         , ccDetectionRules = [RegexRule "ERROR"]
+                        , ccInactivityTimeout = 10
                         }
             toCaptureOptions invalidConfig `shouldSatisfy` isLeft
 
@@ -104,6 +108,7 @@ configTests = do
                         , ccPostWindowDuration = 5
                         , ccMinContextEvents = 10
                         , ccDetectionRules = []
+                        , ccInactivityTimeout = 10
                         }
             toCaptureOptions invalidConfig `shouldSatisfy` isLeft
 
@@ -114,6 +119,7 @@ configTests = do
                         , ccPostWindowDuration = 10
                         , ccMinContextEvents = 20
                         , ccDetectionRules = [RegexRule "FATAL", RegexRule "CRITICAL"]
+                        , ccInactivityTimeout = 20
                         }
             let encoded = Yaml.encode cc
             let decoded = Yaml.decodeEither' encoded :: Either Yaml.ParseException CaptureConfig
@@ -138,6 +144,7 @@ configTests = do
                                     , pccPostWindowDuration = Nothing
                                     , pccMinContextEvents = Nothing
                                     , pccDetectionRules = Nothing
+                                    , pccInactivityTimeout = Nothing
                                     }
                         }
             let result = mergeConfig base override
@@ -158,6 +165,7 @@ configTests = do
                                     , pccPostWindowDuration = Just 15
                                     , pccMinContextEvents = Nothing
                                     , pccDetectionRules = Nothing
+                                    , pccInactivityTimeout = Nothing
                                     }
                         }
             let result = mergeConfig base override
@@ -175,6 +183,7 @@ configTests = do
                                     , pccPostWindowDuration = Nothing
                                     , pccMinContextEvents = Just 50
                                     , pccDetectionRules = Nothing
+                                    , pccInactivityTimeout = Nothing
                                     }
                         }
             let result = mergeConfig base override
@@ -193,6 +202,7 @@ configTests = do
                                     , pccPostWindowDuration = Nothing
                                     , pccMinContextEvents = Nothing
                                     , pccDetectionRules = Just newRules
+                                    , pccInactivityTimeout = Nothing
                                     }
                         }
             let result = mergeConfig base override
@@ -209,6 +219,7 @@ configTests = do
                                     , pccPostWindowDuration = Just 25
                                     , pccMinContextEvents = Nothing
                                     , pccDetectionRules = Just [RegexRule "WARN"]
+                                    , pccInactivityTimeout = Nothing
                                     }
                         }
             let result = mergeConfig base override
@@ -268,6 +279,7 @@ configTests = do
                         , pccPostWindowDuration = Just 20
                         , pccMinContextEvents = Just 15
                         , pccDetectionRules = Just [RegexRule "WARN", RegexRule "ERROR"]
+                        , pccInactivityTimeout = Just 40
                         }
             let pc = PartialConfig{pcCapture = Just pcc}
             let encoded = Yaml.encode pc
@@ -283,6 +295,7 @@ configTests = do
                         , pccPostWindowDuration = Nothing
                         , pccMinContextEvents = Nothing
                         , pccDetectionRules = Just [RegexRule "CRITICAL"]
+                        , pccInactivityTimeout = Nothing
                         }
             let pc = PartialConfig{pcCapture = Just pcc}
             let encoded = Yaml.encode pc
@@ -306,6 +319,7 @@ configTests = do
                         , pccPostWindowDuration = Nothing
                         , pccMinContextEvents = Nothing
                         , pccDetectionRules = Just [RegexRule "EXCEPTION"]
+                        , pccInactivityTimeout = Nothing
                         }
             let encoded = Yaml.encode pcc
             let decoded = Yaml.decodeEither' encoded :: Either Yaml.ParseException PartialCaptureConfig
@@ -460,6 +474,7 @@ configTests = do
                         , "  pre_window_duration: 20"
                         , "  post_window_duration: 15"
                         , "  min_context_events: 25"
+                        , "  inactivity_timeout: 30"
                         , "  detection_rules:"
                         , "    - regex_pattern: \"FATAL\""
                         ]
@@ -469,6 +484,7 @@ configTests = do
                 ccPreWindowDuration (capture config) `shouldBe` 20
                 ccPostWindowDuration (capture config) `shouldBe` 15
                 ccMinContextEvents (capture config) `shouldBe` 25
+                ccInactivityTimeout (capture config) `shouldBe` 30
                 ccDetectionRules (capture config) `shouldBe` [RegexRule "FATAL"]
 
         it "handles invalid project config gracefully (uses defaults with warning)" $ do

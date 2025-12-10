@@ -4,14 +4,14 @@ module CaptureStreamSpec (captureStreamTests) where
 
 import Data.Foldable (toList)
 import Data.Functor.Identity (runIdentity)
-import Data.Maybe (isJust)
+import Data.Maybe (isJust, isNothing)
 import Data.Sequence qualified as Seq
 import Data.Time (NominalDiffTime)
 import Streaming.Prelude qualified as S
 import Test.Hspec (Spec, describe, it, shouldBe, shouldContain, shouldSatisfy)
 
-import Capture (captureFromStream, processEvent)
-import Fixtures (mockEvent)
+import Capture (captureFromStream, flushPendingCaptures, processEvent)
+import Fixtures (mockEvent, mockTime)
 import Types (
     ActiveCapture (..),
     CaptureOptions,
@@ -298,3 +298,68 @@ captureStreamTests = do
                     -- second error should be in post-window
                     map line (postWindow shot) `shouldContain` ["ERROR second"]
                 _ -> fail "Expected exactly one SpanShot"
+
+    describe "flushPendingCaptures" $ do
+        it "returns Nothing when no active capture" $ do
+            let state = initialCaptureState
+            let flushTime = mockTime 100
+            flushPendingCaptures state flushTime `shouldSatisfy` isNothing
+
+        it "emits SpanShot with collected post-window events when active capture exists" $ do
+            let errorEvt = mockEvent 10 "ERROR detected"
+            let preSnap = Seq.fromList [mockEvent 8 "pre1", mockEvent 9 "pre2"]
+            let postEvts = Seq.fromList [mockEvent 11 "post1", mockEvent 12 "post2"]
+            let cap =
+                    ActiveCapture
+                        { acErrorEvent = errorEvt
+                        , acDetectedBy = [RegexRule "ERROR"]
+                        , acPreWindowSnapshot = preSnap
+                        , acPostEvents = postEvts
+                        }
+            let state = initialCaptureState{csActiveCapture = Just cap}
+            let flushTime = mockTime 100
+
+            case flushPendingCaptures state flushTime of
+                Nothing -> fail "Expected SpanShot from flush"
+                Just shot -> do
+                    errorEvent shot `shouldBe` errorEvt
+                    length (preWindow shot) `shouldBe` 2
+                    length (postWindow shot) `shouldBe` 2
+                    capturedAtUtc shot `shouldBe` flushTime
+
+        it "emits SpanShot with empty post-window if no post events collected" $ do
+            let errorEvt = mockEvent 10 "ERROR detected"
+            let preSnap = Seq.fromList [mockEvent 8 "pre1"]
+            let cap =
+                    ActiveCapture
+                        { acErrorEvent = errorEvt
+                        , acDetectedBy = [RegexRule "ERROR"]
+                        , acPreWindowSnapshot = preSnap
+                        , acPostEvents = Seq.empty
+                        }
+            let state = initialCaptureState{csActiveCapture = Just cap}
+            let flushTime = mockTime 100
+
+            case flushPendingCaptures state flushTime of
+                Nothing -> fail "Expected SpanShot from flush"
+                Just shot -> do
+                    errorEvent shot `shouldBe` errorEvt
+                    length (preWindow shot) `shouldBe` 1
+                    length (postWindow shot) `shouldBe` 0
+
+        it "preserves detection rules in flushed SpanShot" $ do
+            let errorEvt = mockEvent 10 "ERROR FATAL"
+            let rules = [RegexRule "ERROR", RegexRule "FATAL"]
+            let cap =
+                    ActiveCapture
+                        { acErrorEvent = errorEvt
+                        , acDetectedBy = rules
+                        , acPreWindowSnapshot = Seq.empty
+                        , acPostEvents = Seq.empty
+                        }
+            let state = initialCaptureState{csActiveCapture = Just cap}
+            let flushTime = mockTime 100
+
+            case flushPendingCaptures state flushTime of
+                Nothing -> fail "Expected SpanShot from flush"
+                Just shot -> detectedBy shot `shouldBe` rules
