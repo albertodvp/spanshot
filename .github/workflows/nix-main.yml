@@ -30,14 +30,24 @@ jobs:
           printf '%s' "${{ secrets.AGENIX_SSH_PRIVATE_KEY }}" > "$HOME/.ssh/id_ed25519"
           chmod 600 "$HOME/.ssh/id_ed25519"
 
+      # NOTE: agenix-shell has a bug where its installationScript fails shellcheck
+      # on macOS (unquoted variables). Since agenix-shell only tests on Linux,
+      # this went unnoticed upstream. Skip agenix-dependent steps on macOS until fixed.
+      # See: https://github.com/aciceri/agenix-shell/issues/21
       - name: Configure Cachix cache
+        if: runner.os == 'Linux'
         run: nix run .#configure-cachix
 
       - name: Nix flake check
         run: nix flake check --show-trace
 
       - name: Build and push to Cachix
+        if: runner.os == 'Linux'
         run: nix run .#build-and-push
+
+      - name: Build package (macOS)
+        if: runner.os == 'macOS'
+        run: nix build .#hs-spanshot --print-build-logs
 
       - name: Run CLI
         run: nix run .# -- --help
