@@ -29,22 +29,6 @@ bin-path:
 collect-file FILE:
     $(just bin-path) collect --logfile {{FILE}}
 
-# Capture errors from a specific file using the built binary
-capture-file FILE PATTERN:
-    $(just bin-path) capture --logfile {{FILE}} --regex-pattern "{{PATTERN}}"
-
-# Run full pipeline on a specific file
-run-file FILE PATTERN:
-    $(just bin-path) run --logfile {{FILE}} --regex-pattern "{{PATTERN}}"
-
-# Demo: capture errors from python test fixture
-demo-capture:
-    timeout 3s $(just bin-path) capture --logfile test/fixtures/python_errors.log --regex-pattern "ERROR" --pre-window 2 --post-window 2 || true
-
-# Demo: run full pipeline on java test fixture
-demo-run:
-    timeout 3s $(just bin-path) run --logfile test/fixtures/java_errors.log --regex-pattern "ERROR|Exception" || true
-
 # Generate golden files from current binary output (overwrites existing goldens)
 generate-golden: build
     #!/usr/bin/env bash

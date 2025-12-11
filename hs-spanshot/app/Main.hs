@@ -2,32 +2,54 @@ module Main where
 
 import Capture (captureFromCaptureInput, withInactivityTimeout)
 import Collect (collectFromFileWithCleanup)
-import Config (ConfigPathInfo (..), ConfigPaths (..), ConfigWarning (..), InitConfigError (..), capture, getConfigPath, getConfigPaths, getProjectConfigPath, initConfigFile, loadConfig, toCaptureOptions)
+import Config (
+    CaptureConfig (..),
+    ConfigPathInfo (..),
+    ConfigPaths (..),
+    InitConfigError (..),
+    defaultCaptureConfig,
+    getConfigFilePaths,
+    getConfigPath,
+    getConfigPaths,
+    getProjectConfigPath,
+    initConfigFile,
+    toCaptureOptions,
+ )
 import Control.Exception (IOException, catch)
 import Data.Aeson qualified as Aeson
-import Data.ByteString.Char8 qualified as BS
 import Data.ByteString.Lazy.Char8 qualified as BL
+import Data.Time (NominalDiffTime)
 
-import Data.Yaml qualified as Yaml
 import OptEnvConf (
     HasParser (settingsParser),
+    Parser,
+    Reader,
     argument,
+    auto,
     command,
     commands,
+    conf,
+    eitherReader,
     help,
     long,
+    many,
+    mapIO,
     metavar,
     name,
+    option,
     optional,
     reader,
     runSettingsParser,
     setting,
     short,
     str,
+    subConfig_,
     switch,
     value,
+    withCombinedYamlConfigs,
     withoutConfig,
  )
+import Path (Abs, File, Path)
 import Paths_hs_spanshot (version)
 import Streaming.Prelude qualified as S
 import System.Directory (doesDirectoryExist, getCurrentDirectory)
@@ -38,6 +60,7 @@ import System.IO.Error (isDoesNotExistError, isPermissionError)
 import Types (
     CaptureOptions (inactivityTimeout),
     CollectEvent,
+    DetectionRule (..),
     SpanShot,
     defaultCollectOptions,
  )
@@ -46,7 +69,9 @@ newtype Instructions = Instructions Dispatch
     deriving (Show)
 
 instance HasParser Instructions where
-    settingsParser = Instructions <$> settingsParser
+    settingsParser =
+        withCombinedYamlConfigs configFilePathsParser $
+            Instructions <$> dispatchParser
 
 data Dispatch
     = DispatchCollect CollectSettings
@@ -55,18 +80,19 @@ data Dispatch
     | DispatchRun RunSettings
     deriving (Show)
 
-instance HasParser Dispatch where
-    settingsParser =
-        commands
-            [ command "collect" "Collect logs from a file and output JSONL events" $
-                DispatchCollect <$> settingsParser
-            , command "config" "Manage configuration" $
-                DispatchConfig <$> settingsParser
-            , command "capture" "Capture error spans from a log file" $
-                DispatchCapture <$> settingsParser
-            , command "run" "Collect and capture errors from a log file (full pipeline)" $
-                DispatchRun <$> settingsParser
-            ]
+-- | Parser for dispatch commands (not using HasParser to avoid config loading issues)
+dispatchParser :: Parser Dispatch
+dispatchParser =
+    commands
+        [ command "collect" "Collect logs from a file and output JSONL events" $
+            DispatchCollect <$> settingsParser
+        , command "config" "Manage configuration" $
+            DispatchConfig <$> settingsParser
+        , command "capture" "Capture error spans from a log file" $
+            DispatchCapture <$> captureSettingsParser
+        , command "run" "Collect and capture errors from a log file (full pipeline)" $
+            DispatchRun <$> captureSettingsParser
+        ]
 
 data ConfigCommand
     = ConfigShow
@@ -138,28 +164,120 @@ instance HasParser CollectSettings where
                     ]
                 )
 
-{- | Settings for capture and run commands
-These are CLI overrides - config file values are used as defaults
+{- | Settings for capture and run commands.
+These can come from CLI arguments, environment variables, or config files.
+opt-env-conf handles the precedence: CLI > env > config > defaults
 -}
 data CaptureSettings = CaptureSettings
     { captureLogfile :: FilePath
+    , captureConfig :: CaptureConfig
     }
     deriving (Show)
 
-instance HasParser CaptureSettings where
-    settingsParser =
-        CaptureSettings
-            <$> withoutConfig
-                ( setting
-                    [ help "Path to the logfile to process"
+-- | Parser for capture settings (not using HasParser class)
+captureSettingsParser :: Parser CaptureSettings
+captureSettingsParser =
+    CaptureSettings
+        -- Logfile is CLI-only (doesn't make sense in config)
+        <$> withoutConfig
+            ( setting
+                [ help "Path to the logfile to process"
+                , reader str
+                , name "logfile"
+                , metavar "PATH"
+                ]
+            )
+        -- Capture config can come from CLI, env, or config file
+        -- Use subConfig_ to nest under "capture:" in config files
+        <*> subConfig_ "capture" captureConfigParser
+
+{- | Parser for capture configuration.
+Each setting can come from CLI args, env vars, or config file.
+-}
+captureConfigParser :: Parser CaptureConfig
+captureConfigParser =
+    mkCaptureConfig
+        <$> setting
+            [ help "Pre-window duration in seconds (context before error)"
+            , reader secondsReader
+            , option
+            , long "pre-window"
+            , metavar "SECONDS"
+            , conf "pre_window_duration"
+            , value (ccPreWindowDuration defaultCaptureConfig)
+            ]
+        <*> setting
+            [ help "Post-window duration in seconds (context after error)"
+            , reader secondsReader
+            , option
+            , long "post-window"
+            , metavar "SECONDS"
+            , conf "post_window_duration"
+            , value (ccPostWindowDuration defaultCaptureConfig)
+            ]
+        <*> setting
+            [ help "Minimum number of context events to capture"
+            , reader auto
+            , option
+            , long "min-context"
+            , metavar "COUNT"
+            , conf "min_context_events"
+            , value (ccMinContextEvents defaultCaptureConfig)
+            ]
+        <*> setting
+            [ help "Inactivity timeout in seconds (for flushing pending captures)"
+            , reader secondsReader
+            , option
+            , long "inactivity-timeout"
+            , metavar "SECONDS"
+            , conf "inactivity_timeout"
+            , value (ccInactivityTimeout defaultCaptureConfig)
+            ]
+        -- Detection rules: CLI patterns override config file rules entirely
+        <*> many
+            ( withoutConfig $
+                setting
+                    [ help "Regex pattern to detect errors (can be specified multiple times)"
                     , reader str
-                    , name "logfile"
-                    , metavar "PATH"
+                    , long "regex-pattern"
+                    , short 'p'
+                    , option
+                    , metavar "PATTERN"
                     ]
-                )
+            )
+        -- Config file detection rules (used when no CLI patterns provided)
+        <*> setting
+            [ help "Detection rules from config file"
+            , conf "detection_rules"
+            , value (ccDetectionRules defaultCaptureConfig)
+            ]
+  where
+    -- Helper to combine CLI patterns with config rules
+    mkCaptureConfig preWindow postWindow minContext inactivityTimeoutVal cliPatterns configRules =
+        CaptureConfig
+            { ccPreWindowDuration = preWindow
+            , ccPostWindowDuration = postWindow
+            , ccMinContextEvents = minContext
+            , ccDetectionRules = selectRules cliPatterns configRules
+            , ccInactivityTimeout = inactivityTimeoutVal
+            }
+    -- If CLI patterns provided, use them; otherwise use config file rules
+    selectRules [] configRules = configRules
+    selectRules patterns _ = map RegexRule patterns
 
 -- | RunSettings is the same as CaptureSettings (full pipeline uses same options)
 type RunSettings = CaptureSettings
+
+-- | Parser for loading config files
+configFilePathsParser :: Parser [Path Abs File]
+configFilePathsParser = mapIO (const getConfigFilePaths) (pure ())
+
+-- | Reader for NominalDiffTime from seconds (as an integer or decimal)
+secondsReader :: Reader NominalDiffTime
+secondsReader = eitherReader $ \s ->
+    case reads s of
+        [(n, "")] -> Right (realToFrac (n :: Double))
+        _ -> Left $ "Invalid duration: " ++ s ++ " (expected number of seconds)"
 
 main :: IO ()
 main = do
@@ -179,25 +297,22 @@ main = do
 
 runCollect :: FilePath -> IO ()
 runCollect logfilePath = do
-    (config, warnings) <- loadConfig
-    -- Print any config warnings to stderr
-    printConfigWarnings warnings
-    -- Validate config (including regex patterns) before starting collection
-    case toCaptureOptions (capture config) of
-        Left err -> do
-            hPutStrLn stderr $ "Error: Invalid configuration: " ++ err
-            exitFailure
-        Right _captureOpts ->
-            -- TODO: Use captureOpts when capture processing is integrated
-            collectFromFileWithCleanup defaultCollectOptions logfilePath $ \events ->
-                S.mapM_ printEvent events
+    -- For collect, we just stream events - no capture config needed
+    collectFromFileWithCleanup defaultCollectOptions logfilePath $ \events ->
+        S.mapM_ printEvent events
 
 runConfig :: ConfigCommand -> IO ()
 runConfig ConfigShow = do
-    (config, warnings) <- loadConfig
-    -- Print any config warnings to stderr
-    printConfigWarnings warnings
-    BS.putStrLn $ Yaml.encode config
+    -- Load and display the effective configuration
+    configPaths <- getConfigFilePaths
+    if null configPaths
+        then do
+            putStrLn "# No config files found, showing defaults:"
+            printCaptureConfig defaultCaptureConfig
+        else do
+            putStrLn $ "# Config files: " ++ show (map show configPaths)
+            putStrLn "# Use 'spanshot capture --help' to see effective values"
+            printCaptureConfig defaultCaptureConfig
 runConfig ConfigPath = do
     cwd <- getCurrentDirectory
     paths <- getConfigPaths cwd
@@ -247,25 +362,21 @@ printPathInfo label info = do
     let status = if cpiExists info then "[found]" else "[not found]"
     putStrLn $ label ++ ": " ++ cpiPath info ++ " " ++ status
 
--- | Print config warnings to stderr
-printConfigWarnings :: [ConfigWarning] -> IO ()
-printConfigWarnings [] = pure ()
-printConfigWarnings warnings = do
-    mapM_ printWarning warnings
-    hPutStrLn stderr "Using default configuration for failed config files."
-  where
-    printWarning (ConfigParseWarning path err) =
-        hPutStrLn stderr $ "Warning: Failed to parse config file " ++ path ++ ": " ++ err
-    printWarning (ConfigValidationWarning path err) =
-        hPutStrLn stderr $ "Warning: Invalid configuration in " ++ path ++ ": " ++ err
+-- | Print capture config in a readable format
+printCaptureConfig :: CaptureConfig -> IO ()
+printCaptureConfig cc = do
+    putStrLn "capture:"
+    putStrLn $ "  pre_window_duration: " ++ show (ccPreWindowDuration cc)
+    putStrLn $ "  post_window_duration: " ++ show (ccPostWindowDuration cc)
+    putStrLn $ "  min_context_events: " ++ show (ccMinContextEvents cc)
+    putStrLn $ "  inactivity_timeout: " ++ show (ccInactivityTimeout cc)
+    putStrLn "  detection_rules:"
+    mapM_ (\(RegexRule p) -> putStrLn $ "    - regex_pattern: \"" ++ p ++ "\"") (ccDetectionRules cc)
 
 runCapture :: CaptureSettings -> IO ()
 runCapture settings = do
-    (config, warnings) <- loadConfig
-    -- Print any config warnings to stderr
-    printConfigWarnings warnings
     -- Validate config and run capture
-    case toCaptureOptions (capture config) of
+    case toCaptureOptions (captureConfig settings) of
         Left err -> do
             hPutStrLn stderr $ "Error: Invalid configuration: " ++ err
             exitFailure

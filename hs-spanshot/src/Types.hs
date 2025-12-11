@@ -1,4 +1,5 @@
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DerivingVia #-}
 {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
 
 {-# HLINT ignore "Use newtype instead of data" #-}
@@ -23,6 +24,7 @@ module Types (
     spanShotFromSeq,
 ) where
 
+import Autodocodec (HasCodec (..), object, requiredField, (.=))
 import Data.Aeson (FromJSON (parseJSON), Options (fieldLabelModifier), ToJSON (toJSON), camelTo2, defaultOptions, genericParseJSON, genericToJSON)
 import Data.Foldable (toList)
 import Data.Sequence (Seq)
@@ -81,6 +83,13 @@ defaultCollectOptions =
 data DetectionRule
     = RegexRule {regexPattern :: !String}
     deriving (Show, Eq, Generic)
+
+instance HasCodec DetectionRule where
+    codec =
+        object "DetectionRule" $
+            RegexRule
+                <$> requiredField "regex_pattern" "Regex pattern to match against log lines"
+                    .= regexPattern
 
 instance ToJSON DetectionRule where
     toJSON =
