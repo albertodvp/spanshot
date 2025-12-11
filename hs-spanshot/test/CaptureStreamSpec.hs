@@ -284,6 +284,94 @@ captureStreamTests = do
             let result = runIdentity $ S.toList_ $ captureFromStream opts (S.each events)
             length result `shouldBe` 2
 
+        it "consecutive spanshots have correct overlap in pre/post windows" $ do
+            -- Timeline with pre=5s, post=5s:
+            -- t=0:  INFO a      (outside first's pre-window, cutoff at t=10-5=5)
+            -- t=6:  INFO b      (in first's pre-window only)
+            -- t=10: ERROR first (first error event)
+            -- t=11: INFO c      (in first's post-window only, outside second's pre cutoff=t=20-5=15)
+            -- t=13: INFO d      (in first's post-window AND second's pre-window - OVERLAP)
+            -- t=14: INFO e      (in first's post-window AND second's pre-window - OVERLAP)
+            -- t=16: INFO f      (triggers first emit; in second's pre-window only)
+            -- t=18: INFO g      (in second's pre-window only)
+            -- t=20: ERROR second (second error event)
+            -- t=21: INFO h      (in second's post-window)
+            -- t=26: INFO i      (triggers second emit)
+            --
+            -- Key insight: events at t=13 and t=14 are in BOTH:
+            --   - First's post-window (within 5s of t=10)
+            --   - Second's pre-window (within 5s before t=20)
+            --
+            -- Use minContextEvents=1 to ensure time-based filtering takes effect
+            -- (default is 10, which would keep all events due to count fallback)
+            let overlapTestConfig =
+                    CaptureConfig
+                        { ccPreWindowDuration = 5
+                        , ccPostWindowDuration = 5
+                        , ccMinContextEvents = 1
+                        , ccDetectionRules = [RegexRule "ERROR"]
+                        , ccInactivityTimeout = 10
+                        }
+            let opts = case toCaptureOptions overlapTestConfig of
+                    Right o -> o
+                    Left err -> error $ "Invalid test options: " <> err
+            let events =
+                    [ mockEvent 0 "INFO a"
+                    , mockEvent 6 "INFO b"
+                    , mockEvent 10 "ERROR first"
+                    , mockEvent 11 "INFO c"
+                    , mockEvent 13 "INFO d"
+                    , mockEvent 14 "INFO e"
+                    , mockEvent 16 "INFO f"
+                    , mockEvent 18 "INFO g"
+                    , mockEvent 20 "ERROR second"
+                    , mockEvent 21 "INFO h"
+                    , mockEvent 26 "INFO i"
+                    ]
+            let result = runIdentity $ S.toList_ $ captureFromStream opts (S.each events)
+
+            length result `shouldBe` 2
+
+            case result of
+                [shot1, shot2] -> do
+                    -- First SpanShot assertions
+                    line (errorEvent shot1) `shouldBe` "ERROR first"
+
+                    -- First's pre-window: should have "INFO b" (t=6), not "INFO a" (t=0, outside window)
+                    let pre1Lines = map line (preWindow shot1)
+                    pre1Lines `shouldContain` ["INFO b"]
+                    pre1Lines `shouldSatisfy` (notElem "INFO a") -- t=0 is outside pre-window (cutoff=t=5)
+
+                    -- First's post-window: should have c, d, e (events before emit trigger at t=16)
+                    let post1Lines = map line (postWindow shot1)
+                    post1Lines `shouldContain` ["INFO c"]
+                    post1Lines `shouldContain` ["INFO d"]
+                    post1Lines `shouldContain` ["INFO e"]
+                    post1Lines `shouldSatisfy` (notElem "INFO f") -- t=16 triggers emit, not in post
+
+                    -- Second SpanShot assertions
+                    line (errorEvent shot2) `shouldBe` "ERROR second"
+
+                    -- Second's pre-window: should have d, e, f, g (d and e overlap with first's post)
+                    let pre2Lines = map line (preWindow shot2)
+                    pre2Lines `shouldContain` ["INFO d"] -- OVERLAP: also in first's post-window
+                    pre2Lines `shouldContain` ["INFO e"] -- OVERLAP: also in first's post-window
+                    pre2Lines `shouldContain` ["INFO f"]
+                    pre2Lines `shouldContain` ["INFO g"]
+                    pre2Lines `shouldSatisfy` (notElem "INFO c") -- t=11 is outside pre-window (cutoff=t=15)
+
+                    -- Second's post-window: should have h
+                    let post2Lines = map line (postWindow shot2)
+                    post2Lines `shouldContain` ["INFO h"]
+                    post2Lines `shouldSatisfy` (notElem "INFO i") -- t=26 triggers emit, not in post
+
+                    -- Explicit overlap verification: d and e appear in BOTH windows
+                    post1Lines `shouldContain` ["INFO d"]
+                    post1Lines `shouldContain` ["INFO e"]
+                    pre2Lines `shouldContain` ["INFO d"]
+                    pre2Lines `shouldContain` ["INFO e"]
+                _ -> fail "Expected exactly two SpanShots"
+
         it "second error during active capture goes to post-window" $ do
             let opts = testCaptureOptions -- post=5s
             let events =
