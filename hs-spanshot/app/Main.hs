@@ -4,6 +4,7 @@ import Capture (captureFromCaptureInput, withInactivityTimeout)
 import Collect (collectFromFileWithCleanup)
 import Config (
     CaptureConfig (..),
+    Config (..),
     ConfigPathInfo (..),
     ConfigPaths (..),
     InitConfigError (..),
@@ -13,12 +14,15 @@ import Config (
     getConfigPaths,
     getProjectConfigPath,
     initConfigFile,
+    loadEffectiveConfig,
     toCaptureOptions,
  )
 import Control.Exception (IOException, catch)
 import Data.Aeson qualified as Aeson
+import Data.ByteString.Char8 qualified as BS
 import Data.ByteString.Lazy.Char8 qualified as BL
 import Data.Time (NominalDiffTime)
+import Data.Yaml qualified as Yaml
 
 import OptEnvConf (
     HasParser (settingsParser),
@@ -304,15 +308,12 @@ runCollect logfilePath = do
 runConfig :: ConfigCommand -> IO ()
 runConfig ConfigShow = do
     -- Load and display the effective configuration
-    configPaths <- getConfigFilePaths
-    if null configPaths
-        then do
-            putStrLn "# No config files found, showing defaults:"
-            printCaptureConfig defaultCaptureConfig
-        else do
-            putStrLn $ "# Config files: " ++ show (map show configPaths)
-            putStrLn "# Use 'spanshot capture --help' to see effective values"
-            printCaptureConfig defaultCaptureConfig
+    (effectiveConfig, loadedPaths) <- loadEffectiveConfig
+    if null loadedPaths
+        then putStrLn "# No config files found, showing defaults"
+        else putStrLn $ "# Loaded from: " ++ unwords loadedPaths
+    -- Output as valid YAML (wrapped in Config for proper structure)
+    BS.putStr $ Yaml.encode (Config effectiveConfig)
 runConfig ConfigPath = do
     cwd <- getCurrentDirectory
     paths <- getConfigPaths cwd
@@ -361,17 +362,6 @@ printPathInfo :: String -> ConfigPathInfo -> IO ()
 printPathInfo label info = do
     let status = if cpiExists info then "[found]" else "[not found]"
     putStrLn $ label ++ ": " ++ cpiPath info ++ " " ++ status
-
--- | Print capture config in a readable format
-printCaptureConfig :: CaptureConfig -> IO ()
-printCaptureConfig cc = do
-    putStrLn "capture:"
-    putStrLn $ "  pre_window_duration: " ++ show (ccPreWindowDuration cc)
-    putStrLn $ "  post_window_duration: " ++ show (ccPostWindowDuration cc)
-    putStrLn $ "  min_context_events: " ++ show (ccMinContextEvents cc)
-    putStrLn $ "  inactivity_timeout: " ++ show (ccInactivityTimeout cc)
-    putStrLn "  detection_rules:"
-    mapM_ (\(RegexRule p) -> putStrLn $ "    - regex_pattern: \"" ++ p ++ "\"") (ccDetectionRules cc)
 
 runCapture :: CaptureSettings -> IO ()
 runCapture settings = do

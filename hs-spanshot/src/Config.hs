@@ -1,4 +1,5 @@
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DerivingVia #-}
 
 module Config (
     -- * Configuration Types
@@ -34,9 +35,12 @@ module Config (
 
     -- * Config Initialization
     initConfigFile,
+
+    -- * Config Loading
+    loadEffectiveConfig,
 ) where
 
-import Autodocodec (HasCodec (..), object, optionalFieldWithDefault, (.=))
+import Autodocodec (Autodocodec (..), HasCodec (..), object, optionalFieldWithDefault, (.=))
 import Control.Exception (IOException, try)
 import Data.Aeson (FromJSON, Options (fieldLabelModifier), ToJSON, camelTo2, defaultOptions, genericParseJSON, genericToJSON)
 import Data.ByteString qualified as BS
@@ -76,6 +80,7 @@ data CaptureConfig = CaptureConfig
     , ccInactivityTimeout :: !NominalDiffTime
     }
     deriving (Show, Eq, Generic)
+    deriving (FromJSON, ToJSON) via (Autodocodec CaptureConfig)
 
 -- | HasCodec instance for opt-env-conf integration
 instance HasCodec CaptureConfig where
@@ -98,19 +103,6 @@ instance HasCodec CaptureConfig where
         defaultMinContext = minContextEvents defaultCaptureOptions
         defaultRules = detectionRules defaultCaptureOptions
         defaultTimeout = inactivityTimeout defaultCaptureOptions
-
--- Use field prefix stripping + snake_case
-captureConfigOptions :: Options
-captureConfigOptions =
-    defaultOptions
-        { fieldLabelModifier = camelTo2 '_' . drop 2 -- drop "cc" prefix
-        }
-
-instance ToJSON CaptureConfig where
-    toJSON = genericToJSON captureConfigOptions
-
-instance FromJSON CaptureConfig where
-    parseJSON = genericParseJSON captureConfigOptions
 
 -- | Default capture configuration (matches defaultCaptureOptions)
 defaultCaptureConfig :: CaptureConfig
@@ -380,3 +372,59 @@ initConfigFile path force = do
             case result of
                 Left (e :: IOException) -> pure $ Left (InitIOError targetPath (show e))
                 Right () -> pure $ Right ()
+
+{- | Load effective configuration by merging all config files.
+
+Loads config files in order of precedence (lowest to highest):
+1. Default config
+2. User config (~/.config/spanshot/config.yaml)
+3. Project config (.spanshot.yaml in git project root)
+
+Each config file's values override the previous. Files that don't exist
+or fail to parse are silently skipped (defaults are used instead).
+
+Returns the merged CaptureConfig along with the list of config files that
+were successfully loaded.
+-}
+loadEffectiveConfig :: IO (CaptureConfig, [FilePath])
+loadEffectiveConfig = do
+    cwd <- getCurrentDirectory
+    paths <- getConfigPaths cwd
+
+    -- Start with defaults
+    let initial = defaultCaptureConfig
+
+    -- Try to load user config
+    (afterUser, userLoaded) <- case cpiExists (cpiUser paths) of
+        True -> do
+            result <- tryLoadConfig (cpiPath (cpiUser paths))
+            case result of
+                Just cfg -> pure (mergeConfigs initial cfg, [cpiPath (cpiUser paths)])
+                Nothing -> pure (initial, [])
+        False -> pure (initial, [])
+
+    -- Try to load project config
+    (final, projectLoaded) <- case cpiProject paths of
+        Just info | cpiExists info -> do
+            result <- tryLoadConfig (cpiPath info)
+            case result of
+                Just cfg -> pure (mergeConfigs afterUser cfg, [cpiPath info])
+                Nothing -> pure (afterUser, [])
+        _ -> pure (afterUser, [])
+
+    pure (final, userLoaded ++ projectLoaded)
+
+-- | Try to load a config file, returning Nothing if it fails
+tryLoadConfig :: FilePath -> IO (Maybe CaptureConfig)
+tryLoadConfig path = do
+    result <- Yaml.decodeFileEither path
+    case result of
+        Left _ -> pure Nothing
+        Right (cfg :: Config) -> pure (Just (capture cfg))
+
+{- | Merge two configs, with the second overriding the first
+Since we're using full CaptureConfig (not partial), the second completely overrides
+But we load files in order, so this gives us the right precedence
+-}
+mergeConfigs :: CaptureConfig -> CaptureConfig -> CaptureConfig
+mergeConfigs _ override = override
