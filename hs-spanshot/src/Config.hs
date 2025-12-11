@@ -56,7 +56,7 @@ import GHC.Generics (Generic)
 import System.Directory (XdgDirectory (XdgConfig), canonicalizePath, createDirectoryIfMissing, doesDirectoryExist, doesFileExist, getCurrentDirectory, getXdgDirectory)
 import System.FilePath (takeDirectory, (</>))
 
-import Types (CaptureOptions (..), DetectionRule, defaultCaptureOptions, mkCaptureOptionsWithTimeout)
+import Types (CaptureOptions (..), DetectionRule, compileDetectionRules, defaultCaptureOptions)
 
 -- * Constants
 
@@ -174,15 +174,43 @@ defaultConfig =
         { capture = fromCaptureOptions defaultCaptureOptions
         }
 
--- | Convert CaptureConfig to CaptureOptions (with validation)
+{- | Convert CaptureConfig to CaptureOptions (with validation and regex compilation).
+
+Validates all fields and pre-compiles regex patterns for efficient matching.
+Returns Left with an error message if validation fails or any regex is invalid.
+
+Pre-compiling regexes is important for performance: without it, each event would
+require re-compiling all regex patterns, which is expensive.
+-}
 toCaptureOptions :: CaptureConfig -> Either String CaptureOptions
-toCaptureOptions cc =
-    mkCaptureOptionsWithTimeout
-        (ccPreWindowDuration cc)
-        (ccPostWindowDuration cc)
-        (ccMinContextEvents cc)
-        (ccDetectionRules cc)
-        (ccInactivityTimeout cc)
+toCaptureOptions cc
+    | ccPreWindowDuration cc < 0 =
+        Left "preWindowDuration must be non-negative (>= 0 seconds)"
+    | ccPostWindowDuration cc < 0 =
+        Left "postWindowDuration must be non-negative (>= 0 seconds)"
+    | ccPreWindowDuration cc == 0 && ccPostWindowDuration cc == 0 =
+        Left "At least one of preWindowDuration or postWindowDuration must be positive (> 0)"
+    | ccMinContextEvents cc < 1 =
+        Left "minContextEvents must be at least 1"
+    | null (ccDetectionRules cc) =
+        Left "detectionRules cannot be empty"
+    | ccInactivityTimeout cc <= 0 =
+        Left "inactivityTimeout must be positive (> 0 seconds)"
+    | ccPostWindowDuration cc > 0 && ccInactivityTimeout cc < ccPostWindowDuration cc =
+        Left "inactivityTimeout must be at least postWindowDuration"
+    | otherwise =
+        case compileDetectionRules (ccDetectionRules cc) of
+            Left err -> Left err
+            Right compiled ->
+                Right $
+                    CaptureOptions
+                        { preWindowDuration = ccPreWindowDuration cc
+                        , postWindowDuration = ccPostWindowDuration cc
+                        , minContextEvents = ccMinContextEvents cc
+                        , detectionRules = ccDetectionRules cc
+                        , compiledRules = compiled
+                        , inactivityTimeout = ccInactivityTimeout cc
+                        }
 
 -- | Convert CaptureOptions to CaptureConfig
 fromCaptureOptions :: CaptureOptions -> CaptureConfig

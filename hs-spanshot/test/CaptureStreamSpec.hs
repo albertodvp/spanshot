@@ -6,11 +6,11 @@ import Data.Foldable (toList)
 import Data.Functor.Identity (runIdentity)
 import Data.Maybe (isJust, isNothing)
 import Data.Sequence qualified as Seq
-import Data.Time (NominalDiffTime)
 import Streaming.Prelude qualified as S
 import Test.Hspec (Spec, describe, it, shouldBe, shouldContain, shouldSatisfy)
 
 import Capture (captureFromStream, flushPendingCaptures, processEvent)
+import Config (CaptureConfig (..), toCaptureOptions)
 import Fixtures (mockEvent, mockTime)
 import Types (
     ActiveCapture (..),
@@ -20,29 +20,31 @@ import Types (
     DetectionRule (..),
     SpanShot (..),
     initialCaptureState,
-    mkCaptureOptions,
  )
 
-{- | Explicit test constants for clarity and maintainability
-NominalDiffTime uses seconds when constructed via Num instance
+{- | Test configuration for capture stream tests.
+Uses CaptureConfig and toCaptureOptions for consistency with production code.
+NominalDiffTime uses seconds when constructed via Num instance.
 -}
-testPreWindowSeconds :: NominalDiffTime
-testPreWindowSeconds = 5
-
-testPostWindowSeconds :: NominalDiffTime
-testPostWindowSeconds = 5
-
-testMinContextEvents :: Int
-testMinContextEvents = 10
-
-testDetectionRules :: [DetectionRule]
-testDetectionRules = [RegexRule "ERROR"]
+testCaptureConfig :: CaptureConfig
+testCaptureConfig =
+    CaptureConfig
+        { ccPreWindowDuration = 5
+        , ccPostWindowDuration = 5
+        , ccMinContextEvents = 10
+        , ccDetectionRules = [RegexRule "ERROR"]
+        , ccInactivityTimeout = 10 -- 2 * postWindowDuration
+        }
 
 -- | Helper to create test CaptureOptions with explicit values
 testCaptureOptions :: CaptureOptions
-testCaptureOptions = case mkCaptureOptions testPreWindowSeconds testPostWindowSeconds testMinContextEvents testDetectionRules of
+testCaptureOptions = case toCaptureOptions testCaptureConfig of
     Right opts -> opts
     Left err -> error $ "Invalid test options: " <> err
+
+-- | Detection rules used in tests (for manual ActiveCapture construction)
+testDetectionRules :: [DetectionRule]
+testDetectionRules = [RegexRule "ERROR"]
 
 captureStreamTests :: Spec
 captureStreamTests = do

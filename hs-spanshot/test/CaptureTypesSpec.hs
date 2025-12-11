@@ -8,6 +8,7 @@ import Data.List (isInfixOf, isPrefixOf)
 import Data.Sequence qualified as Seq
 import Test.Hspec (Spec, describe, it, shouldBe, shouldSatisfy)
 
+import Config (CaptureConfig (..), toCaptureOptions)
 import Fixtures (mockEvent, mockTime)
 import Types (
     ActiveCapture (ActiveCapture, acDetectedBy, acErrorEvent, acPostEvents, acPreWindowSnapshot),
@@ -17,11 +18,25 @@ import Types (
     SpanShot (..),
     defaultCaptureOptions,
     initialCaptureState,
-    mkCaptureOptions,
-    mkCaptureOptionsWithTimeout,
     spanShotFromSeq,
     spanShotToSeq,
  )
+
+-- | Helper to create CaptureConfig for testing
+mkTestConfig :: Double -> Double -> Int -> [DetectionRule] -> Double -> CaptureConfig
+mkTestConfig preWin postWin minCtx rules timeout =
+    CaptureConfig
+        { ccPreWindowDuration = realToFrac preWin
+        , ccPostWindowDuration = realToFrac postWin
+        , ccMinContextEvents = minCtx
+        , ccDetectionRules = rules
+        , ccInactivityTimeout = realToFrac timeout
+        }
+
+-- | Helper with default inactivity timeout (2 * postWindow)
+mkTestConfigDefault :: Double -> Double -> Int -> [DetectionRule] -> CaptureConfig
+mkTestConfigDefault preWin postWin minCtx rules =
+    mkTestConfig preWin postWin minCtx rules (max 1 (2 * postWin))
 
 captureTypesTests :: Spec
 captureTypesTests = do
@@ -43,64 +58,60 @@ captureTypesTests = do
             rules `shouldSatisfy` any (\(RegexRule p) -> p == "ERROR")
 
         it "rejects negative preWindowDuration" $ do
-            let result = mkCaptureOptions (-1) 5 10 [RegexRule "ERROR"]
+            let result = toCaptureOptions $ mkTestConfigDefault (-1) 5 10 [RegexRule "ERROR"]
             result `shouldSatisfy` isLeft
 
         it "rejects negative postWindowDuration" $ do
-            let result = mkCaptureOptions 5 (-1) 10 [RegexRule "ERROR"]
+            let result = toCaptureOptions $ mkTestConfigDefault 5 (-1) 10 [RegexRule "ERROR"]
             result `shouldSatisfy` isLeft
 
         it "rejects minContextEvents less than 1" $ do
-            let result = mkCaptureOptions 5 5 0 [RegexRule "ERROR"]
+            let result = toCaptureOptions $ mkTestConfigDefault 5 5 0 [RegexRule "ERROR"]
             result `shouldSatisfy` isLeft
 
         it "rejects both windows being zero" $ do
-            let result = mkCaptureOptions 0 0 10 [RegexRule "ERROR"]
+            let result = toCaptureOptions $ mkTestConfigDefault 0 0 10 [RegexRule "ERROR"]
             result `shouldSatisfy` isLeft
 
         it "accepts zero preWindowDuration with positive postWindowDuration" $ do
-            let result = mkCaptureOptions 0 5 10 [RegexRule "ERROR"]
+            let result = toCaptureOptions $ mkTestConfigDefault 0 5 10 [RegexRule "ERROR"]
             result `shouldSatisfy` isRight
 
         it "accepts zero postWindowDuration with positive preWindowDuration" $ do
-            let result = mkCaptureOptions 5 0 10 [RegexRule "ERROR"]
+            let result = toCaptureOptions $ mkTestConfigDefault 5 0 10 [RegexRule "ERROR"]
             result `shouldSatisfy` isRight
 
         it "rejects empty detection rules" $ do
-            let result = mkCaptureOptions 5 5 10 []
+            let result = toCaptureOptions $ mkTestConfigDefault 5 5 10 []
             result `shouldSatisfy` isLeft
 
         it "rejects invalid regex patterns" $ do
-            let result = mkCaptureOptions 5 5 10 [RegexRule "[invalid"]
+            let result = toCaptureOptions $ mkTestConfigDefault 5 5 10 [RegexRule "[invalid"]
             result `shouldSatisfy` isLeft
 
         it "accepts valid regex patterns" $ do
-            let result = mkCaptureOptions 5 5 10 [RegexRule "ERROR|FATAL", RegexRule "\\[ERROR\\]"]
+            let result = toCaptureOptions $ mkTestConfigDefault 5 5 10 [RegexRule "ERROR|FATAL", RegexRule "\\[ERROR\\]"]
             result `shouldSatisfy` isRight
 
-        it "mkCaptureOptions defaults inactivityTimeout to 2 * postWindowDuration" $ do
-            case mkCaptureOptions 5 10 10 [RegexRule "ERROR"] of
-                Left err -> fail $ "Expected Right but got Left: " ++ err
-                Right opts -> inactivityTimeout opts `shouldBe` 20 -- 2 * 10
-        it "mkCaptureOptionsWithTimeout allows custom inactivityTimeout" $ do
-            case mkCaptureOptionsWithTimeout 5 5 10 [RegexRule "ERROR"] 30 of
+        it "toCaptureOptions allows custom inactivityTimeout" $ do
+            case toCaptureOptions $ mkTestConfig 5 5 10 [RegexRule "ERROR"] 30 of
                 Left err -> fail $ "Expected Right but got Left: " ++ err
                 Right opts -> inactivityTimeout opts `shouldBe` 30
 
         it "rejects inactivityTimeout less than postWindowDuration" $ do
-            let result = mkCaptureOptionsWithTimeout 5 10 10 [RegexRule "ERROR"] 5
+            let result = toCaptureOptions $ mkTestConfig 5 10 10 [RegexRule "ERROR"] 5
             result `shouldSatisfy` isLeft
 
         it "accepts inactivityTimeout equal to postWindowDuration" $ do
-            let result = mkCaptureOptionsWithTimeout 5 10 10 [RegexRule "ERROR"] 10
+            let result = toCaptureOptions $ mkTestConfig 5 10 10 [RegexRule "ERROR"] 10
             result `shouldSatisfy` isRight
 
         it "rejects zero inactivityTimeout" $ do
-            let result = mkCaptureOptionsWithTimeout 5 5 10 [RegexRule "ERROR"] 0
+            let result = toCaptureOptions $ mkTestConfig 5 5 10 [RegexRule "ERROR"] 0
             result `shouldSatisfy` isLeft
 
         it "rejects negative inactivityTimeout" $ do
-            let result = mkCaptureOptionsWithTimeout 5 5 10 [RegexRule "ERROR"] (-5)
+            let result = toCaptureOptions $ mkTestConfig 5 5 10 [RegexRule "ERROR"] (-5)
             result `shouldSatisfy` isLeft
 
     describe "ActiveCapture" $ do
@@ -166,7 +177,7 @@ captureTypesTests = do
 
     describe "CompiledRule instances" $ do
         it "Show instance displays rule pattern without regex" $ do
-            case mkCaptureOptions 5 5 10 [RegexRule "ERROR"] of
+            case toCaptureOptions $ mkTestConfigDefault 5 5 10 [RegexRule "ERROR"] of
                 Right opts -> do
                     case compiledRules opts of
                         (x : _) -> do
@@ -178,7 +189,9 @@ captureTypesTests = do
 
         it "Eq instance compares by original rule only" $ do
             -- Create two CaptureOptions with same rules - compiled regexes should be equal
-            case (mkCaptureOptions 5 5 10 [RegexRule "ERROR"], mkCaptureOptions 10 10 20 [RegexRule "ERROR"]) of
+            let config1 = mkTestConfigDefault 5 5 10 [RegexRule "ERROR"]
+            let config2 = mkTestConfigDefault 10 10 20 [RegexRule "ERROR"]
+            case (toCaptureOptions config1, toCaptureOptions config2) of
                 (Right opts1, Right opts2) -> do
                     case (compiledRules opts1, compiledRules opts2) of
                         (c1 : _, c2 : _) -> c1 `shouldBe` c2
@@ -186,7 +199,9 @@ captureTypesTests = do
                 _ -> fail "Failed to create options"
 
         it "Eq instance distinguishes different patterns" $ do
-            case (mkCaptureOptions 5 5 10 [RegexRule "ERROR"], mkCaptureOptions 5 5 10 [RegexRule "FATAL"]) of
+            let config1 = mkTestConfigDefault 5 5 10 [RegexRule "ERROR"]
+            let config2 = mkTestConfigDefault 5 5 10 [RegexRule "FATAL"]
+            case (toCaptureOptions config1, toCaptureOptions config2) of
                 (Right opts1, Right opts2) -> do
                     case (compiledRules opts1, compiledRules opts2) of
                         (c1 : _, c2 : _) -> (c1 == c2) `shouldBe` False

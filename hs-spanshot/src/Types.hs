@@ -13,10 +13,9 @@ module Types (
     DetectionRule (RegexRule, regexPattern),
     CompiledRule (..),
     SpanShot (..),
-    CaptureOptions (preWindowDuration, postWindowDuration, minContextEvents, detectionRules, compiledRules, inactivityTimeout),
-    mkCaptureOptions,
-    mkCaptureOptionsWithTimeout,
+    CaptureOptions (CaptureOptions, preWindowDuration, postWindowDuration, minContextEvents, detectionRules, compiledRules, inactivityTimeout),
     defaultCaptureOptions,
+    compileDetectionRules,
     ActiveCapture (..),
     CaptureState (..),
     initialCaptureState,
@@ -157,68 +156,6 @@ data CaptureOptions = CaptureOptions
     , inactivityTimeout :: !NominalDiffTime
     }
     deriving (Show, Eq)
-
-{- | Create capture options with validation and regex pre-compilation.
-
-This function validates all inputs and pre-compiles regex patterns for efficient
-matching. If any regex pattern is invalid, returns Left with an error message.
-
-The inactivityTimeout defaults to 2 * postWindowDuration, providing a buffer
-to ensure post-windows complete before flushing.
-
-Pre-compiling regexes is important for performance: without it, each event would
-require re-compiling all regex patterns, which is expensive (O(m) per pattern
-where m is the pattern length). With pre-compilation, matching is O(n) where n
-is the input line length.
--}
-mkCaptureOptions ::
-    NominalDiffTime ->
-    NominalDiffTime ->
-    Int ->
-    [DetectionRule] ->
-    Either String CaptureOptions
-mkCaptureOptions preWin postWin minCtx rules =
-    -- Default timeout is 2 * postWindowDuration, but at least 1 second
-    -- This handles the case where postWindowDuration is 0
-    let defaultTimeout = max 1 (2 * postWin)
-     in mkCaptureOptionsWithTimeout preWin postWin minCtx rules defaultTimeout
-
-{- | Create capture options with explicit inactivity timeout.
-
-Like 'mkCaptureOptions' but allows specifying a custom inactivity timeout
-instead of using the default (2 * postWindowDuration).
-
-The inactivity timeout must be at least as large as postWindowDuration
-to ensure post-windows have a chance to complete normally.
--}
-mkCaptureOptionsWithTimeout ::
-    NominalDiffTime ->
-    NominalDiffTime ->
-    Int ->
-    [DetectionRule] ->
-    NominalDiffTime ->
-    Either String CaptureOptions
-mkCaptureOptionsWithTimeout preWin postWin minCtx rules timeout
-    | preWin < 0 = Left "preWindowDuration must be non-negative (>= 0 seconds)"
-    | postWin < 0 = Left "postWindowDuration must be non-negative (>= 0 seconds)"
-    | preWin == 0 && postWin == 0 = Left "At least one of preWindowDuration or postWindowDuration must be positive (> 0)"
-    | minCtx < 1 = Left "minContextEvents must be at least 1"
-    | null rules = Left "detectionRules cannot be empty"
-    | timeout <= 0 = Left "inactivityTimeout must be positive (> 0 seconds)"
-    | postWin > 0 && timeout < postWin = Left "inactivityTimeout must be at least postWindowDuration"
-    | otherwise =
-        case compileDetectionRules rules of
-            Left err -> Left err
-            Right compiled ->
-                Right $
-                    CaptureOptions
-                        { preWindowDuration = preWin
-                        , postWindowDuration = postWin
-                        , minContextEvents = minCtx
-                        , detectionRules = rules
-                        , compiledRules = compiled
-                        , inactivityTimeout = timeout
-                        }
 
 {- | Compile all detection rules, returning an error if any regex is invalid.
 
