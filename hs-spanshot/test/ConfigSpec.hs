@@ -43,11 +43,11 @@ configTests = do
             case parsed of
                 Left err -> fail $ show err
                 Right config -> do
-                    ccPreWindowDuration (capture config) `shouldBe` 10
-                    ccPostWindowDuration (capture config) `shouldBe` 3
-                    ccMinContextEvents (capture config) `shouldBe` 5
-                    ccInactivityTimeout (capture config) `shouldBe` 6
-                    length (ccDetectionRules (capture config)) `shouldBe` 2
+                    ccPreWindowDuration (cfgCapture config) `shouldBe` 10
+                    ccPostWindowDuration (cfgCapture config) `shouldBe` 3
+                    ccMinContextEvents (cfgCapture config) `shouldBe` 5
+                    ccInactivityTimeout (cfgCapture config) `shouldBe` 6
+                    length (ccDetectionRules (cfgCapture config)) `shouldBe` 2
 
         it "round-trips defaultConfig through YAML" $ do
             let encoded = Yaml.encode defaultConfig
@@ -62,11 +62,11 @@ configTests = do
             case parsed of
                 Left err -> fail $ show err
                 Right config -> do
-                    ccPreWindowDuration (capture config) `shouldBe` 10
-                    ccPostWindowDuration (capture config) `shouldBe` 3
-                    ccMinContextEvents (capture config) `shouldBe` 5
-                    ccInactivityTimeout (capture config) `shouldBe` 6
-                    ccDetectionRules (capture config)
+                    ccPreWindowDuration (cfgCapture config) `shouldBe` 10
+                    ccPostWindowDuration (cfgCapture config) `shouldBe` 3
+                    ccMinContextEvents (cfgCapture config) `shouldBe` 5
+                    ccInactivityTimeout (cfgCapture config) `shouldBe` 6
+                    ccDetectionRules (cfgCapture config)
                         `shouldBe` [ RegexRule "ERROR"
                                    , RegexRule "WARN"
                                    , RegexRule "FATAL"

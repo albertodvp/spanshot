@@ -3,6 +3,7 @@
 
 module Config (
     -- * Configuration Types
+    CollectConfig (..),
     CaptureConfig (..),
     Config (..),
 
@@ -17,8 +18,10 @@ module Config (
     projectConfigFileName,
     gitDirName,
     userConfigFileName,
+    defaultPollIntervalMs,
 
     -- * Default Configuration
+    defaultCollectConfig,
     defaultCaptureConfig,
     defaultConfig,
 
@@ -38,11 +41,14 @@ module Config (
 
     -- * Config Loading
     loadEffectiveConfig,
+
+    -- * Path Resolution
+    resolveLogfiles,
 ) where
 
 import Autodocodec (Autodocodec (..), HasCodec (..), object, optionalFieldWithDefault, (.=))
 import Control.Exception (IOException, try)
-import Data.Aeson (FromJSON, Options (fieldLabelModifier), ToJSON, camelTo2, defaultOptions, genericParseJSON, genericToJSON)
+import Data.Aeson (FromJSON, ToJSON)
 import Data.ByteString qualified as BS
 import Data.Time (NominalDiffTime)
 import Data.Yaml qualified as Yaml
@@ -52,6 +58,8 @@ import Path.IO (doesFileExist)
 import System.Directory (XdgDirectory (XdgConfig), canonicalizePath, createDirectoryIfMissing, getCurrentDirectory, getXdgDirectory)
 import System.Directory qualified as Dir
 import System.FilePath (takeDirectory, (</>))
+
+import System.FilePath (isAbsolute)
 
 import Types (CaptureOptions (..), DetectionRule (..), compileDetectionRules, defaultCaptureOptions)
 
@@ -68,6 +76,40 @@ gitDirName = ".git"
 -- | Name of the user config file
 userConfigFileName :: FilePath
 userConfigFileName = "config.yaml"
+
+-- | Default poll interval in milliseconds
+defaultPollIntervalMs :: Int
+defaultPollIntervalMs = 150
+
+{- | Collect phase configuration
+Specifies which log files to read and polling behavior
+-}
+data CollectConfig = CollectConfig
+    { collLogfiles :: ![FilePath]
+    -- ^ List of log files to read (empty = read from stdin)
+    , collPollIntervalMs :: !Int
+    -- ^ Poll interval in milliseconds for file tailing
+    }
+    deriving (Show, Eq, Generic)
+    deriving (FromJSON, ToJSON) via (Autodocodec CollectConfig)
+
+-- | HasCodec instance for opt-env-conf integration
+instance HasCodec CollectConfig where
+    codec =
+        object "CollectConfig" $
+            CollectConfig
+                <$> optionalFieldWithDefault "logfiles" [] "Log files to read (empty = stdin)"
+                    .= collLogfiles
+                <*> optionalFieldWithDefault "poll_interval_ms" defaultPollIntervalMs "Poll interval in milliseconds"
+                    .= collPollIntervalMs
+
+-- | Default collect configuration (no logfiles = stdin)
+defaultCollectConfig :: CollectConfig
+defaultCollectConfig =
+    CollectConfig
+        { collLogfiles = []
+        , collPollIntervalMs = defaultPollIntervalMs
+        }
 
 {- | Capture phase configuration
 Mirrors CaptureOptions but with proper YAML serialization
@@ -109,20 +151,30 @@ defaultCaptureConfig :: CaptureConfig
 defaultCaptureConfig = fromCaptureOptions defaultCaptureOptions
 
 -- | Top-level config structure (for YAML file format)
-newtype Config = Config
-    { capture :: CaptureConfig
+data Config = Config
+    { cfgCollect :: !CollectConfig
+    , cfgCapture :: !CaptureConfig
     }
     deriving (Show, Eq, Generic)
+    deriving (FromJSON, ToJSON) via (Autodocodec Config)
 
-instance ToJSON Config where
-    toJSON = genericToJSON defaultOptions{fieldLabelModifier = camelTo2 '_'}
-
-instance FromJSON Config where
-    parseJSON = genericParseJSON defaultOptions{fieldLabelModifier = camelTo2 '_'}
+-- | HasCodec instance for Config
+instance HasCodec Config where
+    codec =
+        object "Config" $
+            Config
+                <$> optionalFieldWithDefault "collect" defaultCollectConfig "Collection configuration"
+                    .= cfgCollect
+                <*> optionalFieldWithDefault "capture" defaultCaptureConfig "Capture configuration"
+                    .= cfgCapture
 
 -- | Default top-level config
 defaultConfig :: Config
-defaultConfig = Config defaultCaptureConfig
+defaultConfig =
+    Config
+        { cfgCollect = defaultCollectConfig
+        , cfgCapture = defaultCaptureConfig
+        }
 
 {- | Convert CaptureConfig to CaptureOptions (with validation and regex compilation).
 
@@ -242,15 +294,28 @@ findProjectRoot dir = do
                     then pure Nothing
                     else go parent
 
-{- | Get the project config file path (.spanshot.yaml in project root).
+{- | Get the project config file path (.spanshot.yaml).
 
-Returns @Nothing@ if no project root is found (i.e., not inside a git repository).
-The project config path is @\<project-root\> \/ .spanshot.yaml@.
+First looks for a git project root and returns the config path there.
+If no git project is found, falls back to checking for .spanshot.yaml
+in the starting directory itself.
+
+This allows spanshot to work both in git projects (where config is at project root)
+and in standalone directories (where config is in the current directory).
 -}
 getProjectConfigPath :: FilePath -> IO (Maybe FilePath)
 getProjectConfigPath startDir = do
-    projectRoot <- findProjectRoot startDir
-    pure $ fmap (\root -> root </> projectConfigFileName) projectRoot
+    absDir <- canonicalizePath startDir
+    projectRoot <- findProjectRoot absDir
+    case projectRoot of
+        Just root -> pure $ Just (root </> projectConfigFileName)
+        Nothing -> do
+            -- No git project found, check if .spanshot.yaml exists in the start directory
+            let localConfigPath = absDir </> projectConfigFileName
+            exists <- Dir.doesFileExist localConfigPath
+            if exists
+                then pure $ Just localConfigPath
+                else pure Nothing
 
 -- | Information about a config file path
 data ConfigPathInfo = ConfigPathInfo
@@ -383,16 +448,17 @@ Loads config files in order of precedence (lowest to highest):
 Each config file's values override the previous. Files that don't exist
 or fail to parse are silently skipped (defaults are used instead).
 
-Returns the merged CaptureConfig along with the list of config files that
-were successfully loaded.
+Returns the merged Config along with the list of config files that
+were successfully loaded, and the path of the highest-precedence config
+file (used for resolving relative paths).
 -}
-loadEffectiveConfig :: IO (CaptureConfig, [FilePath])
+loadEffectiveConfig :: IO (Config, [FilePath], Maybe FilePath)
 loadEffectiveConfig = do
     cwd <- getCurrentDirectory
     paths <- getConfigPaths cwd
 
     -- Start with defaults
-    let initial = defaultCaptureConfig
+    let initial = defaultConfig
 
     -- Try to load user config
     (afterUser, userLoaded) <- case cpiExists (cpiUser paths) of
@@ -403,28 +469,50 @@ loadEffectiveConfig = do
                 Nothing -> pure (initial, [])
         False -> pure (initial, [])
 
-    -- Try to load project config
-    (final, projectLoaded) <- case cpiProject paths of
+    -- Try to load project config (higher precedence)
+    (final, projectLoaded, configDir) <- case cpiProject paths of
         Just info | cpiExists info -> do
             result <- tryLoadConfig (cpiPath info)
             case result of
-                Just cfg -> pure (mergeConfigs afterUser cfg, [cpiPath info])
-                Nothing -> pure (afterUser, [])
-        _ -> pure (afterUser, [])
+                Just cfg -> pure (mergeConfigs afterUser cfg, [cpiPath info], Just (cpiPath info))
+                Nothing -> pure (afterUser, [], listToMaybe userLoaded)
+        _ -> pure (afterUser, [], listToMaybe userLoaded)
 
-    pure (final, userLoaded ++ projectLoaded)
+    pure (final, userLoaded ++ projectLoaded, configDir)
+  where
+    listToMaybe [] = Nothing
+    listToMaybe (x : _) = Just x
 
 -- | Try to load a config file, returning Nothing if it fails
-tryLoadConfig :: FilePath -> IO (Maybe CaptureConfig)
+tryLoadConfig :: FilePath -> IO (Maybe Config)
 tryLoadConfig path = do
     result <- Yaml.decodeFileEither path
     case result of
         Left _ -> pure Nothing
-        Right (cfg :: Config) -> pure (Just (capture cfg))
+        Right cfg -> pure (Just cfg)
 
 {- | Merge two configs, with the second overriding the first
-Since we're using full CaptureConfig (not partial), the second completely overrides
+Since we're using full Config (not partial), the second completely overrides
 But we load files in order, so this gives us the right precedence
 -}
-mergeConfigs :: CaptureConfig -> CaptureConfig -> CaptureConfig
+mergeConfigs :: Config -> Config -> Config
 mergeConfigs _ override = override
+
+{- | Resolve relative paths in logfiles relative to a config file's directory.
+
+Absolute paths are kept as-is. Relative paths (including those starting with "./")
+are resolved relative to the directory containing the config file.
+
+If no config file path is provided, relative paths are resolved relative to
+the current working directory.
+-}
+resolveLogfiles :: Maybe FilePath -> [FilePath] -> IO [FilePath]
+resolveLogfiles mConfigPath logfiles = do
+    baseDir <- case mConfigPath of
+        Just configPath -> pure $ takeDirectory configPath
+        Nothing -> getCurrentDirectory
+    pure $ map (resolvePath baseDir) logfiles
+  where
+    resolvePath base path
+        | isAbsolute path = path
+        | otherwise = base </> path

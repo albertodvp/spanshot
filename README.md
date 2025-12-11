@@ -84,27 +84,49 @@ just test
 
 ## Quick Start
 
-### Current (v0.1 - Collection Only)
+### Collect: Stream Logs as JSONL
 
 ```bash
 # Tail a log file and stream as JSONL
 spanshot collect --logfile /var/log/app.log
 
+# Multiple files
+spanshot collect --logfile app.log --logfile error.log
+
+# Read from stdin
+cat app.log | spanshot collect
+
 # Filter errors with jq
 spanshot collect --logfile app.log | jq 'select(.line | contains("ERROR"))'
 ```
 
-### Capture (v0.1)
+### Capture: Process JSONL from stdin
 
 ```bash
-# Capture errors with temporal context (uses detection rules from config)
-spanshot capture --logfile app.log
+# Capture reads JSONL CollectEvents from stdin (output of collect)
+spanshot collect --logfile app.log | spanshot capture --regex-pattern ERROR
 
-# Run full pipeline (collect + capture)
+# With custom window settings
+spanshot collect --logfile app.log | spanshot capture \
+  --regex-pattern ERROR \
+  --pre-window 10 \
+  --post-window 5
+```
+
+### Run: Full Pipeline (Collect + Capture)
+
+```bash
+# Run full pipeline (optimized, no intermediate JSONL)
+spanshot run --logfile app.log --regex-pattern ERROR
+
+# Read from stdin
+cat app.log | spanshot run --regex-pattern ERROR
+
+# Use config file settings
 spanshot run --logfile app.log
 ```
 
-> **Note:** The `capture` and `run` commands tail the log file continuously (like `tail -f`). Detection rules and window settings are read from your `.spanshot.yaml` config file. See [Configuration](#configuration).
+> **Note:** The `collect` and `run` commands tail log files continuously (like `tail -f`). The `capture` command reads from stdin and terminates on EOF. Detection rules and window settings can be specified via CLI flags or `.spanshot.yaml` config file. See [Configuration](#configuration).
 
 ## Configuration
 
@@ -133,15 +155,25 @@ spanshot config init --force      # overwrite existing
 ### Example Config
 
 ```yaml
+collect:
+  logfiles:                  # log files to read (empty = stdin)
+    - ./logs/app.log
+    - ./logs/error.log
+  poll_interval_ms: 150      # polling interval for file tailing
+
 capture:
-  pre_window_duration: 5    # seconds before error
-  post_window_duration: 5   # seconds after error
+  pre_window_duration: 5     # seconds before error
+  post_window_duration: 5    # seconds after error
   min_context_events: 10
-  inactivity_timeout: 10    # seconds to wait before flushing pending captures
+  inactivity_timeout: 10     # seconds to wait before flushing pending captures
   detection_rules:
     - regex_pattern: "ERROR"
     - regex_pattern: "FATAL"
 ```
+
+**Config Precedence:** CLI flags > project config (`.spanshot.yaml`) > user config (`~/.config/spanshot/config.yaml`) > defaults.
+
+**Path Resolution:** Relative paths in `collect.logfiles` are resolved relative to the config file location.
 
 **Inactivity Timeout:** When no new log events arrive within `inactivity_timeout` seconds, pending captures are flushed immediately. This enables processing of static log files where all events are read instantly. Default is `2 * post_window_duration`. Must be at least as large as `post_window_duration`.
 
@@ -162,7 +194,7 @@ Each line is a JSON event:
 - `read_at_utc`: UTC timestamp when event was read
 - `line`: Raw line content (no trailing newline)
 
-### Span Snapshots (Coming Soon)
+### Span Snapshots
 
 ```json
 {
@@ -211,7 +243,8 @@ Each line is a JSON event:
 
 **Scope:**
 
-- Single file only (no Docker logs, stdout, multiple sources yet)
+- Multiple files supported, but processed sequentially (no parallel merge by timestamp yet)
+- No Docker logs or stdout capture yet
 - No log rotation handling
 - Line-based parsing (multi-line stack traces split into separate events)
 - No structured field extraction from JSON/logfmt logs
@@ -272,8 +305,8 @@ SpanShot is designed as a modular pipeline with distinct phases:
 
 **Current Implementation:**
 
-- **Library** (`src/`): Collect (complete), Capture (in progress)
-- **Executable** (`app/`): CLI with `collect` command (+ `capture`/`run` coming soon)
+- **Library** (`src/`): Collect (complete), Capture (complete)
+- **Executable** (`app/`): CLI with `collect`, `capture`, `run`, and `config` commands
 - **Tests** (`test/`): Unit tests and CLI integration tests with fixtures
 
 **Key Principle:** Phases 1-2 (Collect + Capture) are **AI-free** and use deterministic pattern matching. Only Phase 3 (Analyze) uses AI.

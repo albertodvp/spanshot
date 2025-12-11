@@ -28,7 +28,7 @@ import Data.ByteString.Lazy qualified as BL
 import Data.ByteString.Lazy.Char8 qualified as BLC
 import Data.List (isInfixOf)
 import Data.Maybe (fromMaybe)
-import System.Directory (createDirectoryIfMissing, getCurrentDirectory, removeFile)
+import System.Directory (createDirectoryIfMissing)
 import System.Environment (lookupEnv)
 import System.Exit (ExitCode (..))
 import System.FilePath ((</>))
@@ -220,9 +220,9 @@ captureStdinTests binary =
     testGroup
         "Capture Stdin Tests"
         [ testCase "capture reads JSONL CollectEvent from stdin" $ do
-            -- Create valid CollectEvent JSONL
+            -- Create valid CollectEvent JSONL (using our actual field names)
             let collectEvent =
-                    "{\"source\":\"test.log\",\"line_number\":1,\"raw_line\":\"ERROR something failed\",\"read_at_utc\":\"2025-01-01T00:00:00Z\",\"log_timestamp\":null}"
+                    "{\"source\":\"test.log\",\"session_order_id\":1,\"line\":\"ERROR something failed\",\"read_at_utc\":\"2025-01-01T00:00:00Z\"}"
             (exitCode, _stdout, stderr) <- readProcessWithExitCode binary ["capture", "--regex-pattern", "ERROR"] collectEvent
             -- Should not fail parsing
             case exitCode of
@@ -240,9 +240,9 @@ captureStdinTests binary =
             -- Pre-window event, error event, post-window event (with time gap)
             let events =
                     unlines
-                        [ "{\"source\":\"test.log\",\"line_number\":1,\"raw_line\":\"INFO starting\",\"read_at_utc\":\"2025-01-01T00:00:00Z\",\"log_timestamp\":null}"
-                        , "{\"source\":\"test.log\",\"line_number\":2,\"raw_line\":\"ERROR failure\",\"read_at_utc\":\"2025-01-01T00:00:01Z\",\"log_timestamp\":null}"
-                        , "{\"source\":\"test.log\",\"line_number\":3,\"raw_line\":\"INFO recovering\",\"read_at_utc\":\"2025-01-01T00:00:10Z\",\"log_timestamp\":null}"
+                        [ "{\"source\":\"test.log\",\"session_order_id\":0,\"line\":\"INFO starting\",\"read_at_utc\":\"2025-01-01T00:00:00Z\"}"
+                        , "{\"source\":\"test.log\",\"session_order_id\":1,\"line\":\"ERROR failure\",\"read_at_utc\":\"2025-01-01T00:00:01Z\"}"
+                        , "{\"source\":\"test.log\",\"session_order_id\":2,\"line\":\"INFO recovering\",\"read_at_utc\":\"2025-01-01T00:00:10Z\"}"
                         ]
             (exitCode, stdout, _stderr) <-
                 readProcessWithExitCode

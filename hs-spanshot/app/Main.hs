@@ -1,10 +1,9 @@
 module Main where
 
 import Capture (captureFromCaptureInput, withInactivityTimeout)
-import Collect (collectFromFileWithCleanup)
+import Collect (collectFromFileWithCleanup, collectFromJSONLStdin, collectFromStdin)
 import Config (
     CaptureConfig (..),
-    Config (..),
     ConfigPathInfo (..),
     ConfigPaths (..),
     InitConfigError (..),
@@ -15,9 +14,10 @@ import Config (
     getProjectConfigPath,
     initConfigFile,
     loadEffectiveConfig,
+    resolveLogfiles,
     toCaptureOptions,
  )
-import Control.Exception (IOException, catch)
+import Control.Exception (IOException)
 import Data.Aeson qualified as Aeson
 import Data.ByteString.Char8 qualified as BS
 import Data.ByteString.Lazy.Char8 qualified as BL
@@ -39,7 +39,6 @@ import OptEnvConf (
     many,
     mapIO,
     metavar,
-    name,
     option,
     optional,
     reader,
@@ -56,7 +55,7 @@ import OptEnvConf (
 import Path (Abs, File, Path)
 import Paths_hs_spanshot (version)
 import Streaming.Prelude qualified as S
-import System.Directory (doesDirectoryExist, getCurrentDirectory)
+import System.Directory (doesDirectoryExist, doesFileExist, getCurrentDirectory)
 import System.Exit (exitFailure)
 import System.FilePath ((</>))
 import System.IO (hFlush, hPutStrLn, stderr, stdout)
@@ -80,7 +79,7 @@ instance HasParser Instructions where
 data Dispatch
     = DispatchCollect CollectSettings
     | DispatchConfig ConfigCommand
-    | DispatchCapture CaptureSettings
+    | DispatchCapture CaptureOnlySettings
     | DispatchRun RunSettings
     deriving (Show)
 
@@ -88,14 +87,14 @@ data Dispatch
 dispatchParser :: Parser Dispatch
 dispatchParser =
     commands
-        [ command "collect" "Collect logs from a file and output JSONL events" $
+        [ command "collect" "Collect logs from files or stdin and output JSONL events" $
             DispatchCollect <$> settingsParser
         , command "config" "Manage configuration" $
             DispatchConfig <$> settingsParser
-        , command "capture" "Capture error spans from a log file" $
-            DispatchCapture <$> captureSettingsParser
-        , command "run" "Collect and capture errors from a log file (full pipeline)" $
-            DispatchRun <$> captureSettingsParser
+        , command "capture" "Capture error spans from JSONL input on stdin" $
+            DispatchCapture <$> captureOnlySettingsParser
+        , command "run" "Collect and capture errors from log files (full pipeline)" $
+            DispatchRun <$> runSettingsParser_
         ]
 
 data ConfigCommand
@@ -151,48 +150,127 @@ instance HasParser ConfigInitSettings where
                     ]
                 )
 
-newtype CollectSettings = CollectSettings
-    { collectLogfile :: FilePath
+{- | Settings for collect command.
+Supports multiple logfiles via CLI --logfile flags, config file logfiles,
+or stdin when no logfiles are specified.
+-}
+data CollectSettings = CollectSettings
+    { collectLogfiles :: [FilePath]
+    -- ^ Logfiles from CLI (overrides config)
+    , collectConfigLogfiles :: [FilePath]
+    -- ^ Logfiles from config file
+    , collectPollIntervalMs :: Int
+    -- ^ Poll interval in milliseconds
     }
     deriving (Show)
 
 instance HasParser CollectSettings where
     settingsParser =
         CollectSettings
-            <$> withoutConfig
+            -- CLI logfiles (can specify multiple)
+            <$> many
+                ( withoutConfig
+                    ( setting
+                        [ help "Path to the logfile to tail (can be specified multiple times)"
+                        , reader str
+                        , long "logfile"
+                        , option
+                        , metavar "PATH"
+                        ]
+                    )
+                )
+            -- Config file logfiles (from collect.logfiles)
+            <*> subConfig_ "collect" collectConfigLogfilesParser
+            -- Poll interval (CLI or config)
+            <*> subConfig_
+                "collect"
                 ( setting
-                    [ help "Path to the logfile to tail"
-                    , reader str
-                    , name "logfile"
-                    , metavar "PATH"
+                    [ help "Poll interval in milliseconds"
+                    , reader auto
+                    , long "poll-interval"
+                    , option
+                    , metavar "MS"
+                    , conf "poll_interval_ms"
+                    , value defaultPollIntervalMs
                     ]
                 )
 
-{- | Settings for capture and run commands.
+-- | Parser for logfiles from config file
+collectConfigLogfilesParser :: Parser [FilePath]
+collectConfigLogfilesParser =
+    setting
+        [ help "Logfiles from config file"
+        , conf "logfiles"
+        , value []
+        ]
+
+-- | Default poll interval
+defaultPollIntervalMs :: Int
+defaultPollIntervalMs = 150
+
+{- | Settings for capture command (stdin-only).
 These can come from CLI arguments, environment variables, or config files.
 opt-env-conf handles the precedence: CLI > env > config > defaults
+Note: capture command does NOT have --logfile, it reads JSONL from stdin.
 -}
-data CaptureSettings = CaptureSettings
-    { captureLogfile :: FilePath
-    , captureConfig :: CaptureConfig
+newtype CaptureOnlySettings = CaptureOnlySettings
+    { captureOnlyConfig :: CaptureConfig
     }
     deriving (Show)
 
--- | Parser for capture settings (not using HasParser class)
-captureSettingsParser :: Parser CaptureSettings
-captureSettingsParser =
-    CaptureSettings
-        -- Logfile is CLI-only (doesn't make sense in config)
-        <$> withoutConfig
+-- | Parser for capture-only settings (stdin-only, no logfile)
+captureOnlySettingsParser :: Parser CaptureOnlySettings
+captureOnlySettingsParser =
+    CaptureOnlySettings
+        <$> subConfig_ "capture" captureConfigParser
+
+{- | Settings for run command (full pipeline).
+Combines collect settings (logfiles) with capture settings.
+-}
+data RunSettings = RunSettings
+    { runLogfiles :: [FilePath]
+    -- ^ Logfiles from CLI (overrides config)
+    , runConfigLogfiles :: [FilePath]
+    -- ^ Logfiles from config file
+    , runPollIntervalMs :: Int
+    -- ^ Poll interval in milliseconds
+    , runCaptureConfig :: CaptureConfig
+    -- ^ Capture configuration
+    }
+    deriving (Show)
+
+-- | Parser for run settings (full pipeline with all options)
+runSettingsParser_ :: Parser RunSettings
+runSettingsParser_ =
+    RunSettings
+        -- CLI logfiles (can specify multiple)
+        <$> many
+            ( withoutConfig
+                ( setting
+                    [ help "Path to the logfile to process (can be specified multiple times)"
+                    , reader str
+                    , long "logfile"
+                    , option
+                    , metavar "PATH"
+                    ]
+                )
+            )
+        -- Config file logfiles (from collect.logfiles)
+        <*> subConfig_ "collect" collectConfigLogfilesParser
+        -- Poll interval (CLI or config)
+        <*> subConfig_
+            "collect"
             ( setting
-                [ help "Path to the logfile to process"
-                , reader str
-                , name "logfile"
-                , metavar "PATH"
+                [ help "Poll interval in milliseconds"
+                , reader auto
+                , long "poll-interval"
+                , option
+                , metavar "MS"
+                , conf "poll_interval_ms"
+                , value defaultPollIntervalMs
                 ]
             )
-        -- Capture config can come from CLI, env, or config file
-        -- Use subConfig_ to nest under "capture:" in config files
+        -- Capture config
         <*> subConfig_ "capture" captureConfigParser
 
 {- | Parser for capture configuration.
@@ -269,9 +347,6 @@ captureConfigParser =
     selectRules [] configRules = configRules
     selectRules patterns _ = map RegexRule patterns
 
--- | RunSettings is the same as CaptureSettings (full pipeline uses same options)
-type RunSettings = CaptureSettings
-
 -- | Parser for loading config files
 configFilePathsParser :: Parser [Path Abs File]
 configFilePathsParser = mapIO (const getConfigFilePaths) (pure ())
@@ -290,30 +365,71 @@ main = do
             version
             "SpanShot - Log collector and analyzer"
     case dispatch of
-        DispatchCollect (CollectSettings logfilePath) ->
-            runCollect logfilePath `catch` handleIOError logfilePath
+        DispatchCollect settings ->
+            runCollect settings
         DispatchConfig cmd ->
             runConfig cmd
         DispatchCapture settings ->
-            runCapture settings `catch` handleIOError (captureLogfile settings)
+            runCaptureStdin settings
         DispatchRun settings ->
-            runFullPipeline settings `catch` handleIOError (captureLogfile settings)
+            runFullPipeline settings
 
-runCollect :: FilePath -> IO ()
-runCollect logfilePath = do
-    -- For collect, we just stream events - no capture config needed
+{- | Determine effective logfiles from CLI and config
+CLI logfiles override config logfiles entirely
+-}
+effectiveLogfiles :: [FilePath] -> [FilePath] -> [FilePath]
+effectiveLogfiles cliLogfiles configLogfiles
+    | not (null cliLogfiles) = cliLogfiles
+    | otherwise = configLogfiles
+
+runCollect :: CollectSettings -> IO ()
+runCollect settings = do
+    -- If CLI logfiles provided, use them directly
+    -- If using config logfiles, resolve relative paths relative to config file
+    logfiles <-
+        if not (null (collectLogfiles settings))
+            then pure (collectLogfiles settings)
+            else do
+                -- Get config file path for relative path resolution
+                (_, _, mConfigPath) <- loadEffectiveConfig
+                resolveLogfiles mConfigPath (collectConfigLogfiles settings)
+    if null logfiles
+        then -- Read from stdin
+            runCollectStdin
+        else do
+            -- Check that all files exist
+            mapM_ checkFileExists logfiles
+            -- Process each file
+            mapM_ runCollectFile logfiles
+
+runCollectStdin :: IO ()
+runCollectStdin = do
+    collectFromStdin $ \events ->
+        S.mapM_ printEvent events
+
+runCollectFile :: FilePath -> IO ()
+runCollectFile logfilePath = do
     collectFromFileWithCleanup defaultCollectOptions logfilePath $ \events ->
         S.mapM_ printEvent events
+
+checkFileExists :: FilePath -> IO ()
+checkFileExists path = do
+    exists <- doesFileExist path
+    if exists
+        then pure ()
+        else do
+            hPutStrLn stderr $ "Error: File not found: " ++ path
+            exitFailure
 
 runConfig :: ConfigCommand -> IO ()
 runConfig ConfigShow = do
     -- Load and display the effective configuration
-    (effectiveConfig, loadedPaths) <- loadEffectiveConfig
+    (effectiveConfig, loadedPaths, _configDir) <- loadEffectiveConfig
     if null loadedPaths
         then putStrLn "# No config files found, showing defaults"
         else putStrLn $ "# Loaded from: " ++ unwords loadedPaths
-    -- Output as valid YAML (wrapped in Config for proper structure)
-    BS.putStr $ Yaml.encode (Config effectiveConfig)
+    -- Output as valid YAML
+    BS.putStr $ Yaml.encode effectiveConfig
 runConfig ConfigPath = do
     cwd <- getCurrentDirectory
     paths <- getConfigPaths cwd
@@ -363,21 +479,54 @@ printPathInfo label info = do
     let status = if cpiExists info then "[found]" else "[not found]"
     putStrLn $ label ++ ": " ++ cpiPath info ++ " " ++ status
 
-runCapture :: CaptureSettings -> IO ()
-runCapture settings = do
-    -- Validate config and run capture
-    case toCaptureOptions (captureConfig settings) of
+-- | Run capture reading JSONL CollectEvents from stdin
+runCaptureStdin :: CaptureOnlySettings -> IO ()
+runCaptureStdin settings = do
+    -- Validate config
+    case toCaptureOptions (captureOnlyConfig settings) of
         Left err -> do
             hPutStrLn stderr $ "Error: Invalid configuration: " ++ err
             exitFailure
-        Right opts ->
-            collectFromFileWithCleanup defaultCollectOptions (captureLogfile settings) $ \events ->
+        Right opts -> do
+            -- Read JSONL CollectEvents from stdin and process them
+            collectFromJSONLStdin $ \events ->
                 let timedEvents = withInactivityTimeout (inactivityTimeout opts) events
                  in S.mapM_ printSpanShot $ captureFromCaptureInput opts timedEvents
 
--- | Full pipeline (collect + capture combined) - same implementation as capture
+-- | Full pipeline (collect + capture combined)
 runFullPipeline :: RunSettings -> IO ()
-runFullPipeline = runCapture
+runFullPipeline settings = do
+    -- If CLI logfiles provided, use them directly
+    -- If using config logfiles, resolve relative paths relative to config file
+    logfiles <-
+        if not (null (runLogfiles settings))
+            then pure (runLogfiles settings)
+            else do
+                -- Get config file path for relative path resolution
+                (_, _, mConfigPath) <- loadEffectiveConfig
+                resolveLogfiles mConfigPath (runConfigLogfiles settings)
+    -- Validate capture config first
+    case toCaptureOptions (runCaptureConfig settings) of
+        Left err -> do
+            hPutStrLn stderr $ "Error: Invalid configuration: " ++ err
+            exitFailure
+        Right opts -> do
+            if null logfiles
+                then do
+                    -- Read from stdin
+                    collectFromStdin $ \events ->
+                        let timedEvents = withInactivityTimeout (inactivityTimeout opts) events
+                         in S.mapM_ printSpanShot $ captureFromCaptureInput opts timedEvents
+                else do
+                    -- Check that all files exist
+                    mapM_ checkFileExists logfiles
+                    -- Process files (for now, just the first one - multi-file merge is TODO)
+                    case logfiles of
+                        [] -> pure () -- Should not happen due to null check above
+                        (firstFile : _) ->
+                            collectFromFileWithCleanup defaultCollectOptions firstFile $ \events ->
+                                let timedEvents = withInactivityTimeout (inactivityTimeout opts) events
+                                 in S.mapM_ printSpanShot $ captureFromCaptureInput opts timedEvents
 
 handleIOError :: FilePath -> IOException -> IO ()
 handleIOError path e
