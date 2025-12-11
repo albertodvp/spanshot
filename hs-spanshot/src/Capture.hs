@@ -1,13 +1,37 @@
 module Capture (
+    -- * Detection
     detectError,
     detectErrorCompiled,
     runAllDetectors,
     runAllDetectorsCompiled,
+
+    -- * State management
     addToPreWindow,
     processEvent,
-    captureFromStream,
-    captureFromStreamWithTimeout,
     flushPendingCaptures,
+
+    -- * Streaming capture
+
+    -- ** Batch processing (finite streams)
+
+    {- | Use 'captureFromStream' for processing complete log files where the
+    stream has a definite end. This version is pure and works with any 'Monad'.
+
+    __Warning__: Any pending capture at stream end will be dropped. Not suitable
+    for live/continuous log monitoring.
+    -}
+    captureFromStream,
+
+    -- ** Live monitoring (infinite streams)
+
+    {- | Use 'captureFromCaptureInput' with 'withInactivityTimeout' for monitoring
+    live log streams where the source may stop emitting events (e.g., application
+    crash, idle periods). The inactivity timeout ensures pending captures are
+    flushed even when no new events arrive.
+
+    This is the recommended API for production monitoring scenarios.
+    -}
+    captureFromCaptureInput,
     CaptureInput (..),
     withInactivityTimeout,
 ) where
@@ -301,19 +325,30 @@ flushPendingCaptures state flushTime =
 
 {- | Transform a stream of CollectEvents into a stream of SpanShots.
 
-This is the main entry point for streaming capture. It maintains internal
-state and emits SpanShots when errors are detected and post-windows complete.
+__Use case__: Batch processing of complete, finite log files.
+
+This function maintains internal state and emits SpanShots when errors are
+detected and post-windows complete. It works with any 'Monad', making it
+suitable for pure testing and processing of already-complete log files.
 
 The function processes events one by one, threading state through the stream,
 and emitting a SpanShot only when a post-window duration has elapsed after
 an error detection.
 
-Note: When the input stream ends, any active capture that hasn't completed
-its post-window will be dropped. This is a deliberate simplification for v0.1.
+__Warning__: When the input stream ends, any active capture that hasn't completed
+its post-window will be dropped. This means:
+
+* If an error is detected near the end of the file, it may be lost
+* For live monitoring where the source may crash or go idle, use
+  'captureFromCaptureInput' with 'withInactivityTimeout' instead
+
+For live/continuous log monitoring, use 'captureFromCaptureInput' which
+handles 'InactivityFlush' signals and flushes pending captures.
 
 Example:
 
 @
+-- Processing a complete log file (batch mode)
 let events = collectFromFile opts "app.log"
 let captureOpts = defaultCaptureOptions { detectionRules = [RegexRule "ERROR"] }
 S.mapM_ printSpanShot $ captureFromStream captureOpts events
@@ -401,10 +436,19 @@ withInactivityTimeout timeoutDuration stream = S.unfoldr go (stream, False)
                 -- Got an event - reset flush flag
                 pure $ Right (LogEvent event, (rest, False))
 
-{- | Transform a stream of CollectEvents into SpanShots with timeout support.
+{- | Transform a stream of 'CaptureInput' into SpanShots.
 
-This is like 'captureFromStream' but handles 'InactivityFlush' signals to
+__Use case__: Live monitoring of continuous log streams.
+
+This is the recommended API for production monitoring scenarios. Unlike
+'captureFromStream', this function handles 'InactivityFlush' signals to
 emit pending captures when no new events arrive within the timeout period.
+
+This ensures that:
+
+* If the monitored application crashes, pending error captures are still emitted
+* If the application goes idle, captures don't hang indefinitely
+* Error context is always delivered, even without subsequent log events
 
 Use 'withInactivityTimeout' to wrap the input stream with timeout detection,
 then pass it to this function.
@@ -412,16 +456,17 @@ then pass it to this function.
 Example:
 
 @
-let events = collectFromFile opts "app.log"
-let timedEvents = withInactivityTimeout (inactivityTimeout captureOpts) events
-S.mapM_ printSpanShot $ captureFromStreamWithTimeout captureOpts timedEvents
+-- Live monitoring with 30-second inactivity timeout
+let events = collectFromStdin opts
+let timedEvents = withInactivityTimeout 30 events
+S.mapM_ sendToBackend $ captureFromCaptureInput captureOpts timedEvents
 @
 -}
-captureFromStreamWithTimeout ::
+captureFromCaptureInput ::
     CaptureOptions ->
     Stream (Of CaptureInput) IO r ->
     Stream (Of SpanShot) IO r
-captureFromStreamWithTimeout opts = go initialCaptureState
+captureFromCaptureInput opts = go initialCaptureState
   where
     go state stream = do
         result <- lift $ S.next stream
