@@ -319,7 +319,7 @@ captureConfigParser =
         <*> many
             ( withoutConfig $
                 setting
-                    [ help "Regex pattern to detect errors (can be specified multiple times)"
+                    [ help "Regex pattern to detect errors (can be specified multiple times). If any patterns are provided via CLI, they replace all config file rules"
                     , reader str
                     , long "regex-pattern"
                     , short 'p'
@@ -329,7 +329,7 @@ captureConfigParser =
             )
         -- Config file detection rules (used when no CLI patterns provided)
         <*> setting
-            [ help "Detection rules from config file"
+            [ help "Detection rules from config file (ignored if --regex-pattern is provided)"
             , conf "detection_rules"
             , value (ccDetectionRules defaultCaptureConfig)
             ]
