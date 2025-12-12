@@ -63,6 +63,7 @@ import System.IO.Error (isDoesNotExistError, isPermissionError)
 import Types (
     CaptureOptions (inactivityTimeout),
     CollectEvent,
+    CollectOptions (oneShot),
     DetectionRule (..),
     SpanShot,
     defaultCollectOptions,
@@ -161,6 +162,8 @@ data CollectSettings = CollectSettings
     -- ^ Logfiles from config file
     , collectPollIntervalMs :: Int
     -- ^ Poll interval in milliseconds
+    , collectOneShot :: Bool
+    -- ^ Exit at EOF instead of polling for new content
     }
     deriving (Show)
 
@@ -192,6 +195,17 @@ instance HasParser CollectSettings where
                     , metavar "MS"
                     , conf "poll_interval_ms"
                     , value defaultPollIntervalMs
+                    ]
+                )
+            -- One-shot mode (exit at EOF instead of polling)
+            <*> subConfig_
+                "collect"
+                ( setting
+                    [ help "Exit after reading existing content instead of polling for new content"
+                    , switch True
+                    , long "one-shot"
+                    , conf "one_shot"
+                    , value False
                     ]
                 )
 
@@ -234,6 +248,8 @@ data RunSettings = RunSettings
     -- ^ Logfiles from config file
     , runPollIntervalMs :: Int
     -- ^ Poll interval in milliseconds
+    , runOneShot :: Bool
+    -- ^ Exit at EOF instead of polling for new content
     , runCaptureConfig :: CaptureConfig
     -- ^ Capture configuration
     }
@@ -268,6 +284,17 @@ runSettingsParser_ =
                 , metavar "MS"
                 , conf "poll_interval_ms"
                 , value defaultPollIntervalMs
+                ]
+            )
+        -- One-shot mode (exit at EOF instead of polling)
+        <*> subConfig_
+            "collect"
+            ( setting
+                [ help "Exit after reading existing content instead of polling for new content"
+                , switch True
+                , long "one-shot"
+                , conf "one_shot"
+                , value False
                 ]
             )
         -- Capture config
@@ -393,6 +420,7 @@ runCollect settings = do
                 -- Get config file path for relative path resolution
                 (_, _, mConfigPath) <- loadEffectiveConfig
                 resolveLogfiles mConfigPath (collectConfigLogfiles settings)
+    let collectOpts = defaultCollectOptions{oneShot = collectOneShot settings}
     if null logfiles
         then -- Read from stdin
             runCollectStdin
@@ -400,16 +428,16 @@ runCollect settings = do
             -- Check that all files exist
             mapM_ checkFileExists logfiles
             -- Process each file
-            mapM_ runCollectFile logfiles
+            mapM_ (runCollectFile collectOpts) logfiles
 
 runCollectStdin :: IO ()
 runCollectStdin = do
     collectFromStdin $ \events ->
         S.mapM_ printEvent events
 
-runCollectFile :: FilePath -> IO ()
-runCollectFile logfilePath = do
-    collectFromFileWithCleanup defaultCollectOptions logfilePath $ \events ->
+runCollectFile :: CollectOptions -> FilePath -> IO ()
+runCollectFile collectOpts logfilePath = do
+    collectFromFileWithCleanup collectOpts logfilePath $ \events ->
         S.mapM_ printEvent events
 
 checkFileExists :: FilePath -> IO ()
@@ -505,6 +533,7 @@ runFullPipeline settings = do
                 -- Get config file path for relative path resolution
                 (_, _, mConfigPath) <- loadEffectiveConfig
                 resolveLogfiles mConfigPath (runConfigLogfiles settings)
+    let collectOpts = defaultCollectOptions{oneShot = runOneShot settings}
     -- Validate capture config first
     case toCaptureOptions (runCaptureConfig settings) of
         Left err -> do
@@ -524,7 +553,7 @@ runFullPipeline settings = do
                     case logfiles of
                         [] -> pure () -- Should not happen due to null check above
                         (firstFile : _) ->
-                            collectFromFileWithCleanup defaultCollectOptions firstFile $ \events ->
+                            collectFromFileWithCleanup collectOpts firstFile $ \events ->
                                 let timedEvents = withInactivityTimeout (inactivityTimeout opts) events
                                  in S.mapM_ printSpanShot $ captureFromCaptureInput opts timedEvents
 

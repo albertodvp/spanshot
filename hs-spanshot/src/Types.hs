@@ -6,7 +6,7 @@
 
 module Types (
     CollectEvent (..),
-    CollectOptions (pollIntervalMs),
+    CollectOptions (pollIntervalMs, oneShot),
     mkCollectOptions,
     defaultCollectOptions,
     maxPollIntervalMs,
@@ -57,8 +57,12 @@ instance FromJSON CollectEvent where
                 { fieldLabelModifier = camelTo2 '_'
                 }
 
-newtype CollectOptions = CollectOptions
+data CollectOptions = CollectOptions
     { pollIntervalMs :: Int
+    , oneShot :: Bool
+    {- ^ When True, exit at EOF instead of polling for new content.
+    Useful for processing static files or testing.
+    -}
     }
     deriving (Show, Eq)
 
@@ -68,16 +72,17 @@ minPollIntervalMs = 10
 maxPollIntervalMs :: Int
 maxPollIntervalMs = 60000
 
-mkCollectOptions :: Int -> Either String CollectOptions
-mkCollectOptions interval
+mkCollectOptions :: Int -> Bool -> Either String CollectOptions
+mkCollectOptions interval oneShotVal
     | interval < minPollIntervalMs = Left $ "pollIntervalMs must be at least " <> show minPollIntervalMs <> " milliseconds"
     | interval > maxPollIntervalMs = Left $ "pollIntervalMs must be at most " <> show maxPollIntervalMs <> " milliseconds (1 minute)"
-    | otherwise = Right $ CollectOptions{pollIntervalMs = interval}
+    | otherwise = Right $ CollectOptions{pollIntervalMs = interval, oneShot = oneShotVal}
 
 defaultCollectOptions :: CollectOptions
 defaultCollectOptions =
     CollectOptions
         { pollIntervalMs = 150
+        , oneShot = False
         }
 
 data DetectionRule

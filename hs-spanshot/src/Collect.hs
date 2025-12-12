@@ -23,7 +23,7 @@ import System.IO (Handle, IOMode (..), hClose, hIsEOF, openFile, stdin)
 
 import Data.Aeson qualified as Aeson
 import Data.ByteString.Lazy qualified as BL
-import Types (CollectEvent (CollectEvent, line, readAtUtc, sessionOrderId, source), CollectOptions (pollIntervalMs))
+import Types (CollectEvent (CollectEvent, line, readAtUtc, sessionOrderId, source), CollectOptions (oneShot, pollIntervalMs))
 
 {- | Default size for chunks read from file handles.
 
@@ -141,9 +141,10 @@ bytesFromStdin = go
 {- | Read bytes from a file handle with polling behavior.
 
 Reads chunks of bytes (default 32KB) from the handle. When EOF is encountered,
-instead of terminating, it waits for the duration specified in 'pollIntervalMs'
-and retries. This implements a "tail -f" style behavior for following files
-as they grow.
+the behavior depends on the 'oneShot' option:
+
+* If 'oneShot' is True: terminates the stream (useful for processing static files)
+* If 'oneShot' is False: waits for 'pollIntervalMs' and retries (tail -f behavior)
 
 The function yields chunks using streaming-bytestring's 'Q.chunk' to build
 an efficient byte stream.
@@ -152,7 +153,7 @@ Implementation notes:
 
 * Uses 'BS.hGetSome' which reads available bytes without blocking
 * Skips empty chunks to avoid unnecessary allocations
-* Polls indefinitely (infinite loop) when EOF is reached
+* Default behavior polls indefinitely (infinite loop) when EOF is reached
 -}
 bytesWithPolling :: CollectOptions -> Handle -> Q.ByteStream IO ()
 bytesWithPolling opts handle = go
@@ -160,9 +161,12 @@ bytesWithPolling opts handle = go
     go = do
         eof <- liftIO $ hIsEOF handle
         if eof
-            then do
-                liftIO $ threadDelay (pollIntervalMs opts * 1000)
-                go
+            then
+                if oneShot opts
+                    then pure () -- Exit cleanly at EOF
+                    else do
+                        liftIO $ threadDelay (pollIntervalMs opts * 1000)
+                        go
             else do
                 chunk <- liftIO $ BS.hGetSome handle defaultChunkSize
                 unless (BS.null chunk) $ Q.chunk chunk

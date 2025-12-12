@@ -143,8 +143,8 @@ collectConfigTests binary =
                         , "  detection_rules:"
                         , "    - regex_pattern: ERROR"
                         ]
-                -- Run from tmpDir so config is found
-                (exitCode, stdout, _stderr) <- readProcessWithExitCodeInDir tmpDir binary ["collect"] ""
+                -- Run from tmpDir so config is found (--one-shot to exit after reading)
+                (exitCode, stdout, _stderr) <- readProcessWithExitCodeInDir tmpDir binary ["collect", "--one-shot"] ""
                 exitCode @?= ExitSuccess
                 let outputLines = filter (not . null) $ lines stdout
                 length outputLines @?= 2
@@ -165,8 +165,8 @@ collectConfigTests binary =
                         , "  detection_rules:"
                         , "    - regex_pattern: ERROR"
                         ]
-                -- --logfile should override config
-                (exitCode, stdout, _stderr) <- readProcessWithExitCodeInDir tmpDir binary ["collect", "--logfile", cliLogPath] ""
+                -- --logfile should override config (--one-shot to exit after reading)
+                (exitCode, stdout, _stderr) <- readProcessWithExitCodeInDir tmpDir binary ["collect", "--logfile", cliLogPath, "--one-shot"] ""
                 exitCode @?= ExitSuccess
                 let outputLines = filter (not . null) $ lines stdout
                 length outputLines @?= 2
@@ -188,8 +188,8 @@ collectConfigTests binary =
                         , "  detection_rules:"
                         , "    - regex_pattern: ERROR"
                         ]
-                -- Run from tmpDir
-                (exitCode, stdout, _stderr) <- readProcessWithExitCodeInDir tmpDir binary ["collect"] ""
+                -- Run from tmpDir (--one-shot to exit after reading)
+                (exitCode, stdout, _stderr) <- readProcessWithExitCodeInDir tmpDir binary ["collect", "--one-shot"] ""
                 exitCode @?= ExitSuccess
                 let outputLines = filter (not . null) $ lines stdout
                 length outputLines @?= 1
@@ -276,12 +276,12 @@ runCommandTests binary =
             assertBool "Help mentions regex-pattern" $ "regex-pattern" `isInfixOf` stdout
         , testCase "run with --logfile processes file" $ do
             -- run should work with a logfile and produce SpanShot output
+            -- --one-shot ensures the process exits after reading the file
             (exitCode, _stdout, stderr) <-
                 readProcessWithExitCode
                     binary
-                    ["run", "--logfile", "test/fixtures/small.log", "--regex-pattern", "ERROR"]
+                    ["run", "--logfile", "test/fixtures/small.log", "--regex-pattern", "ERROR", "--one-shot"]
                     ""
-            -- Should not error (may timeout waiting for more input, which is fine)
             case exitCode of
                 ExitSuccess -> pure ()
                 ExitFailure _ -> assertBool "Should not have file error" $ not ("not found" `isInfixOf` stderr)
@@ -323,8 +323,9 @@ runStdinTests binary =
                         , "    - regex_pattern: ERROR"
                         ]
                 -- Even with stdin input, should use config logfiles
+                -- --one-shot ensures the process exits after reading the file
                 let stdinInput = "this should be ignored\n"
-                (exitCode, _stdout, _stderr) <- readProcessWithExitCodeInDir tmpDir binary ["run"] stdinInput
+                (exitCode, _stdout, _stderr) <- readProcessWithExitCodeInDir tmpDir binary ["run", "--one-shot"] stdinInput
                 -- Should succeed (processes config logfile, ignores stdin)
                 exitCode @?= ExitSuccess
         ]
@@ -417,7 +418,8 @@ errorHandlingTests binary =
                         ]
                 writeFile (tmpDir </> "existing.log") "some content\n"
                 -- Should fail because missing.log doesn't exist
-                (exitCode, _stdout, stderr) <- readProcessWithExitCodeInDir tmpDir binary ["collect"] ""
+                -- --one-shot ensures clean exit in case of unexpected success
+                (exitCode, _stdout, stderr) <- readProcessWithExitCodeInDir tmpDir binary ["collect", "--one-shot"] ""
                 case exitCode of
                     ExitFailure _ -> assertBool "Error mentions missing file" $ "missing.log" `isInfixOf` stderr
                     ExitSuccess -> assertFailure "Expected failure for missing config logfile"
@@ -443,6 +445,11 @@ helpTests binary =
             exitCode @?= ExitSuccess
             assertBool "Help mentions logfile" $ "logfile" `isInfixOf` stdout
             assertBool "Help mentions poll-interval" $ "poll-interval" `isInfixOf` stdout
+            assertBool "Help mentions one-shot" $ "one-shot" `isInfixOf` stdout
+        , testCase "run --help shows one-shot flag" $ do
+            (exitCode, stdout, _stderr) <- readProcessWithExitCode binary ["run", "--help"] ""
+            exitCode @?= ExitSuccess
+            assertBool "Help mentions one-shot" $ "one-shot" `isInfixOf` stdout
         ]
 
 -------------------------------------------------------------------------------
@@ -492,20 +499,25 @@ runCollectWithFiles binary logfiles expectedLines = do
                     Nothing -> assertFailure "Process timed out before producing expected number of lines"
                     Just outputLines -> pure $ BLC.pack $ unlines outputLines
 
--- | Run a process in a specific directory
+-- | Default timeout for process execution (30 seconds)
+defaultProcessTimeout :: Int
+defaultProcessTimeout = 30_000_000
+
+-- | Run a process in a specific directory with timeout safety net
 readProcessWithExitCodeInDir :: FilePath -> FilePath -> [String] -> String -> IO (ExitCode, String, String)
 readProcessWithExitCodeInDir dir binary args input = do
     let procSpec = (proc binary args){cwd = Just dir}
-    bracket
-        (createProcess procSpec{std_in = CreatePipe, std_out = CreatePipe, std_err = CreatePipe})
-        ( \(mIn, mOut, mErr, ph) -> do
-            maybe (pure ()) hClose mIn
-            maybe (pure ()) hClose mOut
-            maybe (pure ()) hClose mErr
-            terminateProcess ph
-            _ <- waitForProcess ph
-            pure ()
-        )
+    result <- timeout defaultProcessTimeout
+        $ bracket
+            (createProcess procSpec{std_in = CreatePipe, std_out = CreatePipe, std_err = CreatePipe})
+            ( \(mIn, mOut, mErr, ph) -> do
+                maybe (pure ()) hClose mIn
+                maybe (pure ()) hClose mOut
+                maybe (pure ()) hClose mErr
+                terminateProcess ph
+                _ <- waitForProcess ph
+                pure ()
+            )
         $ \(mIn, mOut, mErr, ph) -> do
             case (mIn, mOut, mErr) of
                 (Just hIn, Just hOut, Just hErr) -> do
@@ -518,6 +530,9 @@ readProcessWithExitCodeInDir dir binary args input = do
                 _ -> do
                     exitCode <- waitForProcess ph
                     pure (exitCode, "", "")
+    case result of
+        Nothing -> assertFailure $ "Process timed out after 30 seconds: " ++ unwords (binary : args)
+        Just r -> pure r
 
 -- | Read all content from a handle
 readAllHandle :: Handle -> IO String
