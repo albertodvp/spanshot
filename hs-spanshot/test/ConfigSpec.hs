@@ -2,7 +2,6 @@ module ConfigSpec (configTests) where
 
 import Data.ByteString.Char8 qualified as BS
 import Data.Either (isLeft, isRight)
-import Data.List (isInfixOf)
 import Data.Yaml qualified as Yaml
 import System.Directory (createDirectory, createDirectoryIfMissing, doesFileExist)
 import System.FilePath (isAbsolute, (</>))
@@ -14,18 +13,13 @@ import Config (
     Config (..),
     ConfigPathInfo (..),
     ConfigPaths (..),
-    ConfigWarning (..),
     InitConfigError (..),
-    PartialCaptureConfig (..),
-    PartialConfig (..),
     defaultConfig,
     findProjectRoot,
     fromCaptureOptions,
     getConfigPaths,
     getProjectConfigPath,
     initConfigFile,
-    loadConfigFrom,
-    mergeConfig,
     toCaptureOptions,
  )
 import Types (DetectionRule (RegexRule), defaultCaptureOptions)
@@ -40,6 +34,7 @@ configTests = do
                         , "  pre_window_duration: 10"
                         , "  post_window_duration: 3"
                         , "  min_context_events: 5"
+                        , "  inactivity_timeout: 6"
                         , "  detection_rules:"
                         , "    - regex_pattern: \"ERROR\""
                         , "    - regex_pattern: \"WARN\""
@@ -48,10 +43,11 @@ configTests = do
             case parsed of
                 Left err -> fail $ show err
                 Right config -> do
-                    ccPreWindowDuration (capture config) `shouldBe` 10
-                    ccPostWindowDuration (capture config) `shouldBe` 3
-                    ccMinContextEvents (capture config) `shouldBe` 5
-                    length (ccDetectionRules (capture config)) `shouldBe` 2
+                    ccPreWindowDuration (cfgCapture config) `shouldBe` 10
+                    ccPostWindowDuration (cfgCapture config) `shouldBe` 3
+                    ccMinContextEvents (cfgCapture config) `shouldBe` 5
+                    ccInactivityTimeout (cfgCapture config) `shouldBe` 6
+                    length (ccDetectionRules (cfgCapture config)) `shouldBe` 2
 
         it "round-trips defaultConfig through YAML" $ do
             let encoded = Yaml.encode defaultConfig
@@ -66,10 +62,11 @@ configTests = do
             case parsed of
                 Left err -> fail $ show err
                 Right config -> do
-                    ccPreWindowDuration (capture config) `shouldBe` 10
-                    ccPostWindowDuration (capture config) `shouldBe` 3
-                    ccMinContextEvents (capture config) `shouldBe` 5
-                    ccDetectionRules (capture config)
+                    ccPreWindowDuration (cfgCapture config) `shouldBe` 10
+                    ccPostWindowDuration (cfgCapture config) `shouldBe` 3
+                    ccMinContextEvents (cfgCapture config) `shouldBe` 5
+                    ccInactivityTimeout (cfgCapture config) `shouldBe` 6
+                    ccDetectionRules (cfgCapture config)
                         `shouldBe` [ RegexRule "ERROR"
                                    , RegexRule "WARN"
                                    , RegexRule "FATAL"
@@ -94,6 +91,7 @@ configTests = do
                         , ccPostWindowDuration = 5
                         , ccMinContextEvents = 10
                         , ccDetectionRules = [RegexRule "ERROR"]
+                        , ccInactivityTimeout = 10
                         }
             toCaptureOptions invalidConfig `shouldSatisfy` isLeft
 
@@ -104,6 +102,7 @@ configTests = do
                         , ccPostWindowDuration = 5
                         , ccMinContextEvents = 10
                         , ccDetectionRules = []
+                        , ccInactivityTimeout = 10
                         }
             toCaptureOptions invalidConfig `shouldSatisfy` isLeft
 
@@ -114,204 +113,13 @@ configTests = do
                         , ccPostWindowDuration = 10
                         , ccMinContextEvents = 20
                         , ccDetectionRules = [RegexRule "FATAL", RegexRule "CRITICAL"]
+                        , ccInactivityTimeout = 20
                         }
             let encoded = Yaml.encode cc
             let decoded = Yaml.decodeEither' encoded :: Either Yaml.ParseException CaptureConfig
             case decoded of
                 Left err -> fail $ "Failed to decode: " ++ show err
                 Right result -> result `shouldBe` cc
-
-    describe "Config merging" $ do
-        it "returns base config when override is empty" $ do
-            let base = defaultConfig
-            let override = PartialConfig{pcCapture = Nothing}
-            mergeConfig base override `shouldBe` base
-
-        it "overrides preWindowDuration only" $ do
-            let base = defaultConfig
-            let override =
-                    PartialConfig
-                        { pcCapture =
-                            Just
-                                PartialCaptureConfig
-                                    { pccPreWindowDuration = Just 20
-                                    , pccPostWindowDuration = Nothing
-                                    , pccMinContextEvents = Nothing
-                                    , pccDetectionRules = Nothing
-                                    }
-                        }
-            let result = mergeConfig base override
-            ccPreWindowDuration (capture result) `shouldBe` 20
-            -- Other fields should remain from base
-            ccPostWindowDuration (capture result) `shouldBe` ccPostWindowDuration (capture base)
-            ccMinContextEvents (capture result) `shouldBe` ccMinContextEvents (capture base)
-            ccDetectionRules (capture result) `shouldBe` ccDetectionRules (capture base)
-
-        it "overrides postWindowDuration only" $ do
-            let base = defaultConfig
-            let override =
-                    PartialConfig
-                        { pcCapture =
-                            Just
-                                PartialCaptureConfig
-                                    { pccPreWindowDuration = Nothing
-                                    , pccPostWindowDuration = Just 15
-                                    , pccMinContextEvents = Nothing
-                                    , pccDetectionRules = Nothing
-                                    }
-                        }
-            let result = mergeConfig base override
-            ccPostWindowDuration (capture result) `shouldBe` 15
-            ccPreWindowDuration (capture result) `shouldBe` ccPreWindowDuration (capture base)
-
-        it "overrides minContextEvents only" $ do
-            let base = defaultConfig
-            let override =
-                    PartialConfig
-                        { pcCapture =
-                            Just
-                                PartialCaptureConfig
-                                    { pccPreWindowDuration = Nothing
-                                    , pccPostWindowDuration = Nothing
-                                    , pccMinContextEvents = Just 50
-                                    , pccDetectionRules = Nothing
-                                    }
-                        }
-            let result = mergeConfig base override
-            ccMinContextEvents (capture result) `shouldBe` 50
-            ccPreWindowDuration (capture result) `shouldBe` ccPreWindowDuration (capture base)
-
-        it "overrides detectionRules completely (replaces, not merges)" $ do
-            let base = defaultConfig
-            let newRules = [RegexRule "FATAL", RegexRule "CRITICAL"]
-            let override =
-                    PartialConfig
-                        { pcCapture =
-                            Just
-                                PartialCaptureConfig
-                                    { pccPreWindowDuration = Nothing
-                                    , pccPostWindowDuration = Nothing
-                                    , pccMinContextEvents = Nothing
-                                    , pccDetectionRules = Just newRules
-                                    }
-                        }
-            let result = mergeConfig base override
-            ccDetectionRules (capture result) `shouldBe` newRules
-
-        it "overrides multiple fields at once" $ do
-            let base = defaultConfig
-            let override =
-                    PartialConfig
-                        { pcCapture =
-                            Just
-                                PartialCaptureConfig
-                                    { pccPreWindowDuration = Just 30
-                                    , pccPostWindowDuration = Just 25
-                                    , pccMinContextEvents = Nothing
-                                    , pccDetectionRules = Just [RegexRule "WARN"]
-                                    }
-                        }
-            let result = mergeConfig base override
-            ccPreWindowDuration (capture result) `shouldBe` 30
-            ccPostWindowDuration (capture result) `shouldBe` 25
-            ccMinContextEvents (capture result) `shouldBe` ccMinContextEvents (capture base)
-            ccDetectionRules (capture result) `shouldBe` [RegexRule "WARN"]
-
-    describe "PartialConfig YAML parsing" $ do
-        it "parses partial config with only preWindowDuration" $ do
-            let yaml =
-                    BS.unlines
-                        [ "capture:"
-                        , "  pre_window_duration: 20"
-                        ]
-            let parsed = Yaml.decodeEither' yaml :: Either Yaml.ParseException PartialConfig
-            case parsed of
-                Left err -> fail $ show err
-                Right pc -> do
-                    case pcCapture pc of
-                        Nothing -> fail "Expected capture config"
-                        Just pcc -> do
-                            pccPreWindowDuration pcc `shouldBe` Just 20
-                            pccPostWindowDuration pcc `shouldBe` Nothing
-                            pccMinContextEvents pcc `shouldBe` Nothing
-                            pccDetectionRules pcc `shouldBe` Nothing
-
-        it "parses empty partial config" $ do
-            let yaml = BS.unlines ["{}"]
-            let parsed = Yaml.decodeEither' yaml :: Either Yaml.ParseException PartialConfig
-            case parsed of
-                Left err -> fail $ show err
-                Right pc -> pcCapture pc `shouldBe` Nothing
-
-        it "parses partial config with only detection_rules" $ do
-            let yaml =
-                    BS.unlines
-                        [ "capture:"
-                        , "  detection_rules:"
-                        , "    - regex_pattern: \"FATAL\""
-                        ]
-            let parsed = Yaml.decodeEither' yaml :: Either Yaml.ParseException PartialConfig
-            case parsed of
-                Left err -> fail $ show err
-                Right pc -> do
-                    case pcCapture pc of
-                        Nothing -> fail "Expected capture config"
-                        Just pcc -> do
-                            pccDetectionRules pcc `shouldBe` Just [RegexRule "FATAL"]
-                            pccPreWindowDuration pcc `shouldBe` Nothing
-
-    describe "PartialConfig YAML serialization (ToJSON)" $ do
-        it "round-trips PartialConfig with all fields set" $ do
-            let pcc =
-                    PartialCaptureConfig
-                        { pccPreWindowDuration = Just 30
-                        , pccPostWindowDuration = Just 20
-                        , pccMinContextEvents = Just 15
-                        , pccDetectionRules = Just [RegexRule "WARN", RegexRule "ERROR"]
-                        }
-            let pc = PartialConfig{pcCapture = Just pcc}
-            let encoded = Yaml.encode pc
-            let decoded = Yaml.decodeEither' encoded :: Either Yaml.ParseException PartialConfig
-            case decoded of
-                Left err -> fail $ "Failed to decode: " ++ show err
-                Right result -> result `shouldBe` pc
-
-        it "round-trips PartialConfig with some fields set" $ do
-            let pcc =
-                    PartialCaptureConfig
-                        { pccPreWindowDuration = Just 25
-                        , pccPostWindowDuration = Nothing
-                        , pccMinContextEvents = Nothing
-                        , pccDetectionRules = Just [RegexRule "CRITICAL"]
-                        }
-            let pc = PartialConfig{pcCapture = Just pcc}
-            let encoded = Yaml.encode pc
-            let decoded = Yaml.decodeEither' encoded :: Either Yaml.ParseException PartialConfig
-            case decoded of
-                Left err -> fail $ "Failed to decode: " ++ show err
-                Right result -> result `shouldBe` pc
-
-        it "round-trips empty PartialConfig" $ do
-            let pc = PartialConfig{pcCapture = Nothing}
-            let encoded = Yaml.encode pc
-            let decoded = Yaml.decodeEither' encoded :: Either Yaml.ParseException PartialConfig
-            case decoded of
-                Left err -> fail $ "Failed to decode: " ++ show err
-                Right result -> result `shouldBe` pc
-
-        it "round-trips PartialCaptureConfig with only rules" $ do
-            let pcc =
-                    PartialCaptureConfig
-                        { pccPreWindowDuration = Nothing
-                        , pccPostWindowDuration = Nothing
-                        , pccMinContextEvents = Nothing
-                        , pccDetectionRules = Just [RegexRule "EXCEPTION"]
-                        }
-            let encoded = Yaml.encode pcc
-            let decoded = Yaml.decodeEither' encoded :: Either Yaml.ParseException PartialCaptureConfig
-            case decoded of
-                Left err -> fail $ "Failed to decode: " ++ show err
-                Right result -> result `shouldBe` pcc
 
     describe "findProjectRoot" $ do
         it "finds .git in current directory" $ do
@@ -426,98 +234,6 @@ configTests = do
                     Just projInfo -> do
                         cpiPath projInfo `shouldBe` (tmpDir </> ".spanshot.yaml")
                         cpiExists projInfo `shouldBe` True
-
-    describe "loadConfigFrom (hierarchical loading)" $ do
-        it "returns default config when no config files exist" $ do
-            withSystemTempDirectory "spanshot-test" $ \tmpDir -> do
-                -- No .git, no config files
-                (config, warnings) <- loadConfigFrom tmpDir
-                config `shouldBe` defaultConfig
-                warnings `shouldBe` []
-
-        it "loads project config and merges with defaults" $ do
-            withSystemTempDirectory "spanshot-test" $ \tmpDir -> do
-                createDirectory (tmpDir </> ".git")
-                -- Create project config with partial override
-                writeFile
-                    (tmpDir </> ".spanshot.yaml")
-                    "capture:\n  pre_window_duration: 30\n"
-                (config, warnings) <- loadConfigFrom tmpDir
-                warnings `shouldBe` []
-                -- Pre-window should be overridden
-                ccPreWindowDuration (capture config) `shouldBe` 30
-                -- Other fields should remain as defaults
-                ccPostWindowDuration (capture config) `shouldBe` ccPostWindowDuration (capture defaultConfig)
-                ccMinContextEvents (capture config) `shouldBe` ccMinContextEvents (capture defaultConfig)
-
-        it "project config overrides all specified fields" $ do
-            withSystemTempDirectory "spanshot-test" $ \tmpDir -> do
-                createDirectory (tmpDir </> ".git")
-                writeFile
-                    (tmpDir </> ".spanshot.yaml")
-                    ( unlines
-                        [ "capture:"
-                        , "  pre_window_duration: 20"
-                        , "  post_window_duration: 15"
-                        , "  min_context_events: 25"
-                        , "  detection_rules:"
-                        , "    - regex_pattern: \"FATAL\""
-                        ]
-                    )
-                (config, warnings) <- loadConfigFrom tmpDir
-                warnings `shouldBe` []
-                ccPreWindowDuration (capture config) `shouldBe` 20
-                ccPostWindowDuration (capture config) `shouldBe` 15
-                ccMinContextEvents (capture config) `shouldBe` 25
-                ccDetectionRules (capture config) `shouldBe` [RegexRule "FATAL"]
-
-        it "handles invalid project config gracefully (uses defaults with warning)" $ do
-            withSystemTempDirectory "spanshot-test" $ \tmpDir -> do
-                createDirectory (tmpDir </> ".git")
-                -- Create invalid YAML
-                writeFile (tmpDir </> ".spanshot.yaml") "invalid: yaml: content: ["
-                (config, warnings) <- loadConfigFrom tmpDir
-                -- Should fall back to defaults
-                config `shouldBe` defaultConfig
-                -- Should have a warning about the parse failure
-                length warnings `shouldBe` 1
-                case warnings of
-                    [ConfigParseWarning path _] -> path `shouldBe` (tmpDir </> ".spanshot.yaml")
-                    _ -> fail "Expected a single ConfigParseWarning"
-
-        it "validates merged config and returns validation warning for invalid values" $ do
-            withSystemTempDirectory "spanshot-test" $ \tmpDir -> do
-                createDirectory (tmpDir </> ".git")
-                -- Create config with invalid value (negative duration)
-                writeFile
-                    (tmpDir </> ".spanshot.yaml")
-                    "capture:\n  pre_window_duration: -10\n"
-                (config, warnings) <- loadConfigFrom tmpDir
-                -- Should fall back to defaults due to validation failure
-                config `shouldBe` defaultConfig
-                -- Should have a validation warning
-                length warnings `shouldBe` 1
-                case warnings of
-                    [ConfigValidationWarning _ msg] ->
-                        msg `shouldSatisfy` ("non-negative" `isInfixOf`)
-                    _ -> fail "Expected a single ConfigValidationWarning"
-
-        it "validates merged config and returns validation warning for empty rules" $ do
-            withSystemTempDirectory "spanshot-test" $ \tmpDir -> do
-                createDirectory (tmpDir </> ".git")
-                -- Create config with empty detection rules
-                writeFile
-                    (tmpDir </> ".spanshot.yaml")
-                    "capture:\n  detection_rules: []\n"
-                (config, warnings) <- loadConfigFrom tmpDir
-                -- Should fall back to defaults due to validation failure
-                config `shouldBe` defaultConfig
-                -- Should have a validation warning
-                length warnings `shouldBe` 1
-                case warnings of
-                    [ConfigValidationWarning _ msg] ->
-                        msg `shouldSatisfy` ("empty" `isInfixOf`)
-                    _ -> fail "Expected a single ConfigValidationWarning"
 
     describe "initConfigFile" $ do
         it "creates config file at specified path" $ do

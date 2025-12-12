@@ -1,11 +1,12 @@
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DerivingVia #-}
 {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
 
 {-# HLINT ignore "Use newtype instead of data" #-}
 
 module Types (
     CollectEvent (..),
-    CollectOptions (pollIntervalMs),
+    CollectOptions (pollIntervalMs, oneShot),
     mkCollectOptions,
     defaultCollectOptions,
     maxPollIntervalMs,
@@ -13,9 +14,9 @@ module Types (
     DetectionRule (RegexRule, regexPattern),
     CompiledRule (..),
     SpanShot (..),
-    CaptureOptions (preWindowDuration, postWindowDuration, minContextEvents, detectionRules, compiledRules),
-    mkCaptureOptions,
+    CaptureOptions (CaptureOptions, preWindowDuration, postWindowDuration, minContextEvents, detectionRules, compiledRules, inactivityTimeout),
     defaultCaptureOptions,
+    compileDetectionRules,
     ActiveCapture (..),
     CaptureState (..),
     initialCaptureState,
@@ -23,6 +24,7 @@ module Types (
     spanShotFromSeq,
 ) where
 
+import Autodocodec (HasCodec (..), object, requiredField, (.=))
 import Data.Aeson (FromJSON (parseJSON), Options (fieldLabelModifier), ToJSON (toJSON), camelTo2, defaultOptions, genericParseJSON, genericToJSON)
 import Data.Foldable (toList)
 import Data.Sequence (Seq)
@@ -55,8 +57,12 @@ instance FromJSON CollectEvent where
                 { fieldLabelModifier = camelTo2 '_'
                 }
 
-newtype CollectOptions = CollectOptions
+data CollectOptions = CollectOptions
     { pollIntervalMs :: Int
+    , oneShot :: Bool
+    {- ^ When True, exit at EOF instead of polling for new content.
+    Useful for processing static files or testing.
+    -}
     }
     deriving (Show, Eq)
 
@@ -66,21 +72,29 @@ minPollIntervalMs = 10
 maxPollIntervalMs :: Int
 maxPollIntervalMs = 60000
 
-mkCollectOptions :: Int -> Either String CollectOptions
-mkCollectOptions interval
+mkCollectOptions :: Int -> Bool -> Either String CollectOptions
+mkCollectOptions interval oneShotVal
     | interval < minPollIntervalMs = Left $ "pollIntervalMs must be at least " <> show minPollIntervalMs <> " milliseconds"
     | interval > maxPollIntervalMs = Left $ "pollIntervalMs must be at most " <> show maxPollIntervalMs <> " milliseconds (1 minute)"
-    | otherwise = Right $ CollectOptions{pollIntervalMs = interval}
+    | otherwise = Right $ CollectOptions{pollIntervalMs = interval, oneShot = oneShotVal}
 
 defaultCollectOptions :: CollectOptions
 defaultCollectOptions =
     CollectOptions
         { pollIntervalMs = 150
+        , oneShot = False
         }
 
 data DetectionRule
     = RegexRule {regexPattern :: !String}
     deriving (Show, Eq, Generic)
+
+instance HasCodec DetectionRule where
+    codec =
+        object "DetectionRule" $
+            RegexRule
+                <$> requiredField "regex_pattern" "Regex pattern to match against log lines"
+                    .= regexPattern
 
 instance ToJSON DetectionRule where
     toJSON =
@@ -142,6 +156,10 @@ instance FromJSON SpanShot where
 
 The 'detectionRules' field stores the original rules for serialization,
 while 'compiledRules' stores pre-compiled versions for efficient matching.
+
+The 'inactivityTimeout' specifies how long to wait for new events before
+flushing pending captures. This enables processing of static files where
+all events are read instantly with similar timestamps.
 -}
 data CaptureOptions = CaptureOptions
     { preWindowDuration :: !NominalDiffTime
@@ -149,43 +167,9 @@ data CaptureOptions = CaptureOptions
     , minContextEvents :: !Int
     , detectionRules :: ![DetectionRule]
     , compiledRules :: ![CompiledRule]
+    , inactivityTimeout :: !NominalDiffTime
     }
     deriving (Show, Eq)
-
-{- | Create capture options with validation and regex pre-compilation.
-
-This function validates all inputs and pre-compiles regex patterns for efficient
-matching. If any regex pattern is invalid, returns Left with an error message.
-
-Pre-compiling regexes is important for performance: without it, each event would
-require re-compiling all regex patterns, which is expensive (O(m) per pattern
-where m is the pattern length). With pre-compilation, matching is O(n) where n
-is the input line length.
--}
-mkCaptureOptions ::
-    NominalDiffTime ->
-    NominalDiffTime ->
-    Int ->
-    [DetectionRule] ->
-    Either String CaptureOptions
-mkCaptureOptions preWin postWin minCtx rules
-    | preWin < 0 = Left "preWindowDuration must be non-negative (>= 0 seconds)"
-    | postWin < 0 = Left "postWindowDuration must be non-negative (>= 0 seconds)"
-    | preWin == 0 && postWin == 0 = Left "At least one of preWindowDuration or postWindowDuration must be positive (> 0)"
-    | minCtx < 1 = Left "minContextEvents must be at least 1"
-    | null rules = Left "detectionRules cannot be empty"
-    | otherwise =
-        case compileDetectionRules rules of
-            Left err -> Left err
-            Right compiled ->
-                Right $
-                    CaptureOptions
-                        { preWindowDuration = preWin
-                        , postWindowDuration = postWin
-                        , minContextEvents = minCtx
-                        , detectionRules = rules
-                        , compiledRules = compiled
-                        }
 
 {- | Compile all detection rules, returning an error if any regex is invalid.
 
@@ -211,14 +195,17 @@ compileRegex = makeRegexM
 defaultCaptureOptions :: CaptureOptions
 defaultCaptureOptions =
     let defaultRules = [RegexRule "ERROR"]
-        -- "ERROR" is a valid regex, so this is safe
-        Right defaultCompiled = compileDetectionRules defaultRules
+        defaultCompiled = case compileDetectionRules defaultRules of
+            Right compiled -> compiled
+            Left e -> error $ "defaultCaptureOptions: invalid default rule: " <> e
+        defaultPostWindow = 5
      in CaptureOptions
             { preWindowDuration = 5
-            , postWindowDuration = 5
+            , postWindowDuration = defaultPostWindow
             , minContextEvents = 10
             , detectionRules = defaultRules
             , compiledRules = defaultCompiled
+            , inactivityTimeout = 2 * defaultPostWindow
             }
 
 {- | Active capture state during post-window collection.

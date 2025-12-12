@@ -2,6 +2,8 @@
   perSystem = {pkgs, ...}: {
     packages = let
       hsPkgs = pkgs.haskell.packages.ghc912.extend (final: prev: {
+        # Override autodocodec with version from Hackage (required by opt-env-conf and hs-spanshot)
+        autodocodec = final.callPackage ./autodocodec.nix {};
         # Override opt-env-conf with version from Hackage (nixpkgs has 0.9, we need 0.13)
         opt-env-conf = final.callPackage ./opt-env-conf.nix {};
         hs-spanshot = final.callCabal2nix "hs-spanshot" ../hs-spanshot {};

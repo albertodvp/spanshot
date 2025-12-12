@@ -29,6 +29,18 @@ bin-path:
 collect-file FILE:
     $(just bin-path) collect --logfile {{FILE}}
 
+# Run full pipeline on a file
+run-file FILE:
+    $(just bin-path) run --logfile {{FILE}}
+
+# Run collect | capture pipeline
+pipeline FILE:
+    $(just bin-path) collect --logfile {{FILE}} | $(just bin-path) capture --regex-pattern ERROR
+
+# Show current configuration
+config-show:
+    $(just bin-path) config show
+
 # Generate golden files from current binary output (overwrites existing goldens)
 generate-golden: build
     #!/usr/bin/env bash
@@ -56,3 +68,11 @@ clean:
 clean-test:
     rm -f test/golden/*.actual
     find /tmp -name 'stream_test*.log' -delete 2>/dev/null || true
+
+# Run tests with coverage
+test-coverage: build
+    cabal test --enable-coverage hs-spanshot-test
+
+# Generate HTML coverage report
+coverage-report: test-coverage
+    hpc report dist-newstyle/build/*/ghc-*/hs-spanshot-*/t/hs-spanshot-test/hs-spanshot-test/hpc/vanilla/tix/hs-spanshot-test/hs-spanshot-test.tix

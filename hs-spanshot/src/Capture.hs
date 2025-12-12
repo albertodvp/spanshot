@@ -1,17 +1,50 @@
 module Capture (
+    -- * Detection
     detectError,
     detectErrorCompiled,
     runAllDetectors,
     runAllDetectorsCompiled,
+
+    -- * State management
     addToPreWindow,
     processEvent,
+    flushPendingCaptures,
+
+    -- * Streaming capture
+
+    -- ** Batch processing (finite streams)
+
+    {- | Use 'captureFromStream' for processing complete log files where the
+    stream has a definite end. This version is pure and works with any 'Monad'.
+
+    __Warning__: Any pending capture at stream end will be dropped. Not suitable
+    for live/continuous log monitoring.
+    -}
+    captureFromStream,
+
+    -- ** Live monitoring (infinite streams)
+
+    {- | Use 'captureFromCaptureInput' with 'withInactivityTimeout' for monitoring
+    live log streams where the source may stop emitting events (e.g., application
+    crash, idle periods). The inactivity timeout ensures pending captures are
+    flushed even when no new events arrive.
+
+    This is the recommended API for production monitoring scenarios.
+    -}
+    captureFromCaptureInput,
+    CaptureInput (..),
+    withInactivityTimeout,
 ) where
 
+import Control.Monad.IO.Class (liftIO)
 import Data.Foldable (toList)
 import Data.Sequence (Seq)
 import Data.Sequence qualified as Seq
 import Data.Text qualified as T
-import Data.Time (addUTCTime, diffUTCTime)
+import Data.Time (NominalDiffTime, UTCTime, addUTCTime, diffUTCTime, getCurrentTime)
+import Streaming (Of, Stream, lift)
+import Streaming.Prelude qualified as S
+import System.Timeout (timeout)
 import Text.Regex.TDFA (matchTest, (=~))
 import Text.Regex.TDFA.Text ()
 
@@ -23,6 +56,7 @@ import Types (
     CompiledRule (..),
     DetectionRule (RegexRule),
     SpanShot (SpanShot, capturedAtUtc, detectedBy, errorEvent, postWindow, preWindow),
+    initialCaptureState,
  )
 
 {- | Check if a detection rule matches a collect event.
@@ -255,3 +289,205 @@ processEvent opts state newEvent =
                 }
      in
         (newState, emittedShots)
+
+{- | Flush any pending capture, emitting a SpanShot immediately.
+
+This function is used when an inactivity timeout occurs - if there's an active
+capture that hasn't completed its post-window naturally (due to lack of new events),
+we emit a SpanShot with whatever post-window events have been collected so far.
+
+Returns 'Nothing' if there's no active capture to flush.
+Returns 'Just SpanShot' with the pending capture's data, using the provided
+timestamp as the 'capturedAtUtc'.
+
+Example:
+
+@
+-- After inactivity timeout, flush pending captures
+case flushPendingCaptures state currentTime of
+    Nothing -> pure ()  -- No pending capture
+    Just shot -> emit shot
+@
+-}
+flushPendingCaptures :: CaptureState -> UTCTime -> Maybe SpanShot
+flushPendingCaptures state flushTime =
+    case csActiveCapture state of
+        Nothing -> Nothing
+        Just cap ->
+            Just
+                SpanShot
+                    { errorEvent = acErrorEvent cap
+                    , preWindow = toList (acPreWindowSnapshot cap)
+                    , postWindow = toList (acPostEvents cap)
+                    , detectedBy = acDetectedBy cap
+                    , capturedAtUtc = flushTime
+                    }
+
+{- | Transform a stream of CollectEvents into a stream of SpanShots.
+
+__Use case__: Batch processing of complete, finite log files.
+
+This function maintains internal state and emits SpanShots when errors are
+detected and post-windows complete. It works with any 'Monad', making it
+suitable for pure testing and processing of already-complete log files.
+
+The function processes events one by one, threading state through the stream,
+and emitting a SpanShot only when a post-window duration has elapsed after
+an error detection.
+
+__Warning__: When the input stream ends, any active capture that hasn't completed
+its post-window will be dropped. This means:
+
+* If an error is detected near the end of the file, it may be lost
+* For live monitoring where the source may crash or go idle, use
+  'captureFromCaptureInput' with 'withInactivityTimeout' instead
+
+For live/continuous log monitoring, use 'captureFromCaptureInput' which
+handles 'InactivityFlush' signals and flushes pending captures.
+
+Example:
+
+@
+-- Processing a complete log file (batch mode)
+let events = collectFromFile opts "app.log"
+let captureOpts = defaultCaptureOptions { detectionRules = [RegexRule "ERROR"] }
+S.mapM_ printSpanShot $ captureFromStream captureOpts events
+@
+
+Time Complexity: O(1) per event (delegates to processEvent)
+Space Complexity: O(n) where n = max(preWindow size, postWindow size)
+-}
+captureFromStream ::
+    (Monad m) =>
+    CaptureOptions ->
+    Stream (Of CollectEvent) m r ->
+    Stream (Of SpanShot) m r
+captureFromStream opts = go initialCaptureState
+  where
+    go state stream = do
+        result <- lift $ S.next stream
+        case result of
+            Left r -> pure r
+            Right (event, rest) ->
+                let (newState, maybeShot) = processEvent opts state event
+                 in case maybeShot of
+                        Nothing -> go newState rest
+                        Just shot -> do
+                            S.yield shot
+                            go newState rest
+
+{- | Input type for capture stream processing with timeout support.
+
+This type wraps either a real log event or a flush signal triggered by
+inactivity timeout. The flush signal causes any pending captures to be
+emitted immediately, even if their post-window hasn't naturally completed.
+-}
+data CaptureInput
+    = -- | A real log event to process
+      LogEvent !CollectEvent
+    | -- | Flush signal triggered by inactivity timeout
+      InactivityFlush
+    deriving (Show, Eq)
+
+{- | Wrap an event stream with inactivity timeout detection.
+
+This combinator monitors the time between events. When no new event arrives
+within the specified timeout duration, it yields an 'InactivityFlush' signal,
+then continues waiting for more events.
+
+The timeout resets each time an event is received.
+
+Implementation: Uses 'System.Timeout.timeout' to race between getting the
+next event and the timeout. This works because we're in IO.
+
+Example:
+
+@
+let events = collectFromFile opts "app.log"
+let timedEvents = withInactivityTimeout 10 events  -- 10 second timeout
+S.mapM_ handleInput timedEvents
+@
+
+Note: This requires the underlying stream to be in IO, not a pure monad.
+-}
+withInactivityTimeout ::
+    NominalDiffTime ->
+    Stream (Of CollectEvent) IO r ->
+    Stream (Of CaptureInput) IO r
+withInactivityTimeout timeoutDuration stream = S.unfoldr go (stream, False)
+  where
+    timeoutMicros = floor (timeoutDuration * 1_000_000) :: Int
+
+    go (s, flushedAlready) = do
+        -- Try to get next event with timeout
+        result <- timeout timeoutMicros (S.next s)
+        case result of
+            Nothing
+                | flushedAlready ->
+                    -- Already flushed, just wait again without emitting
+                    go (s, True)
+                | otherwise ->
+                    -- First timeout - emit flush signal
+                    pure $ Right (InactivityFlush, (s, True))
+            Just (Left r) ->
+                -- Stream ended
+                pure $ Left r
+            Just (Right (event, rest)) ->
+                -- Got an event - reset flush flag
+                pure $ Right (LogEvent event, (rest, False))
+
+{- | Transform a stream of 'CaptureInput' into SpanShots.
+
+__Use case__: Live monitoring of continuous log streams.
+
+This is the recommended API for production monitoring scenarios. Unlike
+'captureFromStream', this function handles 'InactivityFlush' signals to
+emit pending captures when no new events arrive within the timeout period.
+
+This ensures that:
+
+* If the monitored application crashes, pending error captures are still emitted
+* If the application goes idle, captures don't hang indefinitely
+* Error context is always delivered, even without subsequent log events
+
+Use 'withInactivityTimeout' to wrap the input stream with timeout detection,
+then pass it to this function.
+
+Example:
+
+@
+-- Live monitoring with 30-second inactivity timeout
+let events = collectFromStdin opts
+let timedEvents = withInactivityTimeout 30 events
+S.mapM_ sendToBackend $ captureFromCaptureInput captureOpts timedEvents
+@
+-}
+captureFromCaptureInput ::
+    CaptureOptions ->
+    Stream (Of CaptureInput) IO r ->
+    Stream (Of SpanShot) IO r
+captureFromCaptureInput opts = go initialCaptureState
+  where
+    go state stream = do
+        result <- lift $ S.next stream
+        case result of
+            Left r -> pure r
+            Right (input, rest) ->
+                case input of
+                    LogEvent event ->
+                        let (newState, maybeShot) = processEvent opts state event
+                         in case maybeShot of
+                                Nothing -> go newState rest
+                                Just shot -> do
+                                    S.yield shot
+                                    go newState rest
+                    InactivityFlush -> do
+                        -- Flush pending capture if any
+                        flushTime <- liftIO getCurrentTime
+                        case flushPendingCaptures state flushTime of
+                            Nothing -> go state rest
+                            Just shot -> do
+                                S.yield shot
+                                -- Clear the active capture after flushing
+                                let newState = state{csActiveCapture = Nothing}
+                                go newState rest
