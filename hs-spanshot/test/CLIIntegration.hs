@@ -16,10 +16,10 @@ module Main (main) where
 -- - `run`: optimized pipeline (collect → capture internally), reads from stdin or files
 --
 -- Commands can be composed via pipes:
---   spanshot collect --logfile app.log | spanshot capture --pre-window 5
+--   spanshot collect --collect-logfile app.log | spanshot capture --capture-pre-window 5
 --
 -- Or run as optimized pipeline:
---   spanshot run --logfile app.log --pre-window 5
+--   spanshot run --collect-logfile app.log --capture-pre-window 5
 
 import Control.Exception (bracket)
 import Control.Monad (replicateM)
@@ -143,14 +143,14 @@ collectConfigTests binary =
                         , "  detection_rules:"
                         , "    - regex_pattern: ERROR"
                         ]
-                -- Run from tmpDir so config is found (--one-shot to exit after reading)
-                (exitCode, stdout, _stderr) <- readProcessWithExitCodeInDir tmpDir binary ["collect", "--one-shot"] ""
+                -- Run from tmpDir so config is found (--collect-one-shot to exit after reading)
+                (exitCode, stdout, _stderr) <- readProcessWithExitCodeInDir tmpDir binary ["collect", "--collect-one-shot"] ""
                 exitCode @?= ExitSuccess
                 let outputLines = filter (not . null) $ lines stdout
                 length outputLines @?= 2
-        , testCase "collect --logfile overrides config logfiles" $
+        , testCase "collect --collect-logfile overrides config logfiles" $
             withSystemTempDirectory "spanshot-test" $ \tmpDir -> do
-                -- Create config with one logfile, but use --logfile to specify another
+                -- Create config with one logfile, but use --collect-logfile to specify another
                 let configPath = tmpDir </> ".spanshot.yaml"
                 let configLogPath = tmpDir </> "config.log"
                 let cliLogPath = tmpDir </> "cli.log"
@@ -165,8 +165,8 @@ collectConfigTests binary =
                         , "  detection_rules:"
                         , "    - regex_pattern: ERROR"
                         ]
-                -- --logfile should override config (--one-shot to exit after reading)
-                (exitCode, stdout, _stderr) <- readProcessWithExitCodeInDir tmpDir binary ["collect", "--logfile", cliLogPath, "--one-shot"] ""
+                -- --collect-logfile should override config (--collect-one-shot to exit after reading)
+                (exitCode, stdout, _stderr) <- readProcessWithExitCodeInDir tmpDir binary ["collect", "--collect-logfile", cliLogPath, "--collect-one-shot"] ""
                 exitCode @?= ExitSuccess
                 let outputLines = filter (not . null) $ lines stdout
                 length outputLines @?= 2
@@ -188,8 +188,8 @@ collectConfigTests binary =
                         , "  detection_rules:"
                         , "    - regex_pattern: ERROR"
                         ]
-                -- Run from tmpDir (--one-shot to exit after reading)
-                (exitCode, stdout, _stderr) <- readProcessWithExitCodeInDir tmpDir binary ["collect", "--one-shot"] ""
+                -- Run from tmpDir (--collect-one-shot to exit after reading)
+                (exitCode, stdout, _stderr) <- readProcessWithExitCodeInDir tmpDir binary ["collect", "--collect-one-shot"] ""
                 exitCode @?= ExitSuccess
                 let outputLines = filter (not . null) $ lines stdout
                 length outputLines @?= 1
@@ -207,12 +207,12 @@ captureCommandTests binary =
             (exitCode, stdout, _stderr) <- readProcessWithExitCode binary ["capture", "--help"] ""
             exitCode @?= ExitSuccess
             -- Should have capture flags
-            assertBool "Help mentions pre-window" $ "pre-window" `isInfixOf` stdout
-            assertBool "Help mentions post-window" $ "post-window" `isInfixOf` stdout
-            assertBool "Help mentions regex-pattern" $ "regex-pattern" `isInfixOf` stdout
+            assertBool "Help mentions capture-pre-window" $ "capture-pre-window" `isInfixOf` stdout
+            assertBool "Help mentions capture-post-window" $ "capture-post-window" `isInfixOf` stdout
+            assertBool "Help mentions capture-regex-pattern" $ "capture-regex-pattern" `isInfixOf` stdout
             -- Should NOT have collect-specific flags
-            assertBool "Help should not mention logfile" $ not ("logfile" `isInfixOf` stdout)
-            assertBool "Help should not mention poll-interval" $ not ("poll-interval" `isInfixOf` stdout)
+            assertBool "Help should not mention collect-logfile" $ not ("collect-logfile" `isInfixOf` stdout)
+            assertBool "Help should not mention collect-poll-interval" $ not ("collect-poll-interval" `isInfixOf` stdout)
         ]
 
 captureStdinTests :: FilePath -> TestTree
@@ -223,14 +223,14 @@ captureStdinTests binary =
             -- Create valid CollectEvent JSONL (using our actual field names)
             let collectEvent =
                     "{\"source\":\"test.log\",\"session_order_id\":1,\"line\":\"ERROR something failed\",\"read_at_utc\":\"2025-01-01T00:00:00Z\"}"
-            (exitCode, _stdout, stderr) <- readProcessWithExitCode binary ["capture", "--regex-pattern", "ERROR"] collectEvent
+            (exitCode, _stdout, stderr) <- readProcessWithExitCode binary ["capture", "--capture-regex-pattern", "ERROR"] collectEvent
             -- Should not fail parsing
             case exitCode of
                 ExitSuccess -> pure ()
                 ExitFailure _ -> assertBool "Should not have parse error" $ not ("parse" `isInfixOf` stderr)
         , testCase "capture fails on invalid JSONL input" $ do
             let invalidInput = "this is not json\n"
-            (exitCode, _stdout, _stderr) <- readProcessWithExitCode binary ["capture", "--regex-pattern", "ERROR"] invalidInput
+            (exitCode, _stdout, _stderr) <- readProcessWithExitCode binary ["capture", "--capture-regex-pattern", "ERROR"] invalidInput
             -- TODO: Currently should fail, proper error handling to be added later
             case exitCode of
                 ExitFailure _ -> pure () -- Expected
@@ -247,7 +247,7 @@ captureStdinTests binary =
             (exitCode, stdout, _stderr) <-
                 readProcessWithExitCode
                     binary
-                    ["capture", "--regex-pattern", "ERROR", "--pre-window", "5", "--post-window", "2", "--inactivity-timeout", "3"]
+                    ["capture", "--capture-regex-pattern", "ERROR", "--capture-pre-window", "5", "--capture-post-window", "2", "--capture-inactivity-timeout", "3"]
                     events
             exitCode @?= ExitSuccess
             -- With proper timing, should produce SpanShot output
@@ -268,19 +268,19 @@ runCommandTests binary =
             (exitCode, stdout, _stderr) <- readProcessWithExitCode binary ["run", "--help"] ""
             exitCode @?= ExitSuccess
             -- Should have collect flags
-            assertBool "Help mentions logfile" $ "logfile" `isInfixOf` stdout
-            assertBool "Help mentions poll-interval" $ "poll-interval" `isInfixOf` stdout
+            assertBool "Help mentions collect-logfile" $ "collect-logfile" `isInfixOf` stdout
+            assertBool "Help mentions collect-poll-interval" $ "collect-poll-interval" `isInfixOf` stdout
             -- Should have capture flags
-            assertBool "Help mentions pre-window" $ "pre-window" `isInfixOf` stdout
-            assertBool "Help mentions post-window" $ "post-window" `isInfixOf` stdout
-            assertBool "Help mentions regex-pattern" $ "regex-pattern" `isInfixOf` stdout
-        , testCase "run with --logfile processes file" $ do
+            assertBool "Help mentions capture-pre-window" $ "capture-pre-window" `isInfixOf` stdout
+            assertBool "Help mentions capture-post-window" $ "capture-post-window" `isInfixOf` stdout
+            assertBool "Help mentions capture-regex-pattern" $ "capture-regex-pattern" `isInfixOf` stdout
+        , testCase "run with --collect-logfile processes file" $ do
             -- run should work with a logfile and produce SpanShot output
-            -- --one-shot ensures the process exits after reading the file
+            -- --collect-one-shot ensures the process exits after reading the file
             (exitCode, _stdout, stderr) <-
                 readProcessWithExitCode
                     binary
-                    ["run", "--logfile", "test/fixtures/small.log", "--regex-pattern", "ERROR", "--one-shot"]
+                    ["run", "--collect-logfile", "test/fixtures/small.log", "--capture-regex-pattern", "ERROR", "--collect-one-shot"]
                     ""
             case exitCode of
                 ExitSuccess -> pure ()
@@ -289,7 +289,7 @@ runCommandTests binary =
             (exitCode, _stdout, stderr) <-
                 readProcessWithExitCode
                     binary
-                    ["run", "--logfile", "test/fixtures/nonexistent.log", "--regex-pattern", "ERROR"]
+                    ["run", "--collect-logfile", "test/fixtures/nonexistent.log", "--capture-regex-pattern", "ERROR"]
                     ""
             case exitCode of
                 ExitFailure _ -> assertBool "Error mentions file" $ "nonexistent.log" `isInfixOf` stderr
@@ -305,7 +305,7 @@ runStdinTests binary =
             (exitCode, _stdout, _stderr) <-
                 readProcessWithExitCode
                     binary
-                    ["run", "--regex-pattern", "ERROR", "--pre-window", "1", "--post-window", "1", "--inactivity-timeout", "2"]
+                    ["run", "--capture-regex-pattern", "ERROR", "--capture-pre-window", "1", "--capture-post-window", "1", "--capture-inactivity-timeout", "2"]
                     input
             exitCode @?= ExitSuccess
         , testCase "run with config logfiles uses files, not stdin" $
@@ -323,9 +323,9 @@ runStdinTests binary =
                         , "    - regex_pattern: ERROR"
                         ]
                 -- Even with stdin input, should use config logfiles
-                -- --one-shot ensures the process exits after reading the file
+                -- --collect-one-shot ensures the process exits after reading the file
                 let stdinInput = "this should be ignored\n"
-                (exitCode, _stdout, _stderr) <- readProcessWithExitCodeInDir tmpDir binary ["run", "--one-shot"] stdinInput
+                (exitCode, _stdout, _stderr) <- readProcessWithExitCodeInDir tmpDir binary ["run", "--collect-one-shot"] stdinInput
                 -- Should succeed (processes config logfile, ignores stdin)
                 exitCode @?= ExitSuccess
         ]
@@ -347,7 +347,7 @@ pipelineTests binary =
             (exitCode, _stdout, _stderr) <-
                 readProcessWithExitCode
                     binary
-                    ["capture", "--regex-pattern", "ERROR", "--pre-window", "2", "--post-window", "2", "--inactivity-timeout", "3"]
+                    ["capture", "--capture-regex-pattern", "ERROR", "--capture-pre-window", "2", "--capture-post-window", "2", "--capture-inactivity-timeout", "3"]
                     collectOutputStr
             exitCode @?= ExitSuccess
         ]
@@ -393,7 +393,7 @@ errorHandlingTests binary =
             (exitCode, _stdout, stderr) <-
                 readProcessWithExitCode
                     binary
-                    ["collect", "--logfile", "test/fixtures/nonexistent.log"]
+                    ["collect", "--collect-logfile", "test/fixtures/nonexistent.log"]
                     ""
             case exitCode of
                 ExitFailure _ -> assertBool "Error message mentions file" $ "nonexistent.log" `isInfixOf` stderr
@@ -418,8 +418,8 @@ errorHandlingTests binary =
                         ]
                 writeFile (tmpDir </> "existing.log") "some content\n"
                 -- Should fail because missing.log doesn't exist
-                -- --one-shot ensures clean exit in case of unexpected success
-                (exitCode, _stdout, stderr) <- readProcessWithExitCodeInDir tmpDir binary ["collect", "--one-shot"] ""
+                -- --collect-one-shot ensures clean exit in case of unexpected success
+                (exitCode, _stdout, stderr) <- readProcessWithExitCodeInDir tmpDir binary ["collect", "--collect-one-shot"] ""
                 case exitCode of
                     ExitFailure _ -> assertBool "Error mentions missing file" $ "missing.log" `isInfixOf` stderr
                     ExitSuccess -> assertFailure "Expected failure for missing config logfile"
@@ -443,13 +443,13 @@ helpTests binary =
         , testCase "collect --help shows collect flags" $ do
             (exitCode, stdout, _stderr) <- readProcessWithExitCode binary ["collect", "--help"] ""
             exitCode @?= ExitSuccess
-            assertBool "Help mentions logfile" $ "logfile" `isInfixOf` stdout
-            assertBool "Help mentions poll-interval" $ "poll-interval" `isInfixOf` stdout
-            assertBool "Help mentions one-shot" $ "one-shot" `isInfixOf` stdout
+            assertBool "Help mentions collect-logfile" $ "collect-logfile" `isInfixOf` stdout
+            assertBool "Help mentions collect-poll-interval" $ "collect-poll-interval" `isInfixOf` stdout
+            assertBool "Help mentions collect-one-shot" $ "collect-one-shot" `isInfixOf` stdout
         , testCase "run --help shows one-shot flag" $ do
             (exitCode, stdout, _stderr) <- readProcessWithExitCode binary ["run", "--help"] ""
             exitCode @?= ExitSuccess
-            assertBool "Help mentions one-shot" $ "one-shot" `isInfixOf` stdout
+            assertBool "Help mentions collect-one-shot" $ "collect-one-shot" `isInfixOf` stdout
         ]
 
 -------------------------------------------------------------------------------
@@ -460,7 +460,7 @@ helpTests binary =
 runCollectWithFile :: FilePath -> FilePath -> Int -> IO BL.ByteString
 runCollectWithFile binary logfile expectedLines = do
     let timeoutMicroseconds = if expectedLines > 100 then 10_000_000 else 3_000_000
-    let procSpec = (proc binary ["collect", "--logfile", logfile]){std_out = CreatePipe, std_err = Inherit}
+    let procSpec = (proc binary ["collect", "--collect-logfile", logfile]){std_out = CreatePipe, std_err = Inherit}
     bracket
         (createProcess procSpec)
         (\(_, _, _, ph) -> terminateProcess ph >> waitForProcess ph >> pure ())
@@ -481,7 +481,7 @@ runCollectWithFile binary logfile expectedLines = do
 runCollectWithFiles :: FilePath -> [FilePath] -> Int -> IO BL.ByteString
 runCollectWithFiles binary logfiles expectedLines = do
     let timeoutMicroseconds = if expectedLines > 100 then 10_000_000 else 3_000_000
-    let args = "collect" : concatMap (\f -> ["--logfile", f]) logfiles
+    let args = "collect" : concatMap (\f -> ["--collect-logfile", f]) logfiles
     let procSpec = (proc binary args){std_out = CreatePipe, std_err = Inherit}
     bracket
         (createProcess procSpec)

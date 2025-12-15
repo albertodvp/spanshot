@@ -88,45 +88,51 @@ just test
 
 ```bash
 # Tail a log file and stream as JSONL
-spanshot collect --logfile /var/log/app.log
+spanshot collect --collect-logfile /var/log/app.log
 
 # Multiple files
-spanshot collect --logfile app.log --logfile error.log
+spanshot collect --collect-logfile app.log --collect-logfile error.log
+
+# Using environment variable
+SPANSHOT_COLLECT_LOGFILE=/var/log/app.log spanshot collect
 
 # Read from stdin
 cat app.log | spanshot collect
 
 # Filter errors with jq
-spanshot collect --logfile app.log | jq 'select(.line | contains("ERROR"))'
+spanshot collect --collect-logfile app.log | jq 'select(.line | contains("ERROR"))'
 ```
 
 ### Capture: Process JSONL from stdin
 
 ```bash
 # Capture reads JSONL CollectEvents from stdin (output of collect)
-spanshot collect --logfile app.log | spanshot capture --regex-pattern ERROR
+spanshot collect --collect-logfile app.log | spanshot capture --capture-regex-pattern ERROR
 
 # With custom window settings
-spanshot collect --logfile app.log | spanshot capture \
-  --regex-pattern ERROR \
-  --pre-window 10 \
-  --post-window 5
+spanshot collect --collect-logfile app.log | spanshot capture \
+  --capture-regex-pattern ERROR \
+  --capture-pre-window 10 \
+  --capture-post-window 5
 ```
 
 ### Run: Full Pipeline (Collect + Capture)
 
 ```bash
 # Run full pipeline (optimized, no intermediate JSONL)
-spanshot run --logfile app.log --regex-pattern ERROR
+spanshot run --collect-logfile app.log --capture-regex-pattern ERROR
+
+# Using environment variable
+SPANSHOT_COLLECT_LOGFILE=app.log spanshot run --capture-regex-pattern ERROR
 
 # Read from stdin
-cat app.log | spanshot run --regex-pattern ERROR
+cat app.log | spanshot run --capture-regex-pattern ERROR
 
 # Use config file settings
-spanshot run --logfile app.log
+spanshot run --collect-logfile app.log
 ```
 
-> **Note:** The `collect` and `run` commands tail log files continuously (like `tail -f`). The `capture` command reads from stdin and terminates on EOF. Detection rules and window settings can be specified via CLI flags or `.spanshot.yaml` config file. See [Configuration](#configuration).
+> **Note:** The `collect` and `run` commands tail log files continuously (like `tail -f`). The `capture` command reads from stdin and terminates on EOF. Detection rules and window settings can be specified via CLI flags, environment variables, or `.spanshot.yaml` config file. See [Configuration](#configuration).
 
 ## Configuration
 
@@ -171,9 +177,35 @@ capture:
     - regex_pattern: "FATAL"
 ```
 
-**Config Precedence:** CLI flags > project config (`.spanshot.yaml`) > user config (`~/.config/spanshot/config.yaml`) > defaults.
+**Config Precedence:** CLI flags > environment variables > project config (`.spanshot.yaml`) > user config (`~/.config/spanshot/config.yaml`) > defaults.
 
 **Path Resolution:** Relative paths in `collect.logfiles` are resolved relative to the config file location.
+
+### Environment Variables
+
+All settings can be configured via environment variables with the `SPANSHOT_` prefix:
+
+| Environment Variable | CLI Equivalent | Description |
+|---------------------|----------------|-------------|
+| `SPANSHOT_COLLECT_LOGFILE` | `--collect-logfile` | Path to the logfile to process |
+| `SPANSHOT_COLLECT_POLL_INTERVAL` | `--collect-poll-interval` | Poll interval in milliseconds |
+| `SPANSHOT_COLLECT_ONE_SHOT` | `--collect-one-shot` | Exit after reading existing content (true/false) |
+| `SPANSHOT_CAPTURE_PRE_WINDOW` | `--capture-pre-window` | Pre-window duration in seconds |
+| `SPANSHOT_CAPTURE_POST_WINDOW` | `--capture-post-window` | Post-window duration in seconds |
+| `SPANSHOT_CAPTURE_MIN_CONTEXT` | `--capture-min-context` | Minimum context events to capture |
+| `SPANSHOT_CAPTURE_INACTIVITY_TIMEOUT` | `--capture-inactivity-timeout` | Inactivity timeout in seconds |
+
+**Example:**
+
+```bash
+# Process a log file using environment variables
+SPANSHOT_COLLECT_LOGFILE=/var/log/app.log \
+SPANSHOT_COLLECT_ONE_SHOT=True \
+SPANSHOT_CAPTURE_PRE_WINDOW=10 \
+spanshot run
+```
+
+> **Note:** Boolean environment variables use Haskell's `Read` instance (values: `True` or `False`). Environment variables provide a single value. For multiple log files, use repeated CLI flags (`--collect-logfile`) or the config file.
 
 **Inactivity Timeout:** When no new log events arrive within `inactivity_timeout` seconds, pending captures are flushed immediately. This enables processing of static log files where all events are read instantly. Default is `2 * post_window_duration`. Must be at least as large as `post_window_duration`.
 

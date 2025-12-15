@@ -34,6 +34,7 @@ import OptEnvConf (
     commands,
     conf,
     eitherReader,
+    env,
     help,
     long,
     many,
@@ -47,10 +48,12 @@ import OptEnvConf (
     short,
     str,
     subConfig_,
+    subEnv_,
     switch,
     value,
     withCombinedYamlConfigs,
     withoutConfig,
+    yesNoSwitch,
  )
 import Path (Abs, File, Path)
 import Paths_hs_spanshot (version)
@@ -152,12 +155,15 @@ instance HasParser ConfigInitSettings where
                 )
 
 {- | Settings for collect command.
-Supports multiple logfiles via CLI --logfile flags, config file logfiles,
-or stdin when no logfiles are specified.
+Supports multiple logfiles via CLI --collect-logfile flags, env var SPANSHOT_COLLECT_LOGFILE,
+config file logfiles, or stdin when no logfiles are specified.
+Precedence: CLI > env > config
 -}
 data CollectSettings = CollectSettings
     { collectLogfiles :: [FilePath]
-    -- ^ Logfiles from CLI (overrides config)
+    -- ^ Logfiles from CLI (overrides env and config)
+    , collectEnvLogfile :: Maybe FilePath
+    -- ^ Logfile from env var (overrides config)
     , collectConfigLogfiles :: [FilePath]
     -- ^ Logfiles from config file
     , collectPollIntervalMs :: Int
@@ -170,43 +176,64 @@ data CollectSettings = CollectSettings
 instance HasParser CollectSettings where
     settingsParser =
         CollectSettings
-            -- CLI logfiles (can specify multiple)
+            -- CLI logfiles (can specify multiple via repeated --collect-logfile)
             <$> many
                 ( withoutConfig
                     ( setting
                         [ help "Path to the logfile to tail (can be specified multiple times)"
                         , reader str
-                        , long "logfile"
+                        , long "collect-logfile"
                         , option
                         , metavar "PATH"
                         ]
                     )
                 )
+            -- Env var logfile (single file, overrides config if set)
+            <*> subEnv_
+                "SPANSHOT"
+                ( withoutConfig
+                    ( optional
+                        ( setting
+                            [ help "Path to the logfile to tail (env var, single file)"
+                            , reader str
+                            , env "COLLECT_LOGFILE"
+                            , metavar "PATH"
+                            ]
+                        )
+                    )
+                )
             -- Config file logfiles (from collect.logfiles)
             <*> subConfig_ "collect" collectConfigLogfilesParser
             -- Poll interval (CLI or config)
-            <*> subConfig_
-                "collect"
-                ( setting
-                    [ help "Poll interval in milliseconds"
-                    , reader auto
-                    , long "poll-interval"
-                    , option
-                    , metavar "MS"
-                    , conf "poll_interval_ms"
-                    , value defaultPollIntervalMs
-                    ]
+            <*> subEnv_
+                "SPANSHOT"
+                ( subConfig_
+                    "collect"
+                    ( setting
+                        [ help "Poll interval in milliseconds"
+                        , reader auto
+                        , long "collect-poll-interval"
+                        , env "COLLECT_POLL_INTERVAL"
+                        , option
+                        , metavar "MS"
+                        , conf "poll_interval_ms"
+                        , value defaultPollIntervalMs
+                        ]
+                    )
                 )
             -- One-shot mode (exit at EOF instead of polling)
-            <*> subConfig_
-                "collect"
-                ( setting
-                    [ help "Exit after reading existing content instead of polling for new content"
-                    , switch True
-                    , long "one-shot"
-                    , conf "one_shot"
-                    , value False
-                    ]
+            <*> subEnv_
+                "SPANSHOT"
+                ( subConfig_
+                    "collect"
+                    ( yesNoSwitch
+                        [ help "Exit after reading existing content instead of polling for new content"
+                        , long "collect-one-shot"
+                        , env "COLLECT_ONE_SHOT"
+                        , conf "one_shot"
+                        , value False
+                        ]
+                    )
                 )
 
 -- | Parser for logfiles from config file
@@ -240,10 +267,13 @@ captureOnlySettingsParser =
 
 {- | Settings for run command (full pipeline).
 Combines collect settings (logfiles) with capture settings.
+Precedence for logfiles: CLI > env > config
 -}
 data RunSettings = RunSettings
     { runLogfiles :: [FilePath]
-    -- ^ Logfiles from CLI (overrides config)
+    -- ^ Logfiles from CLI (overrides env and config)
+    , runEnvLogfile :: Maybe FilePath
+    -- ^ Logfile from env var (overrides config)
     , runConfigLogfiles :: [FilePath]
     -- ^ Logfiles from config file
     , runPollIntervalMs :: Int
@@ -259,96 +289,134 @@ data RunSettings = RunSettings
 runSettingsParser_ :: Parser RunSettings
 runSettingsParser_ =
     RunSettings
-        -- CLI logfiles (can specify multiple)
+        -- CLI logfiles (can specify multiple via repeated --collect-logfile)
         <$> many
             ( withoutConfig
                 ( setting
                     [ help "Path to the logfile to process (can be specified multiple times)"
                     , reader str
-                    , long "logfile"
+                    , long "collect-logfile"
                     , option
                     , metavar "PATH"
                     ]
                 )
             )
+        -- Env var logfile (single file, overrides config if set)
+        <*> subEnv_
+            "SPANSHOT"
+            ( withoutConfig
+                ( optional
+                    ( setting
+                        [ help "Path to the logfile to process (env var, single file)"
+                        , reader str
+                        , env "COLLECT_LOGFILE"
+                        , metavar "PATH"
+                        ]
+                    )
+                )
+            )
         -- Config file logfiles (from collect.logfiles)
         <*> subConfig_ "collect" collectConfigLogfilesParser
         -- Poll interval (CLI or config)
-        <*> subConfig_
-            "collect"
-            ( setting
-                [ help "Poll interval in milliseconds"
-                , reader auto
-                , long "poll-interval"
-                , option
-                , metavar "MS"
-                , conf "poll_interval_ms"
-                , value defaultPollIntervalMs
-                ]
+        <*> subEnv_
+            "SPANSHOT"
+            ( subConfig_
+                "collect"
+                ( setting
+                    [ help "Poll interval in milliseconds"
+                    , reader auto
+                    , long "collect-poll-interval"
+                    , env "COLLECT_POLL_INTERVAL"
+                    , option
+                    , metavar "MS"
+                    , conf "poll_interval_ms"
+                    , value defaultPollIntervalMs
+                    ]
+                )
             )
         -- One-shot mode (exit at EOF instead of polling)
-        <*> subConfig_
-            "collect"
-            ( setting
-                [ help "Exit after reading existing content instead of polling for new content"
-                , switch True
-                , long "one-shot"
-                , conf "one_shot"
-                , value False
-                ]
+        <*> subEnv_
+            "SPANSHOT"
+            ( subConfig_
+                "collect"
+                ( yesNoSwitch
+                    [ help "Exit after reading existing content instead of polling for new content"
+                    , long "collect-one-shot"
+                    , env "COLLECT_ONE_SHOT"
+                    , conf "one_shot"
+                    , value False
+                    ]
+                )
             )
         -- Capture config
         <*> subConfig_ "capture" captureConfigParser
 
 {- | Parser for capture configuration.
 Each setting can come from CLI args, env vars, or config file.
+Env vars are prefixed with SPANSHOT_CAPTURE_.
 -}
 captureConfigParser :: Parser CaptureConfig
 captureConfigParser =
     mkCaptureConfig
-        <$> setting
-            [ help "Pre-window duration in seconds (context before error)"
-            , reader secondsReader
-            , option
-            , long "pre-window"
-            , metavar "SECONDS"
-            , conf "pre_window_duration"
-            , value (ccPreWindowDuration defaultCaptureConfig)
-            ]
-        <*> setting
-            [ help "Post-window duration in seconds (context after error)"
-            , reader secondsReader
-            , option
-            , long "post-window"
-            , metavar "SECONDS"
-            , conf "post_window_duration"
-            , value (ccPostWindowDuration defaultCaptureConfig)
-            ]
-        <*> setting
-            [ help "Minimum number of context events to capture"
-            , reader auto
-            , option
-            , long "min-context"
-            , metavar "COUNT"
-            , conf "min_context_events"
-            , value (ccMinContextEvents defaultCaptureConfig)
-            ]
-        <*> setting
-            [ help "Inactivity timeout in seconds (for flushing pending captures)"
-            , reader secondsReader
-            , option
-            , long "inactivity-timeout"
-            , metavar "SECONDS"
-            , conf "inactivity_timeout"
-            , value (ccInactivityTimeout defaultCaptureConfig)
-            ]
+        <$> subEnv_
+            "SPANSHOT"
+            ( setting
+                [ help "Pre-window duration in seconds (context before error)"
+                , reader secondsReader
+                , option
+                , long "capture-pre-window"
+                , env "CAPTURE_PRE_WINDOW"
+                , metavar "SECONDS"
+                , conf "pre_window_duration"
+                , value (ccPreWindowDuration defaultCaptureConfig)
+                ]
+            )
+        <*> subEnv_
+            "SPANSHOT"
+            ( setting
+                [ help "Post-window duration in seconds (context after error)"
+                , reader secondsReader
+                , option
+                , long "capture-post-window"
+                , env "CAPTURE_POST_WINDOW"
+                , metavar "SECONDS"
+                , conf "post_window_duration"
+                , value (ccPostWindowDuration defaultCaptureConfig)
+                ]
+            )
+        <*> subEnv_
+            "SPANSHOT"
+            ( setting
+                [ help "Minimum number of context events to capture"
+                , reader auto
+                , option
+                , long "capture-min-context"
+                , env "CAPTURE_MIN_CONTEXT"
+                , metavar "COUNT"
+                , conf "min_context_events"
+                , value (ccMinContextEvents defaultCaptureConfig)
+                ]
+            )
+        <*> subEnv_
+            "SPANSHOT"
+            ( setting
+                [ help "Inactivity timeout in seconds (for flushing pending captures)"
+                , reader secondsReader
+                , option
+                , long "capture-inactivity-timeout"
+                , env "CAPTURE_INACTIVITY_TIMEOUT"
+                , metavar "SECONDS"
+                , conf "inactivity_timeout"
+                , value (ccInactivityTimeout defaultCaptureConfig)
+                ]
+            )
         -- Detection rules: CLI patterns override config file rules entirely
         <*> many
             ( withoutConfig $
                 setting
                     [ help "Regex pattern to detect errors (can be specified multiple times). If any patterns are provided via CLI, they replace all config file rules"
                     , reader str
-                    , long "regex-pattern"
+                    , long "capture-regex-pattern"
                     , short 'p'
                     , option
                     , metavar "PATTERN"
@@ -356,7 +424,7 @@ captureConfigParser =
             )
         -- Config file detection rules (used when no CLI patterns provided)
         <*> setting
-            [ help "Detection rules from config file (ignored if --regex-pattern is provided)"
+            [ help "Detection rules from config file (ignored if --capture-regex-pattern is provided)"
             , conf "detection_rules"
             , value (ccDetectionRules defaultCaptureConfig)
             ]
@@ -401,25 +469,24 @@ main = do
         DispatchRun settings ->
             runFullPipeline settings
 
-{- | Determine effective logfiles from CLI and config
-CLI logfiles override config logfiles entirely
--}
-effectiveLogfiles :: [FilePath] -> [FilePath] -> [FilePath]
-effectiveLogfiles cliLogfiles configLogfiles
-    | not (null cliLogfiles) = cliLogfiles
-    | otherwise = configLogfiles
+-- | Determine effective logfiles with precedence: CLI > env > config
+effectiveLogfilesWithEnv :: [FilePath] -> Maybe FilePath -> [FilePath] -> IO [FilePath]
+effectiveLogfilesWithEnv cliLogfiles envLogfile configLogfiles
+    | not (null cliLogfiles) = pure cliLogfiles
+    | Just envFile <- envLogfile = pure [envFile]
+    | otherwise = do
+        -- Get config file path for relative path resolution
+        (_, _, mConfigPath) <- loadEffectiveConfig
+        resolveLogfiles mConfigPath configLogfiles
 
 runCollect :: CollectSettings -> IO ()
 runCollect settings = do
-    -- If CLI logfiles provided, use them directly
-    -- If using config logfiles, resolve relative paths relative to config file
+    -- Determine effective logfiles with precedence: CLI > env > config
     logfiles <-
-        if not (null (collectLogfiles settings))
-            then pure (collectLogfiles settings)
-            else do
-                -- Get config file path for relative path resolution
-                (_, _, mConfigPath) <- loadEffectiveConfig
-                resolveLogfiles mConfigPath (collectConfigLogfiles settings)
+        effectiveLogfilesWithEnv
+            (collectLogfiles settings)
+            (collectEnvLogfile settings)
+            (collectConfigLogfiles settings)
     let collectOpts = defaultCollectOptions{oneShot = collectOneShot settings}
     if null logfiles
         then -- Read from stdin
@@ -524,15 +591,12 @@ runCaptureStdin settings = do
 -- | Full pipeline (collect + capture combined)
 runFullPipeline :: RunSettings -> IO ()
 runFullPipeline settings = do
-    -- If CLI logfiles provided, use them directly
-    -- If using config logfiles, resolve relative paths relative to config file
+    -- Determine effective logfiles with precedence: CLI > env > config
     logfiles <-
-        if not (null (runLogfiles settings))
-            then pure (runLogfiles settings)
-            else do
-                -- Get config file path for relative path resolution
-                (_, _, mConfigPath) <- loadEffectiveConfig
-                resolveLogfiles mConfigPath (runConfigLogfiles settings)
+        effectiveLogfilesWithEnv
+            (runLogfiles settings)
+            (runEnvLogfile settings)
+            (runConfigLogfiles settings)
     let collectOpts = defaultCollectOptions{oneShot = runOneShot settings}
     -- Validate capture config first
     case toCaptureOptions (runCaptureConfig settings) of
