@@ -189,7 +189,7 @@ All settings can be configured via environment variables with the `SPANSHOT_` pr
 |---------------------|----------------|-------------|
 | `SPANSHOT_COLLECT_LOGFILE` | `--collect-logfile` | Path to the logfile to process |
 | `SPANSHOT_COLLECT_POLL_INTERVAL` | `--collect-poll-interval` | Poll interval in milliseconds |
-| `SPANSHOT_COLLECT_ONE_SHOT` | `--collect-one-shot` | Exit after reading existing content (true/false) |
+| `SPANSHOT_COLLECT_ONE_SHOT` | `--collect-one-shot` | Exit after reading existing content (True/False) |
 | `SPANSHOT_CAPTURE_PRE_WINDOW` | `--capture-pre-window` | Pre-window duration in seconds |
 | `SPANSHOT_CAPTURE_POST_WINDOW` | `--capture-post-window` | Post-window duration in seconds |
 | `SPANSHOT_CAPTURE_MIN_CONTEXT` | `--capture-min-context` | Minimum context events to capture |
