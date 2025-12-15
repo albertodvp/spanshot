@@ -8,24 +8,28 @@ import Data.Time (NominalDiffTime)
 import Test.Hspec (Spec, describe, it, shouldBe)
 
 import Capture (addToPreWindow)
+import Config (CaptureConfig (..), toCaptureOptions)
 import Fixtures (mockEvent)
-import Types (CaptureOptions, DetectionRule (..), mkCaptureOptions)
+import Types (CaptureOptions, DetectionRule (..))
 
--- | Explicit test constants for window management tests
-testPostWindowSeconds :: NominalDiffTime
-testPostWindowSeconds = 5
-
-testDetectionRules :: [DetectionRule]
-testDetectionRules = [RegexRule "ERROR"]
-
-{- | Helper to create test options with specific pre-window and minContext values
+{- | Helper to create test options with specific pre-window and minContext values.
+Uses CaptureConfig and toCaptureOptions for consistency with production code.
 preWinSec: pre-window duration in seconds
 minCtx: minimum context events to keep
 -}
 mkTestOpts :: NominalDiffTime -> Int -> CaptureOptions
-mkTestOpts preWinSec minCtx = case mkCaptureOptions preWinSec testPostWindowSeconds minCtx testDetectionRules of
-    Right opts -> opts
-    Left err -> error $ "Invalid test options: " <> err
+mkTestOpts preWinSec minCtx =
+    let config =
+            CaptureConfig
+                { ccPreWindowDuration = preWinSec
+                , ccPostWindowDuration = 5
+                , ccMinContextEvents = minCtx
+                , ccDetectionRules = [RegexRule "ERROR"]
+                , ccInactivityTimeout = 10 -- 2 * postWindowDuration
+                }
+     in case toCaptureOptions config of
+            Right opts -> opts
+            Left err -> error $ "Invalid test options: " <> err
 
 windowManagementTests :: Spec
 windowManagementTests = do

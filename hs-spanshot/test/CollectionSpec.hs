@@ -25,7 +25,7 @@ import Types (
  )
 
 testOptions :: CollectOptions
-testOptions = case mkCollectOptions 50 of
+testOptions = case mkCollectOptions 50 False of
     Right opts -> opts
     Left err -> error $ "Invalid test options: " ++ err
 
@@ -91,24 +91,24 @@ collectionTests = do
 
     describe "CollectOptions validation" $ do
         it "accepts valid poll interval" $ do
-            let result = mkCollectOptions 100
+            let result = mkCollectOptions 100 False
             result `shouldSatisfy` isRight
 
         it "rejects poll interval less than 10ms" $ do
-            let result = mkCollectOptions 5
+            let result = mkCollectOptions 5 False
             result `shouldSatisfy` isLeft
 
         it "rejects negative poll interval" $ do
-            let result = mkCollectOptions (-1)
+            let result = mkCollectOptions (-1) False
             result `shouldSatisfy` isLeft
 
         it "rejects poll interval greater than 60 seconds" $ do
-            let result = mkCollectOptions (maxPollIntervalMs + 1)
+            let result = mkCollectOptions (maxPollIntervalMs + 1) False
             result `shouldSatisfy` isLeft
 
         it "accepts boundary values" $ do
-            let result1 = mkCollectOptions minPollIntervalMs
-            let result2 = mkCollectOptions maxPollIntervalMs
+            let result1 = mkCollectOptions minPollIntervalMs False
+            let result2 = mkCollectOptions maxPollIntervalMs False
             result1 `shouldSatisfy` isRight
             result2 `shouldSatisfy` isRight
 

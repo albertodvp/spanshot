@@ -84,25 +84,55 @@ just test
 
 ## Quick Start
 
-### Current (v0.1 - Collection Only)
+### Collect: Stream Logs as JSONL
 
 ```bash
 # Tail a log file and stream as JSONL
-spanshot collect --logfile /var/log/app.log
+spanshot collect --collect-logfile /var/log/app.log
+
+# Multiple files
+spanshot collect --collect-logfile app.log --collect-logfile error.log
+
+# Using environment variable
+SPANSHOT_COLLECT_LOGFILE=/var/log/app.log spanshot collect
+
+# Read from stdin
+cat app.log | spanshot collect
 
 # Filter errors with jq
-spanshot collect --logfile app.log | jq 'select(.line | contains("ERROR"))'
+spanshot collect --collect-logfile app.log | jq 'select(.line | contains("ERROR"))'
 ```
 
-### Coming Soon (v0.1 - Capture)
+### Capture: Process JSONL from stdin
 
 ```bash
-# Capture errors with temporal context
-spanshot capture --logfile app.log --regex-pattern "ERROR" --pre-window 5 --post-window 5
+# Capture reads JSONL CollectEvents from stdin (output of collect)
+spanshot collect --collect-logfile app.log | spanshot capture --capture-regex-pattern ERROR
 
-# Run full pipeline (collect + capture)
-spanshot run --logfile app.log --regex-pattern "ERROR|FATAL"
+# With custom window settings
+spanshot collect --collect-logfile app.log | spanshot capture \
+  --capture-regex-pattern ERROR \
+  --capture-pre-window 10 \
+  --capture-post-window 5
 ```
+
+### Run: Full Pipeline (Collect + Capture)
+
+```bash
+# Run full pipeline (optimized, no intermediate JSONL)
+spanshot run --collect-logfile app.log --capture-regex-pattern ERROR
+
+# Using environment variable
+SPANSHOT_COLLECT_LOGFILE=app.log spanshot run --capture-regex-pattern ERROR
+
+# Read from stdin
+cat app.log | spanshot run --capture-regex-pattern ERROR
+
+# Use config file settings
+spanshot run --collect-logfile app.log
+```
+
+> **Note:** The `collect` and `run` commands tail log files continuously (like `tail -f`). The `capture` command reads from stdin and terminates on EOF. Detection rules and window settings can be specified via CLI flags, environment variables, or `.spanshot.yaml` config file. See [Configuration](#configuration).
 
 ## Configuration
 
@@ -131,14 +161,53 @@ spanshot config init --force      # overwrite existing
 ### Example Config
 
 ```yaml
+collect:
+  logfiles:                  # log files to read (empty = stdin)
+    - ./logs/app.log
+    - ./logs/error.log
+  poll_interval_ms: 150      # polling interval for file tailing
+
 capture:
-  pre_window_duration: 5    # seconds before error
-  post_window_duration: 5   # seconds after error
+  pre_window_duration: 5     # seconds before error
+  post_window_duration: 5    # seconds after error
   min_context_events: 10
+  inactivity_timeout: 10     # seconds to wait before flushing pending captures
   detection_rules:
     - regex_pattern: "ERROR"
     - regex_pattern: "FATAL"
 ```
+
+**Config Precedence:** CLI flags > environment variables > project config (`.spanshot.yaml`) > user config (`~/.config/spanshot/config.yaml`) > defaults.
+
+**Path Resolution:** Relative paths in `collect.logfiles` are resolved relative to the config file location.
+
+### Environment Variables
+
+All settings can be configured via environment variables with the `SPANSHOT_` prefix:
+
+| Environment Variable | CLI Equivalent | Description |
+|---------------------|----------------|-------------|
+| `SPANSHOT_COLLECT_LOGFILE` | `--collect-logfile` | Path to the logfile to process |
+| `SPANSHOT_COLLECT_POLL_INTERVAL` | `--collect-poll-interval` | Poll interval in milliseconds |
+| `SPANSHOT_COLLECT_ONE_SHOT` | `--collect-one-shot` | Exit after reading existing content (True/False) |
+| `SPANSHOT_CAPTURE_PRE_WINDOW` | `--capture-pre-window` | Pre-window duration in seconds |
+| `SPANSHOT_CAPTURE_POST_WINDOW` | `--capture-post-window` | Post-window duration in seconds |
+| `SPANSHOT_CAPTURE_MIN_CONTEXT` | `--capture-min-context` | Minimum context events to capture |
+| `SPANSHOT_CAPTURE_INACTIVITY_TIMEOUT` | `--capture-inactivity-timeout` | Inactivity timeout in seconds |
+
+**Example:**
+
+```bash
+# Process a log file using environment variables
+SPANSHOT_COLLECT_LOGFILE=/var/log/app.log \
+SPANSHOT_COLLECT_ONE_SHOT=True \
+SPANSHOT_CAPTURE_PRE_WINDOW=10 \
+spanshot run
+```
+
+> **Note:** Boolean environment variables use Haskell's `Read` instance (values: `True` or `False`). Environment variables provide a single value. For multiple log files, use repeated CLI flags (`--collect-logfile`) or the config file.
+
+**Inactivity Timeout:** When no new log events arrive within `inactivity_timeout` seconds, pending captures are flushed immediately. This enables processing of static log files where all events are read instantly. Default is `2 * post_window_duration`. Must be at least as large as `post_window_duration`.
 
 ## Output Format
 
@@ -157,7 +226,7 @@ Each line is a JSON event:
 - `read_at_utc`: UTC timestamp when event was read
 - `line`: Raw line content (no trailing newline)
 
-### Span Snapshots (Coming Soon)
+### Span Snapshots
 
 ```json
 {
@@ -206,17 +275,18 @@ Each line is a JSON event:
 
 **Scope:**
 
-- Single file only (no Docker logs, stdout, multiple sources yet)
+- Multiple files supported, but processed sequentially (no parallel merge by timestamp yet)
+- No Docker logs or stdout capture yet
 - No log rotation handling
 - Line-based parsing (multi-line stack traces split into separate events)
 - No structured field extraction from JSON/logfmt logs
 - In-memory state only (no persistence)
 
-**Capture (in progress):**
+**Capture:**
 
 - Regex patterns only (no keyword or log-level detectors yet)
-- Capture pipeline implemented in library only (CLI commands `capture`/`run` not yet wired)
 - No hard limit on post-window event count (bounded by `postWindowDuration` only; in high-throughput scenarios, memory usage scales with log volume within that time window)
+- **Timestamps use reception time**: Time-based windowing uses when the line was *read*, not timestamps embedded in log content. This works well for live monitoring but means batch processing of static files won't respect original event timing. See [#18](https://github.com/albertodvp/spanshot/issues/18) for planned timestamp parsing support.
 
 **Not Yet Built:**
 
@@ -267,8 +337,8 @@ SpanShot is designed as a modular pipeline with distinct phases:
 
 **Current Implementation:**
 
-- **Library** (`src/`): Collect (complete), Capture (in progress)
-- **Executable** (`app/`): CLI with `collect` command (+ `capture`/`run` coming soon)
+- **Library** (`src/`): Collect (complete), Capture (complete)
+- **Executable** (`app/`): CLI with `collect`, `capture`, `run`, and `config` commands
 - **Tests** (`test/`): Unit tests and CLI integration tests with fixtures
 
 **Key Principle:** Phases 1-2 (Collect + Capture) are **AI-free** and use deterministic pattern matching. Only Phase 3 (Analyze) uses AI.
@@ -297,10 +367,11 @@ This project follows the [Angular Commit Message Convention](https://github.com/
 - [x] Core types (DetectionRule, SpanShot, CaptureOptions)
 - [x] Regex-based error detection
 - [x] Time-based window buffering (span window: pre/post context)
-- [ ] Stream combinator (`captureFromStream`)
-- [ ] CLI commands (`capture` and `run`)
-- [ ] CLI integration tests
-- [ ] Documentation and examples
+- [x] Stream combinator (`captureFromStream`)
+- [x] CLI commands (`capture` and `run`)
+- [x] CLI integration tests
+- [x] Inactivity timeout for pending captures
+- [ ] Parse timestamps from log content ([#18](https://github.com/albertodvp/spanshot/issues/18))
 
 ### v0.2+ - Future Phases
 

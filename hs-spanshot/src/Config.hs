@@ -1,11 +1,11 @@
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DerivingVia #-}
 
 module Config (
     -- * Configuration Types
-    Config (..),
+    CollectConfig (..),
     CaptureConfig (..),
-    PartialConfig (..),
-    PartialCaptureConfig (..),
+    Config (..),
 
     -- * Config Path Types
     ConfigPathInfo (..),
@@ -14,49 +14,54 @@ module Config (
     -- * Error Types
     InitConfigError (..),
 
-    -- * Warning Types
-    ConfigWarning (..),
-
     -- * Constants
     projectConfigFileName,
     gitDirName,
     userConfigFileName,
+    defaultPollIntervalMs,
 
     -- * Default Configuration
+    defaultCollectConfig,
+    defaultCaptureConfig,
     defaultConfig,
-
-    -- * Config Loading
-    loadConfig,
-    loadConfigFrom,
 
     -- * Path Operations
     getConfigPath,
     getProjectConfigPath,
     getConfigPaths,
     findProjectRoot,
+    getConfigFilePaths,
 
     -- * Config Conversion
     toCaptureOptions,
     fromCaptureOptions,
 
-    -- * Config Merging
-    mergeConfig,
-
     -- * Config Initialization
     initConfigFile,
+
+    -- * Config Loading
+    loadEffectiveConfig,
+
+    -- * Path Resolution
+    resolveLogfiles,
 ) where
 
+import Autodocodec (Autodocodec (..), HasCodec (..), object, optionalFieldWithDefault, (.=))
 import Control.Exception (IOException, try)
-import Data.Aeson (FromJSON, Options (fieldLabelModifier), ToJSON, camelTo2, defaultOptions, genericParseJSON, genericToJSON)
+import Data.Aeson (FromJSON, ToJSON)
 import Data.ByteString qualified as BS
-import Data.Maybe (fromMaybe)
 import Data.Time (NominalDiffTime)
 import Data.Yaml qualified as Yaml
 import GHC.Generics (Generic)
-import System.Directory (XdgDirectory (XdgConfig), canonicalizePath, createDirectoryIfMissing, doesDirectoryExist, doesFileExist, getCurrentDirectory, getXdgDirectory)
+import Path (Abs, File, Path, parseAbsFile)
+import Path.IO (doesFileExist)
+import System.Directory (XdgDirectory (XdgConfig), canonicalizePath, createDirectoryIfMissing, getCurrentDirectory, getXdgDirectory)
+import System.Directory qualified as Dir
 import System.FilePath (takeDirectory, (</>))
 
-import Types (CaptureOptions (..), DetectionRule, defaultCaptureOptions, mkCaptureOptions)
+import System.FilePath (isAbsolute)
+
+import Types (CaptureOptions (..), DetectionRule (..), compileDetectionRules, defaultCaptureOptions)
 
 -- * Constants
 
@@ -72,17 +77,39 @@ gitDirName = ".git"
 userConfigFileName :: FilePath
 userConfigFileName = "config.yaml"
 
--- | Top-level config wrapping all sections
-data Config = Config
-    { capture :: !CaptureConfig
+-- | Default poll interval in milliseconds
+defaultPollIntervalMs :: Int
+defaultPollIntervalMs = 150
+
+{- | Collect phase configuration
+Specifies which log files to read and polling behavior
+-}
+data CollectConfig = CollectConfig
+    { collLogfiles :: ![FilePath]
+    -- ^ List of log files to read (empty = read from stdin)
+    , collPollIntervalMs :: !Int
+    -- ^ Poll interval in milliseconds for file tailing
     }
     deriving (Show, Eq, Generic)
+    deriving (FromJSON, ToJSON) via (Autodocodec CollectConfig)
 
-instance ToJSON Config where
-    toJSON = genericToJSON defaultOptions{fieldLabelModifier = camelTo2 '_'}
+-- | HasCodec instance for opt-env-conf integration
+instance HasCodec CollectConfig where
+    codec =
+        object "CollectConfig" $
+            CollectConfig
+                <$> optionalFieldWithDefault "logfiles" [] "Log files to read (empty = stdin)"
+                    .= collLogfiles
+                <*> optionalFieldWithDefault "poll_interval_ms" defaultPollIntervalMs "Poll interval in milliseconds"
+                    .= collPollIntervalMs
 
-instance FromJSON Config where
-    parseJSON = genericParseJSON defaultOptions{fieldLabelModifier = camelTo2 '_'}
+-- | Default collect configuration (no logfiles = stdin)
+defaultCollectConfig :: CollectConfig
+defaultCollectConfig =
+    CollectConfig
+        { collLogfiles = []
+        , collPollIntervalMs = defaultPollIntervalMs
+        }
 
 {- | Capture phase configuration
 Mirrors CaptureOptions but with proper YAML serialization
@@ -92,93 +119,100 @@ data CaptureConfig = CaptureConfig
     , ccPostWindowDuration :: !NominalDiffTime
     , ccMinContextEvents :: !Int
     , ccDetectionRules :: ![DetectionRule]
+    , ccInactivityTimeout :: !NominalDiffTime
     }
     deriving (Show, Eq, Generic)
+    deriving (FromJSON, ToJSON) via (Autodocodec CaptureConfig)
 
--- Use field prefix stripping + snake_case
-captureConfigOptions :: Options
-captureConfigOptions =
-    defaultOptions
-        { fieldLabelModifier = camelTo2 '_' . drop 2 -- drop "cc" prefix
-        }
+-- | HasCodec instance for opt-env-conf integration
+instance HasCodec CaptureConfig where
+    codec =
+        object "CaptureConfig" $
+            CaptureConfig
+                <$> optionalFieldWithDefault "pre_window_duration" defaultPreWindow "Pre-window duration in seconds"
+                    .= ccPreWindowDuration
+                <*> optionalFieldWithDefault "post_window_duration" defaultPostWindow "Post-window duration in seconds"
+                    .= ccPostWindowDuration
+                <*> optionalFieldWithDefault "min_context_events" defaultMinContext "Minimum number of context events"
+                    .= ccMinContextEvents
+                <*> optionalFieldWithDefault "detection_rules" defaultRules "Detection rules for error matching"
+                    .= ccDetectionRules
+                <*> optionalFieldWithDefault "inactivity_timeout" defaultTimeout "Inactivity timeout in seconds"
+                    .= ccInactivityTimeout
+      where
+        defaultPreWindow = preWindowDuration defaultCaptureOptions
+        defaultPostWindow = postWindowDuration defaultCaptureOptions
+        defaultMinContext = minContextEvents defaultCaptureOptions
+        defaultRules = detectionRules defaultCaptureOptions
+        defaultTimeout = inactivityTimeout defaultCaptureOptions
 
-instance ToJSON CaptureConfig where
-    toJSON = genericToJSON captureConfigOptions
+-- | Default capture configuration (matches defaultCaptureOptions)
+defaultCaptureConfig :: CaptureConfig
+defaultCaptureConfig = fromCaptureOptions defaultCaptureOptions
 
-instance FromJSON CaptureConfig where
-    parseJSON = genericParseJSON captureConfigOptions
-
-{- | Partial configuration for merging (all fields optional)
-Used for project-level config that overrides user config field-by-field
--}
-data PartialConfig = PartialConfig
-    { pcCapture :: !(Maybe PartialCaptureConfig)
+-- | Top-level config structure (for YAML file format)
+data Config = Config
+    { cfgCollect :: !CollectConfig
+    , cfgCapture :: !CaptureConfig
     }
     deriving (Show, Eq, Generic)
+    deriving (FromJSON, ToJSON) via (Autodocodec Config)
 
-instance ToJSON PartialConfig where
-    toJSON = genericToJSON defaultOptions{fieldLabelModifier = camelTo2 '_' . drop 2}
+-- | HasCodec instance for Config
+instance HasCodec Config where
+    codec =
+        object "Config" $
+            Config
+                <$> optionalFieldWithDefault "collect" defaultCollectConfig "Collection configuration"
+                    .= cfgCollect
+                <*> optionalFieldWithDefault "capture" defaultCaptureConfig "Capture configuration"
+                    .= cfgCapture
 
-instance FromJSON PartialConfig where
-    parseJSON = genericParseJSON defaultOptions{fieldLabelModifier = camelTo2 '_' . drop 2}
-
--- | Partial capture config with all fields optional
-data PartialCaptureConfig = PartialCaptureConfig
-    { pccPreWindowDuration :: !(Maybe NominalDiffTime)
-    , pccPostWindowDuration :: !(Maybe NominalDiffTime)
-    , pccMinContextEvents :: !(Maybe Int)
-    , pccDetectionRules :: !(Maybe [DetectionRule])
-    }
-    deriving (Show, Eq, Generic)
-
--- Use field prefix stripping + snake_case for partial config
-partialCaptureConfigOptions :: Options
-partialCaptureConfigOptions =
-    defaultOptions
-        { fieldLabelModifier = camelTo2 '_' . drop 3 -- drop "pcc" prefix
-        }
-
-instance ToJSON PartialCaptureConfig where
-    toJSON = genericToJSON partialCaptureConfigOptions
-
-instance FromJSON PartialCaptureConfig where
-    parseJSON = genericParseJSON partialCaptureConfigOptions
-
-{- | Merge a base config with a partial override config
-Override values take precedence over base values when present
--}
-mergeConfig :: Config -> PartialConfig -> Config
-mergeConfig base override =
-    Config
-        { capture = mergeCaptureConfig (capture base) (pcCapture override)
-        }
-
--- | Merge capture configs, with partial override taking precedence
-mergeCaptureConfig :: CaptureConfig -> Maybe PartialCaptureConfig -> CaptureConfig
-mergeCaptureConfig base Nothing = base
-mergeCaptureConfig base (Just partial) =
-    CaptureConfig
-        { ccPreWindowDuration = fromMaybe (ccPreWindowDuration base) (pccPreWindowDuration partial)
-        , ccPostWindowDuration = fromMaybe (ccPostWindowDuration base) (pccPostWindowDuration partial)
-        , ccMinContextEvents = fromMaybe (ccMinContextEvents base) (pccMinContextEvents partial)
-        , ccDetectionRules = fromMaybe (ccDetectionRules base) (pccDetectionRules partial)
-        }
-
--- | Default configuration (matches defaultCaptureOptions)
+-- | Default top-level config
 defaultConfig :: Config
 defaultConfig =
     Config
-        { capture = fromCaptureOptions defaultCaptureOptions
+        { cfgCollect = defaultCollectConfig
+        , cfgCapture = defaultCaptureConfig
         }
 
--- | Convert CaptureConfig to CaptureOptions (with validation)
+{- | Convert CaptureConfig to CaptureOptions (with validation and regex compilation).
+
+Validates all fields and pre-compiles regex patterns for efficient matching.
+Returns Left with an error message if validation fails or any regex is invalid.
+
+Pre-compiling regexes is important for performance: without it, each event would
+require re-compiling all regex patterns, which is expensive.
+-}
 toCaptureOptions :: CaptureConfig -> Either String CaptureOptions
-toCaptureOptions cc =
-    mkCaptureOptions
-        (ccPreWindowDuration cc)
-        (ccPostWindowDuration cc)
-        (ccMinContextEvents cc)
-        (ccDetectionRules cc)
+toCaptureOptions cc
+    | ccPreWindowDuration cc < 0 =
+        Left "preWindowDuration must be non-negative (>= 0 seconds)"
+    | ccPostWindowDuration cc < 0 =
+        Left "postWindowDuration must be non-negative (>= 0 seconds)"
+    | ccPreWindowDuration cc == 0 && ccPostWindowDuration cc == 0 =
+        Left "At least one of preWindowDuration or postWindowDuration must be positive (> 0)"
+    | ccMinContextEvents cc < 1 =
+        Left "minContextEvents must be at least 1"
+    | null (ccDetectionRules cc) =
+        Left "detectionRules cannot be empty"
+    | ccInactivityTimeout cc <= 0 =
+        Left "inactivityTimeout must be positive (> 0 seconds)"
+    | ccPostWindowDuration cc > 0 && ccInactivityTimeout cc < ccPostWindowDuration cc =
+        Left "inactivityTimeout must be at least postWindowDuration"
+    | otherwise =
+        case compileDetectionRules (ccDetectionRules cc) of
+            Left err -> Left err
+            Right compiled ->
+                Right $
+                    CaptureOptions
+                        { preWindowDuration = ccPreWindowDuration cc
+                        , postWindowDuration = ccPostWindowDuration cc
+                        , minContextEvents = ccMinContextEvents cc
+                        , detectionRules = ccDetectionRules cc
+                        , compiledRules = compiled
+                        , inactivityTimeout = ccInactivityTimeout cc
+                        }
 
 -- | Convert CaptureOptions to CaptureConfig
 fromCaptureOptions :: CaptureOptions -> CaptureConfig
@@ -188,6 +222,7 @@ fromCaptureOptions opts =
         , ccPostWindowDuration = postWindowDuration opts
         , ccMinContextEvents = minContextEvents opts
         , ccDetectionRules = detectionRules opts
+        , ccInactivityTimeout = inactivityTimeout opts
         }
 
 -- | Get the user config file path (~/.config/spanshot/config.yaml)
@@ -248,8 +283,8 @@ findProjectRoot dir = do
     go d = do
         let gitPath = d </> gitDirName
         -- Check for .git as directory (normal repo) or file (worktree)
-        isGitDir <- doesDirectoryExist gitPath
-        isGitFile <- doesFileExist gitPath
+        isGitDir <- Dir.doesDirectoryExist gitPath
+        isGitFile <- Dir.doesFileExist gitPath
         if isGitDir || isGitFile
             then pure (Just d)
             else do
@@ -259,15 +294,28 @@ findProjectRoot dir = do
                     then pure Nothing
                     else go parent
 
-{- | Get the project config file path (.spanshot.yaml in project root).
+{- | Get the project config file path (.spanshot.yaml).
 
-Returns @Nothing@ if no project root is found (i.e., not inside a git repository).
-The project config path is @\<project-root\> \/ .spanshot.yaml@.
+First looks for a git project root and returns the config path there.
+If no git project is found, falls back to checking for .spanshot.yaml
+in the starting directory itself.
+
+This allows spanshot to work both in git projects (where config is at project root)
+and in standalone directories (where config is in the current directory).
 -}
 getProjectConfigPath :: FilePath -> IO (Maybe FilePath)
 getProjectConfigPath startDir = do
-    projectRoot <- findProjectRoot startDir
-    pure $ fmap (\root -> root </> projectConfigFileName) projectRoot
+    absDir <- canonicalizePath startDir
+    projectRoot <- findProjectRoot absDir
+    case projectRoot of
+        Just root -> pure $ Just (root </> projectConfigFileName)
+        Nothing -> do
+            -- No git project found, check if .spanshot.yaml exists in the start directory
+            let localConfigPath = absDir </> projectConfigFileName
+            exists <- Dir.doesFileExist localConfigPath
+            if exists
+                then pure $ Just localConfigPath
+                else pure Nothing
 
 -- | Information about a config file path
 data ConfigPathInfo = ConfigPathInfo
@@ -290,7 +338,7 @@ getConfigPaths :: FilePath -> IO ConfigPaths
 getConfigPaths startDir = do
     -- User config
     userPath <- getConfigPath
-    userExists <- doesFileExist userPath
+    userExists <- Dir.doesFileExist userPath
     let userInfo = ConfigPathInfo{cpiPath = userPath, cpiExists = userExists}
 
     -- Project config
@@ -298,112 +346,46 @@ getConfigPaths startDir = do
     projectInfo <- case projectPathMaybe of
         Nothing -> pure Nothing
         Just path -> do
-            exists <- doesFileExist path
+            exists <- Dir.doesFileExist path
             pure $ Just ConfigPathInfo{cpiPath = path, cpiExists = exists}
 
     pure ConfigPaths{cpiUser = userInfo, cpiProject = projectInfo}
 
-{- | Load config from current directory with hierarchical loading.
-Loads user config first, then merges project config on top.
-Returns the merged config along with any warnings encountered during loading.
+{- | Get config file paths for opt-env-conf's withCombinedYamlConfigs.
+
+Returns a list of existing config file paths as Path Abs File,
+in order of precedence (user config first, then project config).
+Only includes files that actually exist.
 -}
-loadConfig :: IO (Config, [ConfigWarning])
-loadConfig = do
+getConfigFilePaths :: IO [Path Abs File]
+getConfigFilePaths = do
     cwd <- getCurrentDirectory
-    loadConfigFrom cwd
+    paths <- getConfigPaths cwd
 
-{- | Load config from a specific directory with hierarchical loading.
-Order of precedence (lowest to highest):
-1. Default config
-2. User config (~/.config/spanshot/config.yaml)
-3. Project config (.spanshot.yaml in project root)
+    -- Collect paths that exist and can be parsed
+    userPaths <- case cpiExists (cpiUser paths) of
+        True -> case parseAbsFile (cpiPath (cpiUser paths)) of
+            Just p -> do
+                exists <- doesFileExist p
+                pure [p | exists]
+            Nothing -> pure []
+        False -> pure []
 
-Returns the merged config along with any warnings encountered during loading.
-The merged config is validated, and any validation errors are reported as warnings
-(with the config falling back to defaults for invalid sections).
--}
-loadConfigFrom :: FilePath -> IO (Config, [ConfigWarning])
-loadConfigFrom startDir = do
-    -- Load user config (full Config)
-    (userConfig, userWarnings) <- loadUserConfig
+    projectPaths <- case cpiProject paths of
+        Just info | cpiExists info -> case parseAbsFile (cpiPath info) of
+            Just p -> do
+                exists <- doesFileExist p
+                pure [p | exists]
+            Nothing -> pure []
+        _ -> pure []
 
-    -- Load project config (partial, for merging)
-    (projectPartial, projectWarnings) <- loadProjectConfig startDir
-
-    -- Merge: defaults -> user -> project
-    -- User config replaces defaults entirely (it's a full Config)
-    -- Project config merges field-by-field on top
-    let mergedConfig = mergeConfig userConfig projectPartial
-        loadWarnings = userWarnings ++ projectWarnings
-
-    -- Validate the merged config
-    let (validatedConfig, validationWarnings) = validateConfig mergedConfig
-        allWarnings = loadWarnings ++ validationWarnings
-
-    pure (validatedConfig, allWarnings)
-
-{- | Validate a config by attempting to convert to CaptureOptions.
-If validation fails, returns defaultConfig with a warning.
--}
-validateConfig :: Config -> (Config, [ConfigWarning])
-validateConfig config =
-    case toCaptureOptions (capture config) of
-        Left err ->
-            -- Validation failed - return default config with warning
-            (defaultConfig, [ConfigValidationWarning "(merged config)" err])
-        Right _ ->
-            -- Validation passed - return original config
-            (config, [])
-
--- | Load user config from XDG path, returning any parse warnings
-loadUserConfig :: IO (Config, [ConfigWarning])
-loadUserConfig = do
-    path <- getConfigPath
-    exists <- doesFileExist path
-    if exists
-        then do
-            result <- Yaml.decodeFileEither path
-            case result of
-                Left err ->
-                    let warning = ConfigParseWarning path (show err)
-                     in pure (defaultConfig, [warning])
-                Right config -> pure (config, [])
-        else pure (defaultConfig, [])
-
--- | Load project config as PartialConfig for merging, returning any parse warnings
-loadProjectConfig :: FilePath -> IO (PartialConfig, [ConfigWarning])
-loadProjectConfig startDir = do
-    projectPathMaybe <- getProjectConfigPath startDir
-    case projectPathMaybe of
-        Nothing -> pure (emptyPartialConfig, [])
-        Just path -> do
-            exists <- doesFileExist path
-            if exists
-                then do
-                    result <- Yaml.decodeFileEither path
-                    case result of
-                        Left err ->
-                            let warning = ConfigParseWarning path (show err)
-                             in pure (emptyPartialConfig, [warning])
-                        Right partial -> pure (partial, [])
-                else pure (emptyPartialConfig, [])
-
--- | Empty partial config (no overrides)
-emptyPartialConfig :: PartialConfig
-emptyPartialConfig = PartialConfig{pcCapture = Nothing}
+    -- User config first (lower precedence), then project config (higher precedence)
+    pure $ userPaths ++ projectPaths
 
 -- | Errors that can occur when initializing a config file
 data InitConfigError
     = ConfigFileExists FilePath
     | InitIOError FilePath String
-    deriving (Show, Eq)
-
--- | Warnings that can occur during config loading
-data ConfigWarning
-    = -- | A config file failed to parse (path, error message)
-      ConfigParseWarning FilePath String
-    | -- | A config file parsed but contains invalid values (path, error message)
-      ConfigValidationWarning FilePath String
     deriving (Show, Eq)
 
 {- | Initialize a config file at the specified path
@@ -434,17 +416,18 @@ compatibility over perfect atomicity.
 initConfigFile :: FilePath -> Bool -> IO (Either InitConfigError ())
 initConfigFile path force = do
     -- Check if path is an existing directory
-    isDir <- doesDirectoryExist path
+    isDir <- Dir.doesDirectoryExist path
     let targetPath =
             if isDir
                 then path </> ".spanshot.yaml"
                 else path
 
     let parentDir = takeDirectory targetPath
+    -- Create a top-level config structure for YAML output
     let configYaml = Yaml.encode defaultConfig
 
     -- Check for existing file when not forcing
-    existsBeforeWrite <- doesFileExist targetPath
+    existsBeforeWrite <- Dir.doesFileExist targetPath
     if existsBeforeWrite && not force
         then pure $ Left (ConfigFileExists targetPath)
         else do
@@ -454,3 +437,82 @@ initConfigFile path force = do
             case result of
                 Left (e :: IOException) -> pure $ Left (InitIOError targetPath (show e))
                 Right () -> pure $ Right ()
+
+{- | Load effective configuration by merging all config files.
+
+Loads config files in order of precedence (lowest to highest):
+1. Default config
+2. User config (~/.config/spanshot/config.yaml)
+3. Project config (.spanshot.yaml in git project root)
+
+Each config file's values override the previous. Files that don't exist
+or fail to parse are silently skipped (defaults are used instead).
+
+Returns the merged Config along with the list of config files that
+were successfully loaded, and the path of the highest-precedence config
+file (used for resolving relative paths).
+-}
+loadEffectiveConfig :: IO (Config, [FilePath], Maybe FilePath)
+loadEffectiveConfig = do
+    cwd <- getCurrentDirectory
+    paths <- getConfigPaths cwd
+
+    -- Start with defaults
+    let initial = defaultConfig
+
+    -- Try to load user config
+    (afterUser, userLoaded) <- case cpiExists (cpiUser paths) of
+        True -> do
+            result <- tryLoadConfig (cpiPath (cpiUser paths))
+            case result of
+                Just cfg -> pure (mergeConfigs initial cfg, [cpiPath (cpiUser paths)])
+                Nothing -> pure (initial, [])
+        False -> pure (initial, [])
+
+    -- Try to load project config (higher precedence)
+    (final, projectLoaded, configDir) <- case cpiProject paths of
+        Just info | cpiExists info -> do
+            result <- tryLoadConfig (cpiPath info)
+            case result of
+                Just cfg -> pure (mergeConfigs afterUser cfg, [cpiPath info], Just (cpiPath info))
+                Nothing -> pure (afterUser, [], listToMaybe userLoaded)
+        _ -> pure (afterUser, [], listToMaybe userLoaded)
+
+    pure (final, userLoaded ++ projectLoaded, configDir)
+  where
+    listToMaybe [] = Nothing
+    listToMaybe (x : _) = Just x
+
+-- | Try to load a config file, returning Nothing if it fails
+tryLoadConfig :: FilePath -> IO (Maybe Config)
+tryLoadConfig path = do
+    result <- Yaml.decodeFileEither path
+    case result of
+        Left _ -> pure Nothing
+        Right cfg -> pure (Just cfg)
+
+{- | Merge two configs, with the second overriding the first
+Since we're using full Config (not partial), the second completely overrides
+But we load files in order, so this gives us the right precedence
+-}
+mergeConfigs :: Config -> Config -> Config
+mergeConfigs _ override = override
+
+{- | Resolve relative paths in logfiles relative to a config file's directory.
+
+Absolute paths are kept as-is. Relative paths (including those starting with "./")
+are resolved relative to the directory containing the config file.
+
+If no config file path is provided, relative paths are resolved relative to
+the current working directory.
+-}
+resolveLogfiles :: Maybe FilePath -> [FilePath] -> IO [FilePath]
+resolveLogfiles mConfigPath logfiles = do
+    baseDir <- case mConfigPath of
+        Just configPath -> pure $ takeDirectory configPath
+        Nothing -> getCurrentDirectory
+    pure $ map (resolvePath baseDir) logfiles
+  where
+    resolvePath base path
+        | isAbsolute path = path
+        | otherwise = base </> path

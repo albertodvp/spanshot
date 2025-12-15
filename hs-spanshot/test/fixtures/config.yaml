@@ -2,6 +2,7 @@ capture:
   pre_window_duration: 10
   post_window_duration: 3
   min_context_events: 5
+  inactivity_timeout: 6
   detection_rules:
     - regex_pattern: "ERROR"
     - regex_pattern: "WARN"
