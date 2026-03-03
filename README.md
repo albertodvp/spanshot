@@ -243,6 +243,9 @@ just coverage-report
 
 # Build
 just build
+
+# Format all files (requires nix develop shell)
+nix fmt
 ```
 
 See [`justfile`](justfile) for all available commands.
@@ -280,6 +283,17 @@ This project follows the [Angular Commit Message Convention](https://github.com/
 **Types:** `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`, `chore`
 
 **Format:** `<type>(<scope>): <subject>`
+
+### Feature Development with Speckit
+
+New features are developed using the speckit workflow:
+
+```
+/speckit.specify → /speckit.clarify → /speckit.plan → /speckit.tasks → /speckit.implement
+```
+
+This ensures consistent specification, planning, and implementation across all features.
+See the [Project Constitution](.specify/memory/constitution.md) for development principles and non-negotiable constraints.
 
 ## Roadmap
 
