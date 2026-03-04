@@ -3,17 +3,21 @@
 module CaptureStreamSpec (captureStreamTests) where
 
 import Data.Foldable (toList)
+import Data.Functor.Identity (Identity (runIdentity))
 import Data.Maybe (isJust)
 import Data.Sequence qualified as Seq
 import Data.Time (NominalDiffTime)
+import Streaming (Of ((:>)))
+import Streaming.Prelude qualified as S
 import Test.Hspec (Spec, describe, it, shouldBe, shouldContain, shouldSatisfy)
 
-import Capture (processEvent)
-import Fixtures (mockEvent)
+import Capture (captureFromStream, finalizeCapture, processEvent)
+import Fixtures (mockEvent, mockTime)
 import Types (
     ActiveCapture (..),
     CaptureOptions,
     CaptureState (..),
+    CollectEvent,
     DetectionRule (..),
     SpanShot (..),
     initialCaptureState,
@@ -222,3 +226,164 @@ captureStreamTests = do
 
             emitted `shouldSatisfy` isJust
             csActiveCapture newState `shouldBe` Nothing
+
+    -- T005: captureFromStream basic capture test
+    describe "captureFromStream" $ do
+        it "transforms stream of events into stream of SpanShots" $ do
+            let opts = testCaptureOptions
+            -- Create a stream with pre-context, error, and post-context events
+            let events =
+                    [ mockEvent 1 "INFO startup"
+                    , mockEvent 2 "INFO connecting"
+                    , mockEvent 3 "INFO connected"
+                    , mockEvent 10 "ERROR connection failed"
+                    , mockEvent 11 "INFO retrying"
+                    , mockEvent 12 "INFO retry 1"
+                    , mockEvent 16 "INFO recovered" -- triggers emission (6s > 5s post-window)
+                    ]
+            let inputStream = S.each events
+            let outputStream = captureFromStream opts inputStream
+            let (spanshots :> _) = runIdentity $ S.toList outputStream
+
+            length spanshots `shouldBe` 1
+            let shot = head spanshots
+            errorEvent shot `shouldBe` mockEvent 10 "ERROR connection failed"
+            -- Pre-window should contain events within 5s before error
+            length (preWindow shot) `shouldBe` 3
+            -- Post-window should contain events collected before emission trigger
+            -- t=16 triggers emission but is NOT included (it's outside the window)
+            length (postWindow shot) `shouldBe` 2
+
+        -- T006: captureFromStream finalization test (stream ends during capture)
+        it "emits in-flight capture when stream ends" $ do
+            let opts = testCaptureOptions
+            -- Stream ends before post-window completes
+            let events =
+                    [ mockEvent 1 "INFO startup"
+                    , mockEvent 2 "INFO connecting"
+                    , mockEvent 10 "ERROR failed"
+                    , mockEvent 11 "INFO partial post" -- Only 1s into post-window
+                    ]
+            let inputStream = S.each events
+            let outputStream = captureFromStream opts inputStream
+            let (spanshots :> _) = runIdentity $ S.toList outputStream
+
+            length spanshots `shouldBe` 1
+            let shot = head spanshots
+            errorEvent shot `shouldBe` mockEvent 10 "ERROR failed"
+            -- Partial post-window (stream ended early)
+            length (postWindow shot) `shouldBe` 1
+
+        -- T007: captureFromStream with no matching events
+        it "returns empty stream when no errors match" $ do
+            let opts = testCaptureOptions
+            let events =
+                    [ mockEvent 1 "INFO startup"
+                    , mockEvent 2 "INFO connecting"
+                    , mockEvent 3 "INFO connected"
+                    , mockEvent 4 "DEBUG trace"
+                    ]
+            let inputStream = S.each events
+            let outputStream = captureFromStream opts inputStream
+            let (spanshots :> _) = runIdentity $ S.toList outputStream
+
+            spanshots `shouldBe` []
+
+        -- T009: empty input stream test
+        it "handles empty input stream" $ do
+            let opts = testCaptureOptions
+            let inputStream = S.each ([] :: [CollectEvent])
+            let outputStream = captureFromStream opts inputStream
+            let (spanshots :> _) = runIdentity $ S.toList outputStream
+
+            spanshots `shouldBe` []
+
+        -- T010: rapid error bursts (single-active-capture policy)
+        it "only captures first error when multiple errors in rapid succession" $ do
+            let opts = testCaptureOptions
+            let events =
+                    [ mockEvent 1 "INFO startup"
+                    , mockEvent 10 "ERROR first"
+                    , mockEvent 11 "ERROR second" -- Goes into post-window of first
+                    , mockEvent 12 "ERROR third" -- Also goes into post-window
+                    , mockEvent 16 "INFO triggers emission"
+                    ]
+            let inputStream = S.each events
+            let outputStream = captureFromStream opts inputStream
+            let (spanshots :> _) = runIdentity $ S.toList outputStream
+
+            length spanshots `shouldBe` 1
+            let shot = head spanshots
+            errorEvent shot `shouldBe` mockEvent 10 "ERROR first"
+            -- Both subsequent errors should be in post-window
+            postWindow shot `shouldContain` [mockEvent 11 "ERROR second"]
+            postWindow shot `shouldContain` [mockEvent 12 "ERROR third"]
+
+        -- T011: sparse pre-window (fewer events than duration)
+        it "captures available context when pre-window has fewer events" $ do
+            let opts = testCaptureOptions -- 5 second pre-window
+            -- Error occurs early with minimal pre-context
+            let events =
+                    [ mockEvent 9 "INFO single pre-context" -- Only 1s before error
+                    , mockEvent 10 "ERROR early error"
+                    , mockEvent 16 "INFO triggers emission"
+                    ]
+            let inputStream = S.each events
+            let outputStream = captureFromStream opts inputStream
+            let (spanshots :> _) = runIdentity $ S.toList outputStream
+
+            length spanshots `shouldBe` 1
+            let shot = head spanshots
+            -- Only 1 pre-context event available
+            length (preWindow shot) `shouldBe` 1
+            preWindow shot `shouldBe` [mockEvent 9 "INFO single pre-context"]
+
+        it "preserves stream return value" $ do
+            let opts = testCaptureOptions
+            let events = [mockEvent 1 "INFO only"]
+            let inputStream = S.each events >> return (42 :: Int)
+            let outputStream = captureFromStream opts inputStream
+            let (_ :> result) = runIdentity $ S.toList outputStream
+
+            result `shouldBe` 42
+
+    -- T008: finalizeCapture test
+    describe "finalizeCapture" $ do
+        it "converts ActiveCapture to SpanShot with current timestamp" $ do
+            let errorEvt = mockEvent 10 "ERROR test"
+            let preSnap = Seq.fromList [mockEvent 8 "pre1", mockEvent 9 "pre2"]
+            let postEvts = Seq.fromList [mockEvent 11 "post1"]
+            let rules = [RegexRule "ERROR"]
+            let cap =
+                    ActiveCapture
+                        { acErrorEvent = errorEvt
+                        , acDetectedBy = rules
+                        , acPreWindowSnapshot = preSnap
+                        , acPostEvents = postEvts
+                        }
+            let currentTime = mockTime 12
+
+            let shot = finalizeCapture cap currentTime
+
+            errorEvent shot `shouldBe` errorEvt
+            preWindow shot `shouldBe` [mockEvent 8 "pre1", mockEvent 9 "pre2"]
+            postWindow shot `shouldBe` [mockEvent 11 "post1"]
+            detectedBy shot `shouldBe` rules
+            capturedAtUtc shot `shouldBe` currentTime
+
+        it "handles empty post-window" $ do
+            let errorEvt = mockEvent 10 "ERROR test"
+            let preSnap = Seq.fromList [mockEvent 9 "pre"]
+            let cap =
+                    ActiveCapture
+                        { acErrorEvent = errorEvt
+                        , acDetectedBy = [RegexRule "ERROR"]
+                        , acPreWindowSnapshot = preSnap
+                        , acPostEvents = Seq.empty
+                        }
+            let currentTime = mockTime 10
+
+            let shot = finalizeCapture cap currentTime
+
+            postWindow shot `shouldBe` []
+            preWindow shot `shouldBe` [mockEvent 9 "pre"]

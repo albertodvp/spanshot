@@ -4,9 +4,16 @@ Auto-generated from feature plans. Last updated: 2026-03-03
 
 ## Active Technologies
 
+- Haskell (GHC 9.12+) + streaming, streaming-bytestring, aeson, opt-env-conf, regex-tdfa (002-capture-phase)
+
+- N/A (file-based streaming, no persistent storage) (002-capture-phase)
+
 - **Language**: Haskell (GHC 9.12+)
+
 - **Build**: Cabal + Nix flakes with flake-parts
+
 - **Testing**: hspec, QuickCheck (unit), CLI integration tests
+
 - **Libraries**: streaming, streaming-bytestring, aeson, opt-env-conf
 
 ## Project Structure
@@ -61,6 +68,8 @@ nix fmt                        # Format all (treefmt)
 See `.specify/memory/constitution.md` for full details.
 
 ## Recent Changes
+
+- 002-capture-phase: Added Haskell (GHC 9.12+) + streaming, streaming-bytestring, aeson, opt-env-conf, regex-tdfa
 
 - 001-speckit-bootstrap: Initial speckit setup and constitution
 

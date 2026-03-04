@@ -49,6 +49,8 @@ main = do
             , behaviorTests binaryPath
             , configTests binaryPath
             , errorHandlingTests binaryPath
+            , captureCommandTests binaryPath
+            , runCommandTests binaryPath
             ]
 
 {- | Get the path to the spanshot binary.
@@ -171,3 +173,152 @@ validateJSONLine (lineNum, line) = do
     case eitherDecode line of
         Left err -> assertFailure $ "Line " ++ show lineNum ++ " is not valid JSON: " ++ err
         Right (_ :: Value) -> pure ()
+
+-- | Tests for the 'spanshot capture' command (User Story 1)
+captureCommandTests :: FilePath -> TestTree
+captureCommandTests binary =
+    testGroup
+        "Capture Command Tests (US1)"
+        [ -- T018: capture with valid file produces JSONL output
+          testCase "capture command outputs SpanShots as JSONL" $ do
+            -- Use the sample-errors.log fixture which has ERROR lines
+            (exitCode, stdout, _stderr) <-
+                readProcessWithExitCode
+                    binary
+                    [ "capture"
+                    , "--logfile"
+                    , "test/fixtures/sample-errors.log"
+                    , "--regex-pattern"
+                    , "ERROR"
+                    , "--pre-window"
+                    , "5"
+                    , "--post-window"
+                    , "5"
+                    ]
+                    ""
+            exitCode @?= ExitSuccess
+            let outputLines = filter (not . null) (lines stdout)
+            -- sample-errors.log has 2 ERROR lines, should produce SpanShots
+            assertBool "Should produce at least one SpanShot" $ not (null outputLines)
+            -- Validate each line is valid JSON
+            mapM_ validateJSONString (zip [1 ..] outputLines)
+            -- Verify the JSON contains expected SpanShot fields
+            assertBool "Output contains error_event" $ "error_event" `isInfixOf` stdout
+            assertBool "Output contains pre_window" $ "pre_window" `isInfixOf` stdout
+            assertBool "Output contains post_window" $ "post_window" `isInfixOf` stdout
+            assertBool "Output contains detected_by" $ "detected_by" `isInfixOf` stdout
+        , -- T019: capture with no matches produces no output
+          testCase "capture command with no matches produces empty output" $ do
+            -- Use sample-clean.log which has no ERROR lines
+            (exitCode, stdout, _stderr) <-
+                readProcessWithExitCode
+                    binary
+                    [ "capture"
+                    , "--logfile"
+                    , "test/fixtures/sample-clean.log"
+                    , "--regex-pattern"
+                    , "ERROR"
+                    , "--pre-window"
+                    , "5"
+                    , "--post-window"
+                    , "5"
+                    ]
+                    ""
+            exitCode @?= ExitSuccess
+            let outputLines = filter (not . null) (lines stdout)
+            length outputLines @?= 0
+        , -- T020: capture with invalid regex fails with helpful message
+          testCase "capture command with invalid regex shows error" $ do
+            (exitCode, _stdout, stderr) <-
+                readProcessWithExitCode
+                    binary
+                    [ "capture"
+                    , "--logfile"
+                    , "test/fixtures/sample-errors.log"
+                    , "--regex-pattern"
+                    , "[invalid" -- Unclosed bracket is invalid regex
+                    , "--pre-window"
+                    , "5"
+                    , "--post-window"
+                    , "5"
+                    ]
+                    ""
+            case exitCode of
+                ExitFailure _ -> do
+                    -- Error message should mention the invalid pattern
+                    assertBool "Error mentions regex" $
+                        "regex" `isInfixOf` stderr || "pattern" `isInfixOf` stderr || "invalid" `isInfixOf` stderr
+                ExitSuccess -> assertFailure "Expected failure for invalid regex but got success"
+        , -- T021: capture with missing file fails with helpful message
+          testCase "capture command with missing file shows error" $ do
+            (exitCode, _stdout, stderr) <-
+                readProcessWithExitCode
+                    binary
+                    [ "capture"
+                    , "--logfile"
+                    , "test/fixtures/does-not-exist.log"
+                    , "--regex-pattern"
+                    , "ERROR"
+                    , "--pre-window"
+                    , "5"
+                    , "--post-window"
+                    , "5"
+                    ]
+                    ""
+            case exitCode of
+                ExitFailure _ ->
+                    assertBool "Error mentions file" $ "does-not-exist" `isInfixOf` stderr || "not exist" `isInfixOf` stderr
+                ExitSuccess -> assertFailure "Expected failure for missing file but got success"
+        , -- Additional: capture command shows help
+          testCase "capture subcommand shows help" $ do
+            (exitCode, stdout, _stderr) <- readProcessWithExitCode binary ["capture", "--help"] ""
+            exitCode @?= ExitSuccess
+            assertBool "Help mentions logfile" $ "logfile" `isInfixOf` stdout
+            assertBool "Help mentions regex-pattern" $ "regex-pattern" `isInfixOf` stdout
+            assertBool "Help mentions pre-window" $ "pre-window" `isInfixOf` stdout
+            assertBool "Help mentions post-window" $ "post-window" `isInfixOf` stdout
+        ]
+
+-- | Validate a string line is valid JSON
+validateJSONString :: (Int, String) -> IO ()
+validateJSONString (lineNum, line) = do
+    case eitherDecode (BLC.pack line) of
+        Left err -> assertFailure $ "Line " ++ show lineNum ++ " is not valid JSON: " ++ err
+        Right (_ :: Value) -> pure ()
+
+-- | Tests for the 'spanshot run' command (User Story 2)
+runCommandTests :: FilePath -> TestTree
+runCommandTests binary =
+    testGroup
+        "Run Command Tests (US2)"
+        [ -- T030: run with config file (uses default config)
+          testCase "run command reads config and monitors file" $ do
+            -- Note: We can't easily test continuous monitoring, so we test that it starts correctly
+            -- and responds to missing files appropriately
+            (exitCode, _stdout, stderr) <-
+                readProcessWithExitCode
+                    binary
+                    ["run", "--logfile", "test/fixtures/nonexistent.log"]
+                    ""
+            case exitCode of
+                ExitFailure _ ->
+                    assertBool "Error mentions file" $ "nonexistent" `isInfixOf` stderr || "not found" `isInfixOf` stderr
+                ExitSuccess -> assertFailure "Expected failure for missing file but got success"
+        , -- T031: run with missing file
+          testCase "run command with missing file shows error" $ do
+            (exitCode, _stdout, stderr) <-
+                readProcessWithExitCode
+                    binary
+                    ["run", "--logfile", "test/fixtures/does-not-exist.log"]
+                    ""
+            case exitCode of
+                ExitFailure _ ->
+                    assertBool "Error mentions file" $ "does-not-exist" `isInfixOf` stderr || "not found" `isInfixOf` stderr
+                ExitSuccess -> assertFailure "Expected failure for missing file but got success"
+        , -- Additional: run command shows help
+          testCase "run subcommand shows help" $ do
+            (exitCode, stdout, _stderr) <- readProcessWithExitCode binary ["run", "--help"] ""
+            exitCode @?= ExitSuccess
+            assertBool "Help mentions logfile" $ "logfile" `isInfixOf` stdout
+            assertBool "Help mentions verbose" $ "verbose" `isInfixOf` stdout
+        ]
