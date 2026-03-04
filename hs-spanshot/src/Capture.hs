@@ -5,13 +5,17 @@ module Capture (
     runAllDetectorsCompiled,
     addToPreWindow,
     processEvent,
+    finalizeCapture,
+    captureFromStream,
 ) where
 
 import Data.Foldable (toList)
 import Data.Sequence (Seq)
 import Data.Sequence qualified as Seq
 import Data.Text qualified as T
-import Data.Time (addUTCTime, diffUTCTime)
+import Data.Time (UTCTime, addUTCTime, diffUTCTime)
+import Streaming (Of ((:>)), Stream)
+import Streaming.Internal (Stream (Effect, Return, Step))
 import Text.Regex.TDFA (matchTest, (=~))
 import Text.Regex.TDFA.Text ()
 
@@ -23,6 +27,7 @@ import Types (
     CompiledRule (..),
     DetectionRule (RegexRule),
     SpanShot (SpanShot, capturedAtUtc, detectedBy, errorEvent, postWindow, preWindow),
+    initialCaptureState,
  )
 
 {- | Check if a detection rule matches a collect event.
@@ -255,3 +260,93 @@ processEvent opts state newEvent =
                 }
      in
         (newState, emittedShots)
+
+{- | Convert an in-flight capture to a SpanShot when stream ends early.
+
+This function is called during stream finalization when the input stream ends
+while a capture is still in progress (post-window not yet complete). It creates
+a SpanShot with whatever post-window events have been collected so far.
+
+Example:
+
+@
+-- Error at t=10, stream ends at t=12 (before 5s post-window completes)
+let cap = ActiveCapture errorEvt rules preSnap postEvts
+let shot = finalizeCapture cap currentTime  -- Emits partial SpanShot
+@
+
+Time Complexity: O(n) where n = number of events in pre/post windows
+Space Complexity: O(n) for the resulting SpanShot
+-}
+finalizeCapture :: ActiveCapture -> UTCTime -> SpanShot
+finalizeCapture cap currentTime =
+    SpanShot
+        { errorEvent = acErrorEvent cap
+        , preWindow = toList (acPreWindowSnapshot cap)
+        , postWindow = toList (acPostEvents cap)
+        , detectedBy = acDetectedBy cap
+        , capturedAtUtc = currentTime
+        }
+
+{- | Transform a stream of CollectEvents into a stream of SpanShots.
+
+This is the main streaming combinator for the capture phase. It processes each
+incoming event through the pure 'processEvent' function, maintaining capture
+state across events and emitting SpanShots when post-windows complete.
+
+Key behaviors:
+
+1. Maintains pre-window buffer (rolling window of recent events)
+2. Detects errors using compiled regex rules from CaptureOptions
+3. Captures pre-window snapshot when error detected
+4. Collects post-window events until duration threshold reached
+5. Emits SpanShot when post-window completes
+6. On stream end, emits any in-flight capture (partial post-window)
+
+The implementation uses direct pattern matching on Stream constructors
+('Return', 'Effect', 'Step') which is the canonical pattern for stateful
+stream transformers in the streaming library.
+
+Example:
+
+@
+let opts = defaultCaptureOptions
+let events = collectFromFile "app.log"
+let spanshots = captureFromStream opts events
+S.mapM_ (putStrLn . encode) spanshots
+@
+
+Memory considerations:
+- State is strict (bang pattern) to prevent space leaks
+- Pre-window bounded by 'preWindowDuration' and 'minContextEvents'
+- Post-window bounded by 'postWindowDuration'
+
+Time Complexity: O(1) per event (amortized), plus O(n) for finalization
+Space Complexity: O(w) where w = max(pre-window events, post-window events)
+-}
+captureFromStream ::
+    (Monad m) =>
+    CaptureOptions ->
+    Stream (Of CollectEvent) m r ->
+    Stream (Of SpanShot) m r
+captureFromStream opts = loop initialCaptureState
+  where
+    loop !state stream = case stream of
+        -- FINALIZATION: Stream ended - emit in-flight capture if any
+        Return r ->
+            case csActiveCapture state of
+                Nothing -> Return r
+                Just cap ->
+                    -- Use the last event's timestamp, or error event's timestamp if no post events
+                    let finalTime = case Seq.viewr (acPostEvents cap) of
+                            Seq.EmptyR -> readAtUtc (acErrorEvent cap)
+                            _ Seq.:> lastEvt -> readAtUtc lastEvt
+                     in Step (finalizeCapture cap finalTime :> Return r)
+        -- EFFECTS: Preserve monadic layers
+        Effect m -> Effect (fmap (loop state) m)
+        -- DATA: Process event through existing pure processEvent
+        Step (event :> rest) ->
+            let (newState, maybeShot) = processEvent opts state event
+             in case maybeShot of
+                    Nothing -> loop newState rest
+                    Just shot -> Step (shot :> loop newState rest)

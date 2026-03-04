@@ -1,0 +1,17 @@
+2026-03-04T10:00:00Z INFO Starting application
+2026-03-04T10:00:01Z INFO Connecting to database
+2026-03-04T10:00:02Z INFO Database connection established
+2026-03-04T10:00:03Z INFO Loading configuration
+2026-03-04T10:00:04Z INFO Configuration loaded successfully
+2026-03-04T10:00:05Z ERROR Connection to external service failed: timeout after 30s
+2026-03-04T10:00:06Z INFO Retrying connection...
+2026-03-04T10:00:07Z INFO Retry attempt 1
+2026-03-04T10:00:08Z WARN Connection unstable
+2026-03-04T10:00:09Z INFO Retry attempt 2
+2026-03-04T10:00:10Z INFO Connection restored
+2026-03-04T10:00:15Z INFO Processing request /api/users
+2026-03-04T10:00:16Z INFO Request completed successfully
+2026-03-04T10:00:20Z ERROR Database query failed: deadlock detected
+2026-03-04T10:00:21Z INFO Rolling back transaction
+2026-03-04T10:00:22Z INFO Transaction rolled back
+2026-03-04T10:00:25Z INFO Shutting down gracefully

@@ -1,6 +1,7 @@
 module Collect (
     collectFromFile,
     collectFromFileWithCleanup,
+    collectFromFileOnce,
     collectFromStream,
 ) where
 
@@ -94,6 +95,35 @@ collectFromFileWithCleanup opts filePath action =
         $ \handle -> do
             let pollingBytes = bytesWithPolling opts handle
             let linesStream = Q.lines pollingBytes
+            action $ collectFromStream (T.pack filePath) linesStream
+
+{- | Collect events from a file once (no polling), reading until EOF.
+
+Unlike 'collectFromFile' and 'collectFromFileWithCleanup', this function reads
+the file once and terminates when EOF is reached. This is suitable for processing
+static log files where you want to capture all existing content and exit.
+
+The file handle is automatically closed when the stream is fully consumed or
+when the provided action completes.
+
+Example:
+
+@
+collectFromFileOnce "app.log" $ \\events ->
+    S.mapM_ processEvent events
+@
+-}
+collectFromFileOnce ::
+    FilePath ->
+    (Stream (Of CollectEvent) IO () -> IO r) ->
+    IO r
+collectFromFileOnce filePath action =
+    bracket
+        (openFile filePath ReadMode)
+        hClose
+        $ \handle -> do
+            let bytesStream = Q.fromHandle handle
+            let linesStream = Q.lines bytesStream
             action $ collectFromStream (T.pack filePath) linesStream
 
 {- | Read bytes from a file handle with polling behavior.

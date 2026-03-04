@@ -1,16 +1,19 @@
 module Main where
 
-import Collect (collectFromFileWithCleanup)
+import Capture (captureFromStream)
+import Collect (collectFromFileOnce, collectFromFileWithCleanup)
 import Config (ConfigPathInfo (..), ConfigPaths (..), ConfigWarning (..), InitConfigError (..), capture, getConfigPath, getConfigPaths, getProjectConfigPath, initConfigFile, loadConfig, toCaptureOptions)
 import Control.Exception (IOException, catch)
 import Data.Aeson qualified as Aeson
 import Data.ByteString.Char8 qualified as BS
 import Data.ByteString.Lazy.Char8 qualified as BL
 
+import Control.Monad (when)
 import Data.Yaml qualified as Yaml
 import OptEnvConf (
     HasParser (settingsParser),
     argument,
+    auto,
     command,
     commands,
     help,
@@ -34,7 +37,7 @@ import System.Exit (exitFailure)
 import System.FilePath ((</>))
 import System.IO (hFlush, hPutStrLn, stderr, stdout)
 import System.IO.Error (isDoesNotExistError, isPermissionError)
-import Types (CollectEvent, defaultCollectOptions)
+import Types (CollectEvent, DetectionRule (..), SpanShot, defaultCollectOptions, mkCaptureOptions)
 
 newtype Instructions = Instructions Dispatch
     deriving (Show)
@@ -45,6 +48,8 @@ instance HasParser Instructions where
 data Dispatch
     = DispatchCollect CollectSettings
     | DispatchConfig ConfigCommand
+    | DispatchCapture CaptureSettings
+    | DispatchRun RunSettings
     deriving (Show)
 
 instance HasParser Dispatch where
@@ -54,6 +59,10 @@ instance HasParser Dispatch where
                 DispatchCollect <$> settingsParser
             , command "config" "Manage configuration" $
                 DispatchConfig <$> settingsParser
+            , command "capture" "Capture errors with context from a log file and output SpanShots as JSONL" $
+                DispatchCapture <$> settingsParser
+            , command "run" "Monitor a log file continuously, capturing errors with context as JSONL" $
+                DispatchRun <$> settingsParser
             ]
 
 data ConfigCommand
@@ -126,6 +135,91 @@ instance HasParser CollectSettings where
                     ]
                 )
 
+-- | Settings for the 'capture' command (User Story 1)
+data CaptureSettings = CaptureSettings
+    { captureLogfile :: FilePath
+    , capturePattern :: String
+    , capturePreWindow :: Int
+    , capturePostWindow :: Int
+    , captureVerbose :: Bool
+    }
+    deriving (Show)
+
+instance HasParser CaptureSettings where
+    settingsParser =
+        CaptureSettings
+            <$> withoutConfig
+                ( setting
+                    [ help "Path to the log file to process"
+                    , reader str
+                    , name "logfile"
+                    , metavar "PATH"
+                    ]
+                )
+            <*> withoutConfig
+                ( setting
+                    [ help "Regex pattern to detect errors (e.g., \"ERROR|FATAL\")"
+                    , reader str
+                    , name "regex-pattern"
+                    , metavar "PATTERN"
+                    ]
+                )
+            <*> withoutConfig
+                ( setting
+                    [ help "Pre-window duration in seconds (context before error)"
+                    , reader auto
+                    , name "pre-window"
+                    , metavar "SECONDS"
+                    , value 5
+                    ]
+                )
+            <*> withoutConfig
+                ( setting
+                    [ help "Post-window duration in seconds (context after error)"
+                    , reader auto
+                    , name "post-window"
+                    , metavar "SECONDS"
+                    , value 5
+                    ]
+                )
+            <*> withoutConfig
+                ( setting
+                    [ help "Enable verbose progress output to stderr"
+                    , switch True
+                    , long "verbose"
+                    , short 'v'
+                    , value False
+                    ]
+                )
+
+-- | Settings for the 'run' command (User Story 2)
+data RunSettings = RunSettings
+    { runLogfile :: FilePath
+    , runVerbose :: Bool
+    }
+    deriving (Show)
+
+instance HasParser RunSettings where
+    settingsParser =
+        RunSettings
+            <$> withoutConfig
+                ( setting
+                    [ help "Path to the log file to monitor continuously"
+                    , reader str
+                    , name "logfile"
+                    , metavar "PATH"
+                    ]
+                )
+            <*> withoutConfig
+                ( setting
+                    [ help "Enable verbose progress output to stderr"
+                    , switch True
+                    , long "verbose"
+                    , short 'v'
+                    , value False
+                    ]
+                )
+
 main :: IO ()
 main = do
     Instructions dispatch <-
@@ -137,6 +231,61 @@ main = do
             runCollect logfilePath `catch` handleIOError logfilePath
         DispatchConfig cmd ->
             runConfig cmd
+        DispatchCapture settings ->
+            runCapture settings `catch` handleIOError (captureLogfile settings)
+        DispatchRun settings ->
+            runRun settings `catch` handleIOError (runLogfile settings)
+
+-- | Run the capture command: process a log file and output SpanShots as JSONL
+runCapture :: CaptureSettings -> IO ()
+runCapture settings = do
+    let logfilePath = captureLogfile settings
+    let regexPat = capturePattern settings
+    let preWin = fromIntegral (capturePreWindow settings)
+    let postWin = fromIntegral (capturePostWindow settings)
+    let verbose = captureVerbose settings
+    let rules = [RegexRule regexPat]
+
+    -- Validate arguments and create CaptureOptions
+    case mkCaptureOptions preWin postWin 10 rules of
+        Left err -> do
+            hPutStrLn stderr $ "Error: Invalid capture options: " ++ err
+            exitFailure
+        Right captureOpts -> do
+            when verbose $
+                hPutStrLn stderr $
+                    "[spanshot] Processing " ++ logfilePath
+            -- Use collectFromFileOnce for one-shot capture (not tailing)
+            collectFromFileOnce logfilePath $ \events -> do
+                let spanshots = captureFromStream captureOpts events
+                S.mapM_ printSpanShot spanshots
+            when verbose $
+                hPutStrLn stderr "[spanshot] Done"
+
+-- | Run the run command: continuously monitor a log file and output SpanShots as JSONL
+runRun :: RunSettings -> IO ()
+runRun settings = do
+    let logfilePath = runLogfile settings
+    let verbose = runVerbose settings
+
+    -- Load config and extract capture options
+    (config, warnings) <- loadConfig
+    printConfigWarnings warnings
+
+    case toCaptureOptions (capture config) of
+        Left err -> do
+            hPutStrLn stderr $ "Error: Invalid configuration: " ++ err
+            exitFailure
+        Right captureOpts -> do
+            when verbose $
+                hPutStrLn stderr $
+                    "[spanshot] Monitoring " ++ logfilePath
+            -- Use collectFromFileWithCleanup for continuous tailing
+            collectFromFileWithCleanup defaultCollectOptions logfilePath $ \events -> do
+                let spanshots = captureFromStream captureOpts events
+                S.mapM_ printSpanShot spanshots
+            when verbose $
+                hPutStrLn stderr "[spanshot] Done"
 
 runCollect :: FilePath -> IO ()
 runCollect logfilePath = do
@@ -235,4 +384,10 @@ handleIOError path e
 printEvent :: CollectEvent -> IO ()
 printEvent event = do
     BL.putStrLn $ Aeson.encode event
+    hFlush stdout
+
+-- | Print a SpanShot as JSONL (one line per SpanShot)
+printSpanShot :: SpanShot -> IO ()
+printSpanShot shot = do
+    BL.putStrLn $ Aeson.encode shot
     hFlush stdout
