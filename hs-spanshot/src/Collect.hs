@@ -1,6 +1,7 @@
 module Collect (
     collectFromFile,
     collectFromFileWithCleanup,
+    collectFromFileTail,
     collectFromFileOnce,
     collectFromStream,
 ) where
@@ -18,7 +19,7 @@ import Data.Time (getCurrentTime)
 import Streaming (Of, Stream)
 import Streaming.ByteString.Char8 qualified as Q
 import Streaming.Prelude qualified as S
-import System.IO (Handle, IOMode (..), hClose, hIsEOF, openFile)
+import System.IO (Handle, IOMode (..), SeekMode (..), hClose, hIsEOF, hSeek, openFile)
 
 import Types (CollectEvent (CollectEvent, line, readAtUtc, sessionOrderId, source), CollectOptions (pollIntervalMs))
 
@@ -93,6 +94,38 @@ collectFromFileWithCleanup opts filePath action =
         (openFile filePath ReadMode)
         hClose
         $ \handle -> do
+            let pollingBytes = bytesWithPolling opts handle
+            let linesStream = Q.lines pollingBytes
+            action $ collectFromStream (T.pack filePath) linesStream
+
+{- | Collect events from a file starting from the END, with polling for new content.
+
+This is like 'collectFromFileWithCleanup' but seeks to the end of the file first,
+making it suitable for monitoring scenarios where you only want to capture NEW
+content (like @tail -f@). Existing content in the file is skipped.
+
+Use this for live monitoring commands where historical content should not be
+processed. For historical analysis, use 'collectFromFileOnce' instead.
+
+Example:
+
+@
+-- Monitor only new errors (like tail -f)
+collectFromFileTail opts "app.log" $ \\events ->
+    S.mapM_ processEvent events
+@
+-}
+collectFromFileTail ::
+    CollectOptions ->
+    FilePath ->
+    (Stream (Of CollectEvent) IO () -> IO r) ->
+    IO r
+collectFromFileTail opts filePath action =
+    bracket
+        (openFile filePath ReadMode)
+        hClose
+        $ \handle -> do
+            hSeek handle SeekFromEnd 0 -- Start from end of file
             let pollingBytes = bytesWithPolling opts handle
             let linesStream = Q.lines pollingBytes
             action $ collectFromStream (T.pack filePath) linesStream
