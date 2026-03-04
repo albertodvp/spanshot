@@ -381,13 +381,15 @@ handleIOError path e
         hPutStrLn stderr $ "Error reading file '" ++ path ++ "': " ++ show e
         exitFailure
 
-printEvent :: CollectEvent -> IO ()
-printEvent event = do
-    BL.putStrLn $ Aeson.encode event
+-- | Print any JSON-serializable value as JSONL (one line, flushed to stdout)
+printJsonLn :: (Aeson.ToJSON a) => a -> IO ()
+printJsonLn x = do
+    BL.putStrLn $ Aeson.encode x
     hFlush stdout
+
+printEvent :: CollectEvent -> IO ()
+printEvent = printJsonLn
 
 -- | Print a SpanShot as JSONL (one line per SpanShot)
 printSpanShot :: SpanShot -> IO ()
-printSpanShot shot = do
-    BL.putStrLn $ Aeson.encode shot
-    hFlush stdout
+printSpanShot = printJsonLn

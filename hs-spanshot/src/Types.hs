@@ -4,14 +4,22 @@
 {-# HLINT ignore "Use newtype instead of data" #-}
 
 module Types (
+    -- * JSON Options
+    snakeCaseOptions,
+
+    -- * Collect Types
     CollectEvent (..),
     CollectOptions (pollIntervalMs),
     mkCollectOptions,
     defaultCollectOptions,
     maxPollIntervalMs,
     minPollIntervalMs,
+
+    -- * Detection Types
     DetectionRule (RegexRule, regexPattern),
     CompiledRule (..),
+
+    -- * Capture Types
     SpanShot (..),
     CaptureOptions (preWindowDuration, postWindowDuration, minContextEvents, detectionRules, compiledRules),
     mkCaptureOptions,
@@ -33,6 +41,10 @@ import GHC.Generics (Generic)
 import Text.Regex.TDFA (Regex, makeRegexM)
 import Text.Regex.TDFA.String ()
 
+-- | Common JSON options for snake_case field names
+snakeCaseOptions :: Options
+snakeCaseOptions = defaultOptions{fieldLabelModifier = camelTo2 '_'}
+
 data CollectEvent = CollectEvent
     { source :: !Text
     , sessionOrderId :: !Int
@@ -42,18 +54,10 @@ data CollectEvent = CollectEvent
     deriving (Show, Eq, Generic)
 
 instance ToJSON CollectEvent where
-    toJSON =
-        genericToJSON
-            defaultOptions
-                { fieldLabelModifier = camelTo2 '_'
-                }
+    toJSON = genericToJSON snakeCaseOptions
 
 instance FromJSON CollectEvent where
-    parseJSON =
-        genericParseJSON
-            defaultOptions
-                { fieldLabelModifier = camelTo2 '_'
-                }
+    parseJSON = genericParseJSON snakeCaseOptions
 
 newtype CollectOptions = CollectOptions
     { pollIntervalMs :: Int
@@ -83,18 +87,10 @@ data DetectionRule
     deriving (Show, Eq, Generic)
 
 instance ToJSON DetectionRule where
-    toJSON =
-        genericToJSON
-            defaultOptions
-                { fieldLabelModifier = camelTo2 '_'
-                }
+    toJSON = genericToJSON snakeCaseOptions
 
 instance FromJSON DetectionRule where
-    parseJSON =
-        genericParseJSON
-            defaultOptions
-                { fieldLabelModifier = camelTo2 '_'
-                }
+    parseJSON = genericParseJSON snakeCaseOptions
 
 {- | A compiled detection rule with pre-compiled regex for efficient matching.
 
@@ -125,18 +121,10 @@ data SpanShot = SpanShot
     deriving (Show, Eq, Generic)
 
 instance ToJSON SpanShot where
-    toJSON =
-        genericToJSON
-            defaultOptions
-                { fieldLabelModifier = camelTo2 '_'
-                }
+    toJSON = genericToJSON snakeCaseOptions
 
 instance FromJSON SpanShot where
-    parseJSON =
-        genericParseJSON
-            defaultOptions
-                { fieldLabelModifier = camelTo2 '_'
-                }
+    parseJSON = genericParseJSON snakeCaseOptions
 
 {- | Capture options with pre-compiled regex patterns.
 
@@ -211,8 +199,9 @@ compileRegex = makeRegexM
 defaultCaptureOptions :: CaptureOptions
 defaultCaptureOptions =
     let defaultRules = [RegexRule "ERROR"]
-        -- "ERROR" is a valid regex, so this is safe
-        Right defaultCompiled = compileDetectionRules defaultRules
+        defaultCompiled = case compileDetectionRules defaultRules of
+            Right compiled -> compiled
+            Left err -> error $ "defaultCaptureOptions: impossible regex compilation failure - " ++ err
      in CaptureOptions
             { preWindowDuration = 5
             , postWindowDuration = 5
