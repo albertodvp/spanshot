@@ -56,7 +56,7 @@ import GHC.Generics (Generic)
 import System.Directory (XdgDirectory (XdgConfig), canonicalizePath, createDirectoryIfMissing, doesDirectoryExist, doesFileExist, getCurrentDirectory, getXdgDirectory)
 import System.FilePath (takeDirectory, (</>))
 
-import Types (CaptureOptions (..), DetectionRule, defaultCaptureOptions, mkCaptureOptions)
+import Types (CaptureOptions (..), DetectionRule, defaultCaptureOptions, mkCaptureOptions, snakeCaseOptions)
 
 -- * Constants
 
@@ -79,10 +79,10 @@ data Config = Config
     deriving (Show, Eq, Generic)
 
 instance ToJSON Config where
-    toJSON = genericToJSON defaultOptions{fieldLabelModifier = camelTo2 '_'}
+    toJSON = genericToJSON snakeCaseOptions
 
 instance FromJSON Config where
-    parseJSON = genericParseJSON defaultOptions{fieldLabelModifier = camelTo2 '_'}
+    parseJSON = genericParseJSON snakeCaseOptions
 
 {- | Capture phase configuration
 Mirrors CaptureOptions but with proper YAML serialization
@@ -116,11 +116,15 @@ data PartialConfig = PartialConfig
     }
     deriving (Show, Eq, Generic)
 
+-- | JSON options for PartialConfig (strips "pc" prefix)
+partialConfigOptions :: Options
+partialConfigOptions = snakeCaseOptions{fieldLabelModifier = camelTo2 '_' . drop 2}
+
 instance ToJSON PartialConfig where
-    toJSON = genericToJSON defaultOptions{fieldLabelModifier = camelTo2 '_' . drop 2}
+    toJSON = genericToJSON partialConfigOptions
 
 instance FromJSON PartialConfig where
-    parseJSON = genericParseJSON defaultOptions{fieldLabelModifier = camelTo2 '_' . drop 2}
+    parseJSON = genericParseJSON partialConfigOptions
 
 -- | Partial capture config with all fields optional
 data PartialCaptureConfig = PartialCaptureConfig
