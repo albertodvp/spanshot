@@ -1,7 +1,7 @@
 module Main where
 
 import Capture (captureFromStream)
-import Collect (collectFromFileOnce, collectFromFileWithCleanup)
+import Collect (collectFromFileOnce, collectFromFileTail, collectFromFileWithCleanup)
 import Config (ConfigPathInfo (..), ConfigPaths (..), ConfigWarning (..), InitConfigError (..), capture, getConfigPath, getConfigPaths, getProjectConfigPath, initConfigFile, loadConfig, toCaptureOptions)
 import Control.Exception (IOException, catch)
 import Data.Aeson qualified as Aeson
@@ -279,9 +279,9 @@ runRun settings = do
         Right captureOpts -> do
             when verbose $
                 hPutStrLn stderr $
-                    "[spanshot] Monitoring " ++ logfilePath
-            -- Use collectFromFileWithCleanup for continuous tailing
-            collectFromFileWithCleanup defaultCollectOptions logfilePath $ \events -> do
+                    "[spanshot] Monitoring " ++ logfilePath ++ " (starting from end)"
+            -- Use collectFromFileTail to start from end of file (like tail -f)
+            collectFromFileTail defaultCollectOptions logfilePath $ \events -> do
                 let spanshots = captureFromStream captureOpts events
                 S.mapM_ printSpanShot spanshots
             when verbose $
