@@ -66,6 +66,109 @@ All **without leaving your terminal**.
 
 **Current Status:** Building **Collect + Capture** (v0.1) - AI-free monitoring with deterministic pattern matching.
 
+## Daemon Mode Vision
+
+SpanShot is designed to run as an **autonomous daemon** that watches, captures, analyzes, and delivers—without manual intervention:
+
+```bash
+spanshot start                    # Start daemon in current project
+# ... you work normally ...
+# Errors are captured, analyzed, and insights delivered automatically
+spanshot stop                     # Stop daemon
+```
+
+### How It Works
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         SPANSHOT DAEMON LIFECYCLE                           │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│   Developer starts daemon          Error detected              AI analyzes  │
+│          │                              │                          │        │
+│          ▼                              ▼                          ▼        │
+│   ┌─────────────┐    logs flow    ┌───────────┐   triggers   ┌──────────┐  │
+│   │   START     │ ──────────────▶ │  CAPTURE  │ ───────────▶ │ ANALYZE  │  │
+│   │  (daemon)   │                 │ SpanShot  │              │ (agent)  │  │
+│   └─────────────┘                 └───────────┘              └──────────┘  │
+│         │                                                          │        │
+│         │ monitors:                                                ▼        │
+│         │ • log files                                      ┌──────────┐    │
+│         │ • stdout/stderr (wrap mode)              stores  │ INSIGHT  │    │
+│         │ • terminal session (session mode)         ◀───── │ .spanshot│    │
+│         │                                                  └──────────┘    │
+│         │                                                          │        │
+│         │                                                          ▼        │
+│         │                                                  ┌──────────┐    │
+│         │                                         delivers │ DELIVER  │    │
+│         │                                          ◀────── │ to user  │    │
+│         │                                                  └──────────┘    │
+│         ▼                                                                   │
+│   Developer stays in flow, gets notified only with actionable insights     │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Analyze Phase: AI Agent (Planned)
+
+When a SpanShot is captured, the daemon **automatically** invokes an AI agent to diagnose the error:
+
+**Agent Capabilities (BYOK - Bring Your Own Key):**
+
+| Tool | Purpose | Permission Model |
+|------|---------|------------------|
+| **Read Codebase** | Access source files referenced in stack traces | Default: project files only |
+| **Search Code** | Find related code (grep, AST queries) | Default: project scope |
+| **Run Scripts** | Execute test commands, linters, build tools | Explicit allowlist required |
+| **Git Context** | Read recent commits, blame, diff | Default: read-only |
+| **External APIs** | Fetch docs, search StackOverflow | Opt-in per source |
+
+**Permission Model (TBD):**
+
+- Scripts require explicit allowlist in config
+- Sandboxed execution environment
+- Audit log of all agent actions
+- User confirmation for sensitive operations (optional)
+
+**Output: Insight**
+
+The agent produces an **Insight** (working name) containing:
+
+- Root cause analysis
+- Relevant code snippets with annotations
+- Suggested fix (code diff or steps)
+- Confidence level
+- References (docs, similar issues)
+
+### Storage: `.spanshot/` Directory
+
+```
+.spanshot/
+├── config.yaml              # Project configuration
+├── captures/                # Raw SpanShots (error + context)
+│   ├── 2025-03-04-001.json
+│   └── 2025-03-04-002.json
+├── insights/                # AI-generated analysis
+│   ├── 2025-03-04-001.json  # Linked to capture
+│   └── 2025-03-04-002.json
+└── sessions/                # Daemon session logs
+    └── current.log
+```
+
+### Deliver Phase: Smart Notification (Planned)
+
+How insights reach the developer (TBD - exploring options):
+
+| Channel | Use Case | Status |
+|---------|----------|--------|
+| **Terminal inline** | Working in same terminal | Planned |
+| **Desktop notification** | Background daemon, quick alert | Exploring |
+| **Editor integration** | Show in VS Code, Neovim, etc. | Future |
+| **Web dashboard** | Review multiple insights | Future |
+| **CLI review** | `spanshot show`, `spanshot insights` | Planned |
+
+**Design Principle:** Deliver insights **without breaking flow**. A notification should give enough context to decide "fix now" vs "fix later" without forcing a context switch.
+
 ## Installation
 
 **Prerequisites:** Nix with flakes (recommended for consistent dev environment with pre-configured tooling) or GHC 9.12.2+ and Cabal 3.10+
@@ -84,24 +187,53 @@ just test
 
 ## Quick Start
 
-### Current (v0.1 - Collection Only)
+### Current (v0.1)
 
 ```bash
-# Tail a log file and stream as JSONL
+# One-shot capture: process existing log file
+spanshot capture --logfile app.log --regex-pattern "ERROR|FATAL"
+
+# Continuous monitoring: tail log file for new errors
+spanshot run --logfile app.log
+
+# Stream collection only (JSONL output)
 spanshot collect --logfile /var/log/app.log
 
-# Filter errors with jq
+# Filter with jq
 spanshot collect --logfile app.log | jq 'select(.line | contains("ERROR"))'
 ```
 
-### Coming Soon (v0.1 - Capture)
+### Coming Soon (v0.2 - Input Modes)
 
 ```bash
-# Capture errors with temporal context
-spanshot capture --logfile app.log --regex-pattern "ERROR" --pre-window 5 --post-window 5
+# Wrap mode: run command and capture its output
+spanshot wrap -- npm test
+spanshot wrap -- cargo build
+spanshot wrap -- docker-compose up
 
-# Run full pipeline (collect + capture)
-spanshot run --logfile app.log --regex-pattern "ERROR|FATAL"
+# Session mode: monitor entire terminal session
+spanshot session
+npm test          # captured
+cargo build       # captured
+exit              # session ends, captures saved
+```
+
+### Future (v0.3+ - Daemon)
+
+```bash
+# Start daemon in project directory
+spanshot start
+
+# Work normally - errors auto-captured and analyzed
+npm test          # error captured → AI analyzes → insight delivered
+
+# Stop daemon
+spanshot stop
+
+# Review insights
+spanshot show              # list recent captures
+spanshot insights          # list AI-generated insights
+spanshot show 1 --json     # export for external tools
 ```
 
 ## Configuration
@@ -311,28 +443,71 @@ See the [Project Constitution](.specify/memory/constitution.md) for development 
 - [x] Core types (DetectionRule, SpanShot, CaptureOptions)
 - [x] Regex-based error detection
 - [x] Time-based window buffering (span window: pre/post context)
-- [ ] Stream combinator (`captureFromStream`)
-- [ ] CLI commands (`capture` and `run`)
-- [ ] CLI integration tests
+- [x] Stream combinator (`captureFromStream`)
+- [x] CLI commands (`capture` and `run`)
+- [ ] CLI integration tests for capture
 - [ ] Documentation and examples
 
-### v0.2+ - Future Phases
+### v0.2 - Input Modes & Storage
 
-**Configuration**
+**Input Flexibility**
+
+- [ ] `spanshot wrap -- COMMAND` (capture stdout/stderr of any command)
+- [ ] `spanshot session` (PTY-based terminal session monitoring)
+- [ ] Execution context in captures (command, exit code, duration, PWD)
+
+**Capture Storage**
+
+- [ ] `.spanshot/captures/` directory structure
+- [ ] `spanshot show` command to list/view captures
+- [ ] Session linking (group related captures)
+
+### v0.3 - Daemon Mode
+
+**Autonomous Operation**
+
+- [ ] `spanshot start` / `spanshot stop` daemon commands
+- [ ] Background monitoring with capture-on-error
+- [ ] Session management and logging
+- [ ] Graceful shutdown and signal handling
+
+### v0.4 - Analyze (AI Agent)
+
+**Agent Core**
+
+- [ ] BYOK integration (OpenAI, Anthropic, local models)
+- [ ] Automatic trigger on SpanShot capture
+- [ ] Insight generation and storage
+
+**Agent Tools**
+
+- [ ] Read codebase (project files, stack trace references)
+- [ ] Search code (grep, pattern matching)
+- [ ] Git context (blame, recent commits, diff)
+- [ ] Run scripts (sandboxed, allowlist-based)
+
+**Permission Model**
+
+- [ ] Configuration-based allowlist for script execution
+- [ ] Audit logging of agent actions
+- [ ] Scoped access (project-only by default)
+
+### v0.5 - Deliver
+
+**Notification Channels**
+
+- [ ] CLI review (`spanshot show`, `spanshot insights`)
+- [ ] Terminal inline notifications
+- [ ] Desktop notifications (optional)
+
+**Future Channels (Exploring)**
+
+- Editor integration (VS Code, Neovim)
+- Web dashboard
+- Webhooks / Slack integration
+
+### Configuration (Complete)
 
 - [x] YAML configuration file support
 - [x] Hierarchical config (user + project)
 - [x] `config init` command
-
-**Analyze** (spec in progress)
-
-- AI-powered error diagnosis with temporal context
-- Root cause reasoning using span window + code context
-- Actionable solution generation
-- BYOK support (OpenAI, Anthropic, local models)
-
-**Deliver** (spec TBD)
-
-- Terminal notifications
-- Desktop alerts
-- Integration hooks (webhooks, Slack, etc.)
