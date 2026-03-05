@@ -4,6 +4,10 @@ Auto-generated from feature plans. Last updated: 2026-03-03
 
 ## Active Technologies
 
+- Haskell (GHC 9.12+)\\ + streaming, streaming-bytestring, aeson, opt-env-conf, regex-tdfa, unix (for PTY)\\ (003-dev-input-modes)
+
+- Filesystem (`.spanshot/captures/*.json`)\\ (003-dev-input-modes)
+
 - Haskell (GHC 9.12+) + streaming, streaming-bytestring, aeson, opt-env-conf, regex-tdfa (002-capture-phase)
 
 - N/A (file-based streaming, no persistent storage) (002-capture-phase)
@@ -68,6 +72,8 @@ nix fmt                        # Format all (treefmt)
 See `.specify/memory/constitution.md` for full details.
 
 ## Recent Changes
+
+- 003-dev-input-modes: Added Haskell (GHC 9.12+)\\ + streaming, streaming-bytestring, aeson, opt-env-conf, regex-tdfa, unix (for PTY)\\
 
 - 002-capture-phase: Added Haskell (GHC 9.12+) + streaming, streaming-bytestring, aeson, opt-env-conf, regex-tdfa
 
