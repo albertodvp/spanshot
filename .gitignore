@@ -5,3 +5,4 @@ dist-newstyle
 .pre-commit-config.yaml
 git-worktrees
 result
+.spanshot/
