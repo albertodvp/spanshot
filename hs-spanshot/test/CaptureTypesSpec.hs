@@ -95,7 +95,7 @@ captureTypesTests = do
             let post = [mockEvent 6 "post1", mockEvent 7 "post2"]
             let rules = [RegexRule "ERROR"]
             let time = mockTime 10
-            let shot = SpanShot err pre post rules time False
+            let shot = SpanShot err pre post rules time False Nothing Nothing Nothing
             let (errOut, preSeq, postSeq) = spanShotToSeq shot
             errOut `shouldBe` err
             toList preSeq `shouldBe` pre
@@ -120,7 +120,7 @@ captureTypesTests = do
             let post = [mockEvent 6 "post1", mockEvent 7 "post2"]
             let rules = [RegexRule "ERROR"]
             let time = mockTime 100
-            let original = SpanShot err pre post rules time False
+            let original = SpanShot err pre post rules time False Nothing Nothing Nothing
             let (errOut, preSeq, postSeq) = spanShotToSeq original
             let reconstructed = spanShotFromSeq errOut preSeq postSeq rules time False
             reconstructed `shouldBe` original
@@ -129,7 +129,7 @@ captureTypesTests = do
             let err = mockEvent 5 "ERROR"
             let rules = [RegexRule "ERROR"]
             let time = mockTime 10
-            let shot = SpanShot err [] [] rules time False
+            let shot = SpanShot err [] [] rules time False Nothing Nothing Nothing
             let (errOut, preSeq, postSeq) = spanShotToSeq shot
             errOut `shouldBe` err
             Seq.null preSeq `shouldBe` True

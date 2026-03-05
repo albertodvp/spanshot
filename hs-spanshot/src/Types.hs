@@ -21,6 +21,7 @@ module Types (
 
     -- * Capture Types
     SpanShot (..),
+    CaptureSource (..),
     CaptureOptions (preWindowDuration, postWindowDuration, minContextEvents, maxPostWindowEvents, detectionRules, compiledRules),
     mkCaptureOptions,
     defaultCaptureOptions,
@@ -112,6 +113,30 @@ instance Show CompiledRule where
 instance Eq CompiledRule where
     (CompiledRule r1 _) == (CompiledRule r2 _) = r1 == r2
 
+{- | How a capture was created.
+
+This enum tracks the source of a capture for filtering and display purposes.
+-}
+data CaptureSource
+    = -- | Captured during a PTY session
+      SessionCapture !Text
+    | -- | Captured while wrapping a single command
+      WrapCapture !Text
+    | -- | Captured from tailing a log file
+      FileCapture !FilePath
+    deriving (Show, Eq, Generic)
+
+instance ToJSON CaptureSource where
+    toJSON = genericToJSON snakeCaseOptions
+
+instance FromJSON CaptureSource where
+    parseJSON = genericParseJSON snakeCaseOptions
+
+{- | A captured error with surrounding context.
+
+Extended with 'captureId', 'sessionId', and 'captureSource' fields
+for storage and filtering.
+-}
 data SpanShot = SpanShot
     { errorEvent :: !CollectEvent
     , preWindow :: ![CollectEvent]
@@ -120,6 +145,9 @@ data SpanShot = SpanShot
     , capturedAtUtc :: !UTCTime
     , truncated :: !Bool
     -- ^ True if the post-window was truncated due to maxPostWindowEvents limit
+    , captureId :: !(Maybe Text)
+    , sessionId :: !(Maybe Text)
+    , captureSource :: !(Maybe CaptureSource)
     }
     deriving (Show, Eq, Generic)
 
@@ -266,4 +294,7 @@ spanShotFromSeq err pre post rules time wasTruncated =
         , detectedBy = rules
         , capturedAtUtc = time
         , truncated = wasTruncated
+        , captureId = Nothing
+        , sessionId = Nothing
+        , captureSource = Nothing
         }
