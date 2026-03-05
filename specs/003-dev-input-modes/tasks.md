@@ -16,12 +16,12 @@ ______________________________________________________________________
 
 **Purpose**: Add new dependencies and create module structure
 
-- [ ] T001 Add `unix` (for PTY via `openPseudoTerminal`) and `async` dependencies to `hs-spanshot.cabal`
-- [ ] T002 [P] Create `hs-spanshot/src/Session.hs` module stub (exports only)
-- [ ] T003 [P] Create `hs-spanshot/src/Session/Pty.hs` module stub with CPP for Windows
-- [ ] T004 [P] Create `hs-spanshot/src/Session/State.hs` module stub
-- [ ] T005 [P] Create `hs-spanshot/src/Wrap.hs` module stub
-- [ ] T006 [P] Create `hs-spanshot/src/Storage.hs` module stub
+- [x] T001 Add `unix` (for PTY via `openPseudoTerminal`) and `async` dependencies to `hs-spanshot.cabal`
+- [x] T002 [P] Create `hs-spanshot/src/Session.hs` module stub (exports only)
+- [x] T003 [P] Create `hs-spanshot/src/Session/Pty.hs` module stub with CPP for Windows
+- [x] T004 [P] Create `hs-spanshot/src/Session/State.hs` module stub
+- [x] T005 [P] Create `hs-spanshot/src/Wrap.hs` module stub
+- [x] T006 [P] Create `hs-spanshot/src/Storage.hs` module stub
 
 ______________________________________________________________________
 
