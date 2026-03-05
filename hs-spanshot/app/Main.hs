@@ -321,18 +321,19 @@ runConfig ConfigPath = do
         Just projInfo -> printPathInfo "project" projInfo
 runConfig ConfigValidate = do
     (config, warnings) <- loadConfig
-    -- Print warnings (if any)
-    let hasWarnings = not (null warnings)
-    mapM_ (printWarning "Warning") warnings
-    -- Validate the config
+    -- Print errors for any config file issues (parse or validation)
+    let hasErrors = not (null warnings)
+    mapM_ (printWarning "Error") warnings
+    -- If config files failed, exit with failure
+    when hasErrors $ do
+        hPutStrLn stderr $ colorRed ++ "Config validation failed." ++ colorReset
+        exitFailure
+    -- Validate the loaded config values
     case toCaptureOptions (capture config) of
         Left err -> do
-            hPutStrLn stderr $ "Error: Invalid configuration: " ++ err
+            hPutStrLn stderr $ colorRed ++ "Error" ++ colorReset ++ ": Invalid configuration: " ++ err
             exitFailure
-        Right _ -> do
-            if hasWarnings
-                then putStrLn "Configuration has warnings but is valid."
-                else putStrLn "Configuration is valid."
+        Right _ -> putStrLn "Configuration is valid."
 runConfig (ConfigInit settings) = do
     targetPath <-
         if initUser settings
@@ -377,15 +378,31 @@ printPathInfo label info = do
 printConfigWarnings :: [ConfigWarning] -> IO ()
 printConfigWarnings [] = pure ()
 printConfigWarnings warnings = do
+    hPutStrLn stderr ""
     mapM_ (printWarning "Warning") warnings
-    hPutStrLn stderr "Using default configuration for failed config files."
+    hPutStrLn stderr $ colorYellow ++ "Using default configuration." ++ colorReset
+    hPutStrLn stderr ""
 
 -- | Print a config warning with a given prefix (e.g., "Warning" or "Error")
 printWarning :: String -> ConfigWarning -> IO ()
-printWarning prefix (ConfigParseWarning path err) =
-    hPutStrLn stderr $ prefix ++ ": Failed to parse config file " ++ path ++ ": " ++ err
-printWarning prefix (ConfigValidationWarning path err) =
-    hPutStrLn stderr $ prefix ++ ": Invalid configuration in " ++ path ++ ": " ++ err
+printWarning prefix (ConfigParseWarning path err) = do
+    hPutStrLn stderr $ coloredPrefix prefix ++ ": Failed to parse " ++ path
+    mapM_ (hPutStrLn stderr . ("  " ++)) (lines err)
+printWarning prefix (ConfigValidationWarning path err) = do
+    hPutStrLn stderr $ coloredPrefix prefix ++ ": Invalid config in " ++ path
+    hPutStrLn stderr $ "  " ++ err
+
+-- | ANSI color codes
+colorRed, colorYellow, colorReset :: String
+colorRed = "\ESC[31m"
+colorYellow = "\ESC[33m"
+colorReset = "\ESC[0m"
+
+-- | Apply color to prefix based on severity
+coloredPrefix :: String -> String
+coloredPrefix "Error" = colorRed ++ "Error" ++ colorReset
+coloredPrefix "Warning" = colorYellow ++ "Warning" ++ colorReset
+coloredPrefix other = other
 
 handleIOError :: FilePath -> IOException -> IO ()
 handleIOError path e

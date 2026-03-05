@@ -374,7 +374,7 @@ loadUserConfig = do
             result <- Yaml.decodeFileEither path
             case result of
                 Left err ->
-                    let warning = ConfigParseWarning path (show err)
+                    let warning = ConfigParseWarning path (Yaml.prettyPrintParseException err)
                      in pure (defaultConfig, [warning])
                 Right config -> pure (config, [])
         else pure (defaultConfig, [])
@@ -392,7 +392,7 @@ loadProjectConfig startDir = do
                     result <- Yaml.decodeFileEither path
                     case result of
                         Left err ->
-                            let warning = ConfigParseWarning path (show err)
+                            let warning = ConfigParseWarning path (Yaml.prettyPrintParseException err)
                              in pure (emptyPartialConfig, [warning])
                         Right partial -> pure (partial, [])
                 else pure (emptyPartialConfig, [])
