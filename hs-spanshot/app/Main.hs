@@ -1,6 +1,6 @@
 module Main where
 
-import Capture (captureFromStream)
+import Capture (captureFromStream, captureFromStreamWithTicks)
 import Collect (collectFromFileOnce, collectFromFileTail, collectFromFileWithCleanup)
 import Config (ConfigPathInfo (..), ConfigPaths (..), ConfigWarning (..), InitConfigError (..), capture, getConfigPath, getConfigPaths, getProjectConfigPath, initConfigFile, loadConfig, toCaptureOptions)
 import Control.Exception (IOException, catch)
@@ -283,8 +283,10 @@ runRun settings = do
                 hPutStrLn stderr $
                     "[spanshot] Monitoring " ++ logfilePath ++ " (starting from end)"
             -- Use collectFromFileTail to start from end of file (like tail -f)
+            -- Use captureFromStreamWithTicks to emit SpanShots even when no events arrive
+            let tickIntervalMicros = 1000000 -- 1 second
             collectFromFileTail defaultCollectOptions logfilePath $ \events -> do
-                let spanshots = captureFromStream captureOpts events
+                let spanshots = captureFromStreamWithTicks captureOpts tickIntervalMicros events
                 S.mapM_ printSpanShot spanshots
             when verbose $
                 hPutStrLn stderr "[spanshot] Done"

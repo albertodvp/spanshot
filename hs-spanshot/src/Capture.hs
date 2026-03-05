@@ -7,15 +7,19 @@ module Capture (
     processEvent,
     finalizeCapture,
     captureFromStream,
+    captureFromStreamWithTicks,
+    checkTimeout,
 ) where
 
 import Data.Foldable (toList)
 import Data.Sequence (Seq)
 import Data.Sequence qualified as Seq
 import Data.Text qualified as T
-import Data.Time (UTCTime, addUTCTime, diffUTCTime)
+import Data.Time (UTCTime, addUTCTime, diffUTCTime, getCurrentTime)
 import Streaming (Of ((:>)), Stream)
+import Streaming qualified as S
 import Streaming.Internal (Stream (Effect, Return, Step))
+import System.Timeout (timeout)
 import Text.Regex.TDFA (matchTest, (=~))
 import Text.Regex.TDFA.Text ()
 
@@ -356,3 +360,106 @@ captureFromStream opts = loop initialCaptureState
              in case maybeShot of
                     Nothing -> loop newState rest
                     Just shot -> Step (shot :> loop newState rest)
+
+{- | Check if the active capture's post-window has timed out.
+
+This pure function checks if enough time has elapsed since the error was detected
+to complete the post-window collection. If so, it returns the SpanShot and resets
+the capture state.
+
+This is used by 'captureFromStreamWithTicks' to emit SpanShots even when no new
+events arrive (solving the "stuck SpanShot" problem).
+
+Time Complexity: O(n) where n = number of events in windows
+Space Complexity: O(n) for the resulting SpanShot
+-}
+checkTimeout :: CaptureOptions -> UTCTime -> CaptureState -> (CaptureState, Maybe SpanShot)
+checkTimeout opts now state =
+    case csActiveCapture state of
+        Nothing -> (state, Nothing)
+        Just cap ->
+            let errorTime = readAtUtc (acErrorEvent cap)
+                elapsed = diffUTCTime now errorTime
+             in if elapsed >= postWindowDuration opts
+                    then
+                        let shot =
+                                SpanShot
+                                    { errorEvent = acErrorEvent cap
+                                    , preWindow = toList (acPreWindowSnapshot cap)
+                                    , postWindow = toList (acPostEvents cap)
+                                    , detectedBy = acDetectedBy cap
+                                    , capturedAtUtc = now
+                                    , truncated = False
+                                    }
+                            newState = state{csActiveCapture = Nothing}
+                         in (newState, Just shot)
+                    else (state, Nothing)
+
+{- | Transform a stream of CollectEvents into a stream of SpanShots with timeout support.
+
+This is an enhanced version of 'captureFromStream' that periodically checks for
+timed-out post-windows even when no new events arrive. This solves the "stuck SpanShot"
+problem where an error that causes the system to stop logging would never be emitted.
+
+The tick interval determines how often to check for timeouts when no events arrive.
+A typical value is 1 second (1000000 microseconds).
+
+Key behaviors (in addition to 'captureFromStream'):
+- Uses 'System.Timeout.timeout' to periodically check for expired post-windows
+- Emits SpanShots when post-window duration elapses, even without new events
+- On stream end, emits any in-flight capture
+
+Example:
+
+@
+let opts = defaultCaptureOptions
+let events = collectFromFileTail "app.log"
+let tickInterval = 1000000  -- 1 second
+let spanshots = captureFromStreamWithTicks opts tickInterval events
+S.mapM_ (putStrLn . encode) spanshots
+@
+
+Memory considerations: Same as 'captureFromStream'
+Time Complexity: O(1) per event or tick (amortized)
+
+Note: This function is constrained to IO because 'System.Timeout.timeout' requires IO.
+-}
+captureFromStreamWithTicks ::
+    CaptureOptions ->
+    -- | Tick interval in microseconds (e.g., 1000000 = 1 second)
+    Int ->
+    Stream (Of CollectEvent) IO r ->
+    Stream (Of SpanShot) IO r
+captureFromStreamWithTicks opts tickMicros = loop initialCaptureState
+  where
+    loop !state stream = Effect $ do
+        -- Try to get next event with timeout
+        result <- timeout tickMicros (inspectStream stream)
+        case result of
+            Nothing -> do
+                -- Tick: no event within timeout, check for expired post-window
+                now <- getCurrentTime
+                let (state', maybeShot) = checkTimeout opts now state
+                pure $ case maybeShot of
+                    Nothing -> loop state' stream
+                    Just shot -> Step (shot :> loop state' stream)
+            Just (Left r) -> do
+                -- Stream ended, emit in-flight capture if any
+                now <- getCurrentTime
+                pure $ case csActiveCapture state of
+                    Nothing -> Return r
+                    Just cap -> Step (finalizeCapture cap now :> Return r)
+            Just (Right (event, rest)) -> do
+                -- Process the event normally
+                let (newState, maybeShot) = processEvent opts state event
+                pure $ case maybeShot of
+                    Nothing -> loop newState rest
+                    Just shot -> Step (shot :> loop newState rest)
+
+    -- Inspect the stream to get the next element or end marker
+    inspectStream :: Stream (Of CollectEvent) IO r -> IO (Either r (CollectEvent, Stream (Of CollectEvent) IO r))
+    inspectStream s = do
+        result <- S.inspect s
+        case result of
+            Left r -> pure (Left r)
+            Right (event :> rest) -> pure (Right (event, rest))
