@@ -16,7 +16,7 @@ ______________________________________________________________________
 
 **Purpose**: Add new dependencies and create module structure
 
-- [ ] T001 Add `posix-pty` and `async` dependencies to `hs-spanshot.cabal`
+- [ ] T001 Add `unix` (for PTY via `openPseudoTerminal`) and `async` dependencies to `hs-spanshot.cabal`
 - [ ] T002 [P] Create `hs-spanshot/src/Session.hs` module stub (exports only)
 - [ ] T003 [P] Create `hs-spanshot/src/Session/Pty.hs` module stub with CPP for Windows
 - [ ] T004 [P] Create `hs-spanshot/src/Session/State.hs` module stub
@@ -42,9 +42,40 @@ ______________________________________________________________________
 
 ______________________________________________________________________
 
-## Phase 3: User Story 1 - PTY Session Mode (Priority: P1) 🎯 MVP
+## Phase 3: User Story 2 - Wrap Mode (Build First) 🎯 MVP
+
+**Goal**: Run single command with monitoring, preserve exit code
+
+**Why first**: Wrap is a strict subset of session - learn PTY, signals, exit codes on simpler problem.
+Per contrarian analysis: shippable value sooner, lessons inform session implementation.
+
+**Independent Test**: Run `spns wrap -- echo test`, verify exit code matches
+
+### Tests for User Story 2 ⚠️
+
+> **NOTE: Write these tests FIRST, ensure they FAIL before implementation**
+
+- [ ] T013 [P] [US2] Unit test `Wrap.hs`: command execution, exit code passthrough in `test/WrapSpec.hs`
+- [ ] T014 [US2] Integration test: `spanshot wrap -- cmd` in `test/CLIIntegration.hs`
+
+### Implementation for User Story 2
+
+- [ ] T015 [US2] Implement `Pty.hs`: `spawnPty`, `readPty`, `writePty` (Unix) - core PTY operations
+- [ ] T016 [US2] Implement `Pty.hs`: Windows stub returning "not supported"
+- [ ] T017 [US2] Implement `Wrap.hs`: `runWrap` using PTY for single command
+- [ ] T018 [US2] Implement `Wrap.hs`: Exit code capture and passthrough
+- [ ] T019 [US2] Implement `Wrap.hs`: Integration with capture pipeline
+- [ ] T020 [US2] Add CLI command `wrap` with `--` delimiter parsing in `app/Main.hs`
+
+**Checkpoint**: `spanshot wrap -- cmd` works - exit code preserved, errors captured
+
+______________________________________________________________________
+
+## Phase 4: User Story 1 - PTY Session Mode
 
 **Goal**: Developer can run `spns session`, work normally, errors captured automatically
+
+**Builds on**: Reuses PTY logic from wrap mode (T015-T016)
 
 **Independent Test**: Run `spns session`, trigger ERROR, verify capture saved
 
@@ -52,49 +83,24 @@ ______________________________________________________________________
 
 > **NOTE: Write these tests FIRST, ensure they FAIL before implementation**
 
-- [ ] T013 [P] [US1] Unit test `Session/State.hs`: session creation, ID generation in `test/SessionStateSpec.hs`
-- [ ] T014 [P] [US1] Unit test `Session/Pty.hs`: PTY spawn, read/write (mock) in `test/SessionPtySpec.hs`
-- [ ] T015 [US1] Integration test: `spanshot session` basic flow in `test/CLIIntegration.hs`
+- [ ] T021 [P] [US1] Unit test `Session/State.hs`: session creation, ID generation in `test/SessionStateSpec.hs`
+- [ ] T022 [US1] Integration test: `spanshot session` basic flow in `test/CLIIntegration.hs`
 
 ### Implementation for User Story 1
 
-- [ ] T016 [US1] Implement `Session/State.hs`: `newSession`, `addCapture`, `getCaptures`
-- [ ] T017 [US1] Implement `Session/Pty.hs`: `spawnPty`, `readPty`, `writePty` (Unix)
-- [ ] T018 [US1] Implement `Session/Pty.hs`: Windows stub returning "not supported"
-- [ ] T019 [US1] Implement `Session.hs`: `runSession` main loop with concurrent I/O
-- [ ] T020 [US1] Implement `Session.hs`: Signal handlers (SIGINT forward, SIGWINCH resize)
-- [ ] T021 [US1] Implement `Session.hs`: Integration with capture pipeline (feed PTY output)
-- [ ] T022 [US1] Implement concurrent session detection (lock file + warning)
-- [ ] T023 [US1] Add CLI command `session` in `app/Main.hs`
-- [ ] T024 [US1] Implement welcome message on session start, summary on exit
+- [ ] T023 [US1] Implement `Session/State.hs`: `newSession`, `addCapture`, `getCaptures`
+- [ ] T024 [US1] Implement `Session.hs`: `runSession` main loop with concurrent I/O
+- [ ] T025 [US1] Implement `Session.hs`: Signal handlers (SIGINT forward, SIGWINCH resize)
+- [ ] T026 [US1] Implement `Session.hs`: Integration with capture pipeline (feed PTY output)
+- [ ] T027 [US1] Implement concurrent session detection (lock file + warning)
+- [ ] T028 [US1] Add CLI command `session` in `app/Main.hs`
+- [ ] T029 [US1] Implement welcome message on session start, summary on exit
 
 **Checkpoint**: `spanshot session` works - can capture errors from PTY
 
 ______________________________________________________________________
 
-## Phase 4: User Story 2 - Wrap Mode (Priority: P2)
-
-**Goal**: Run single command with monitoring, preserve exit code
-
-**Independent Test**: Run `spns wrap -- echo test`, verify exit code matches
-
-### Tests for User Story 2 ⚠️
-
-- [ ] T025 [P] [US2] Unit test `Wrap.hs`: command execution, exit code passthrough in `test/WrapSpec.hs`
-- [ ] T026 [US2] Integration test: `spanshot wrap -- cmd` in `test/CLIIntegration.hs`
-
-### Implementation for User Story 2
-
-- [ ] T027 [US2] Implement `Wrap.hs`: `runWrap` using PTY for single command
-- [ ] T028 [US2] Implement `Wrap.hs`: Exit code capture and passthrough
-- [ ] T029 [US2] Implement `Wrap.hs`: Integration with capture pipeline
-- [ ] T030 [US2] Add CLI command `wrap` with `--` delimiter parsing in `app/Main.hs`
-
-**Checkpoint**: `spanshot wrap -- cmd` works - exit code preserved, errors captured
-
-______________________________________________________________________
-
-## Phase 5: User Story 3 - Status/Show Commands (Priority: P3)
+## Phase 5: User Story 3 - Status/Show Commands
 
 **Goal**: View captured errors with `status` and `show` commands
 
@@ -102,15 +108,15 @@ ______________________________________________________________________
 
 ### Tests for User Story 3 ⚠️
 
-- [ ] T031 [P] [US3] Unit test `Storage.hs`: listing and filtering in `test/StorageSpec.hs`
-- [ ] T032 [US3] Integration test: `spanshot status` and `spanshot show` in `test/CLIIntegration.hs`
+- [ ] T030 [P] [US3] Unit test `Storage.hs`: listing and filtering in `test/StorageSpec.hs`
+- [ ] T031 [US3] Integration test: `spanshot status` and `spanshot show` in `test/CLIIntegration.hs`
 
 ### Implementation for User Story 3
 
-- [ ] T033 [US3] Implement `status` command: list recent captures with timestamps
-- [ ] T034 [US3] Implement `show N` command: display full capture with context
-- [ ] T035 [US3] Implement `show N --json` flag: output as JSON
-- [ ] T036 [US3] Add CLI commands `status` and `show` in `app/Main.hs`
+- [ ] T032 [US3] Implement `status` command: list recent captures with timestamps
+- [ ] T033 [US3] Implement `show N` command: display full capture with context
+- [ ] T034 [US3] Implement `show N --json` flag: output as JSON
+- [ ] T035 [US3] Add CLI commands `status` and `show` in `app/Main.hs`
 
 **Checkpoint**: All core commands work independently
 
@@ -120,11 +126,11 @@ ______________________________________________________________________
 
 **Purpose**: Final integration and documentation
 
-- [ ] T037 [P] Update README.md with new commands (session, wrap, status, show)
-- [ ] T038 [P] Add `spns` alias documentation
-- [ ] T039 Run `just test` - all tests pass
-- [ ] T040 Run `just build` - no warnings
-- [ ] T041 Validate quickstart.md examples work end-to-end
+- [ ] T036 [P] Update README.md with new commands (session, wrap, status, show)
+- [ ] T037 [P] Add `spns` alias documentation
+- [ ] T038 Run `just test` - all tests pass
+- [ ] T039 Run `just build` - no warnings
+- [ ] T040 Validate quickstart.md examples work end-to-end
 
 ______________________________________________________________________
 
@@ -135,8 +141,9 @@ ______________________________________________________________________
 - **Setup (Phase 1)**: No dependencies
 - **Foundational (Phase 2)**: Depends on Setup
 - **User Stories (Phase 3-5)**: All depend on Foundational
-  - US1 (Session) → US2 (Wrap) can reuse PTY logic
-  - US3 (Status/Show) only depends on Storage
+  - US2 (Wrap) first → teaches PTY basics
+  - US1 (Session) reuses PTY logic from wrap
+  - US3 (Status/Show) only depends on Storage (can run in parallel with US1)
 - **Polish (Phase 6)**: After all user stories
 
 ### Within Each User Story
@@ -150,9 +157,9 @@ ______________________________________________________________________
 
 ```
 After Phase 2 (Foundational):
-├── US1: Session Mode (T013-T024)
-│   └── US2: Wrap Mode (T025-T030) - can start after T017-T019 done
-└── US3: Status/Show (T031-T036) - independent, only needs Storage
+├── US2: Wrap Mode (T013-T020) - BUILD FIRST
+│   └── US1: Session Mode (T021-T029) - reuses PTY from wrap
+└── US3: Status/Show (T030-T035) - independent, only needs Storage
 ```
 
 ______________________________________________________________________
@@ -163,8 +170,8 @@ ______________________________________________________________________
 |-------|-------|----------|
 | Setup | 6 | 5 |
 | Foundational | 6 | 0 |
-| US1 Session | 12 | 3 |
-| US2 Wrap | 6 | 2 |
+| US2 Wrap | 8 | 2 |
+| US1 Session | 9 | 2 |
 | US3 Status/Show | 6 | 2 |
 | Polish | 5 | 2 |
-| **Total** | **41** | **14** |
+| **Total** | **40** | **13** |
