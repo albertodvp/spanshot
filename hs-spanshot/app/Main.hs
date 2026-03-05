@@ -323,7 +323,7 @@ runConfig ConfigValidate = do
     (config, warnings) <- loadConfig
     -- Print warnings (if any)
     let hasWarnings = not (null warnings)
-    mapM_ printWarning warnings
+    mapM_ (printWarning "Warning") warnings
     -- Validate the config
     case toCaptureOptions (capture config) of
         Left err -> do
@@ -331,15 +331,8 @@ runConfig ConfigValidate = do
             exitFailure
         Right _ -> do
             if hasWarnings
-                then do
-                    hPutStrLn stderr "Configuration has warnings but is valid."
-                    exitFailure
+                then putStrLn "Configuration has warnings but is valid."
                 else putStrLn "Configuration is valid."
-  where
-    printWarning (ConfigParseWarning path err) =
-        hPutStrLn stderr $ "Error: Failed to parse config file " ++ path ++ ": " ++ err
-    printWarning (ConfigValidationWarning path err) =
-        hPutStrLn stderr $ "Error: Invalid configuration in " ++ path ++ ": " ++ err
 runConfig (ConfigInit settings) = do
     targetPath <-
         if initUser settings
@@ -384,13 +377,15 @@ printPathInfo label info = do
 printConfigWarnings :: [ConfigWarning] -> IO ()
 printConfigWarnings [] = pure ()
 printConfigWarnings warnings = do
-    mapM_ printWarning warnings
+    mapM_ (printWarning "Warning") warnings
     hPutStrLn stderr "Using default configuration for failed config files."
-  where
-    printWarning (ConfigParseWarning path err) =
-        hPutStrLn stderr $ "Warning: Failed to parse config file " ++ path ++ ": " ++ err
-    printWarning (ConfigValidationWarning path err) =
-        hPutStrLn stderr $ "Warning: Invalid configuration in " ++ path ++ ": " ++ err
+
+-- | Print a config warning with a given prefix (e.g., "Warning" or "Error")
+printWarning :: String -> ConfigWarning -> IO ()
+printWarning prefix (ConfigParseWarning path err) =
+    hPutStrLn stderr $ prefix ++ ": Failed to parse config file " ++ path ++ ": " ++ err
+printWarning prefix (ConfigValidationWarning path err) =
+    hPutStrLn stderr $ prefix ++ ": Invalid configuration in " ++ path ++ ": " ++ err
 
 handleIOError :: FilePath -> IOException -> IO ()
 handleIOError path e
