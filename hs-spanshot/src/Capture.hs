@@ -21,12 +21,12 @@ import Text.Regex.TDFA.Text ()
 
 import Types (
     ActiveCapture (ActiveCapture, acDetectedBy, acErrorEvent, acPostEvents, acPreWindowSnapshot),
-    CaptureOptions (compiledRules, minContextEvents, postWindowDuration, preWindowDuration),
+    CaptureOptions (compiledRules, maxPostWindowEvents, minContextEvents, postWindowDuration, preWindowDuration),
     CaptureState (CaptureState, csActiveCapture, csPreWindow),
     CollectEvent (line, readAtUtc),
     CompiledRule (..),
     DetectionRule (RegexRule),
-    SpanShot (SpanShot, capturedAtUtc, detectedBy, errorEvent, postWindow, preWindow),
+    SpanShot (SpanShot, capturedAtUtc, detectedBy, errorEvent, postWindow, preWindow, truncated),
     initialCaptureState,
  )
 
@@ -203,10 +203,9 @@ Space Complexity: O(n) for snapshot creation when error detected
 
 Memory considerations:
 - Pre-window is bounded by preWindowDuration (time) and minContextEvents (count fallback)
-- Post-window is bounded by postWindowDuration (time) only, with no hard event count limit
-- In high-throughput scenarios (e.g., 1000s of events/second), post-window memory scales
-  with log volume within postWindowDuration. This is a deliberate simplification for v0.1;
-  a maxPostWindowEvents option may be added in future versions if needed.
+- Post-window is bounded by BOTH postWindowDuration (time) AND maxPostWindowEvents (count)
+- When maxPostWindowEvents is reached before time expires, SpanShot is emitted with truncated=True
+- Default maxPostWindowEvents is 1000, preventing memory exhaustion in high-throughput scenarios
 -}
 processEvent :: CaptureOptions -> CaptureState -> CollectEvent -> (CaptureState, Maybe SpanShot)
 processEvent opts state newEvent =
@@ -235,7 +234,12 @@ processEvent opts state newEvent =
                     errorTime = readAtUtc (acErrorEvent cap)
                     eventTime = readAtUtc newEvent
                     elapsed = diffUTCTime eventTime errorTime
-                    shouldEmit = elapsed >= postWindowDuration opts
+                    timeExpired = elapsed >= postWindowDuration opts
+                    currentPostCount = Seq.length (acPostEvents cap)
+                    -- Check if adding this event would exceed the limit
+                    wouldExceedLimit = currentPostCount >= maxPostWindowEvents opts
+                    shouldEmit = timeExpired || wouldExceedLimit
+                    wasTruncated = wouldExceedLimit && not timeExpired
                  in
                     if shouldEmit
                         then
@@ -247,6 +251,7 @@ processEvent opts state newEvent =
                                     , postWindow = toList (acPostEvents cap)
                                     , detectedBy = acDetectedBy cap
                                     , capturedAtUtc = eventTime
+                                    , truncated = wasTruncated
                                     }
                             )
                         else
@@ -286,6 +291,7 @@ finalizeCapture cap currentTime =
         , postWindow = toList (acPostEvents cap)
         , detectedBy = acDetectedBy cap
         , capturedAtUtc = currentTime
+        , truncated = False -- Stream ended naturally, not due to event limit
         }
 
 {- | Transform a stream of CollectEvents into a stream of SpanShots.

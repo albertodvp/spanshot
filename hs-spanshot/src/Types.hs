@@ -21,9 +21,10 @@ module Types (
 
     -- * Capture Types
     SpanShot (..),
-    CaptureOptions (preWindowDuration, postWindowDuration, minContextEvents, detectionRules, compiledRules),
+    CaptureOptions (preWindowDuration, postWindowDuration, minContextEvents, maxPostWindowEvents, detectionRules, compiledRules),
     mkCaptureOptions,
     defaultCaptureOptions,
+    defaultMaxPostWindowEvents,
     ActiveCapture (..),
     CaptureState (..),
     initialCaptureState,
@@ -117,6 +118,8 @@ data SpanShot = SpanShot
     , postWindow :: ![CollectEvent]
     , detectedBy :: ![DetectionRule]
     , capturedAtUtc :: !UTCTime
+    , truncated :: !Bool
+    -- ^ True if the post-window was truncated due to maxPostWindowEvents limit
     }
     deriving (Show, Eq, Generic)
 
@@ -135,10 +138,16 @@ data CaptureOptions = CaptureOptions
     { preWindowDuration :: !NominalDiffTime
     , postWindowDuration :: !NominalDiffTime
     , minContextEvents :: !Int
+    , maxPostWindowEvents :: !Int
+    -- ^ Maximum events to collect in post-window before emitting early (memory bound)
     , detectionRules :: ![DetectionRule]
     , compiledRules :: ![CompiledRule]
     }
     deriving (Show, Eq)
+
+-- | Default maximum post-window events (1000)
+defaultMaxPostWindowEvents :: Int
+defaultMaxPostWindowEvents = 1000
 
 {- | Create capture options with validation and regex pre-compilation.
 
@@ -154,13 +163,15 @@ mkCaptureOptions ::
     NominalDiffTime ->
     NominalDiffTime ->
     Int ->
+    Int ->
     [DetectionRule] ->
     Either String CaptureOptions
-mkCaptureOptions preWin postWin minCtx rules
+mkCaptureOptions preWin postWin minCtx maxPostEvts rules
     | preWin < 0 = Left "preWindowDuration must be non-negative (>= 0 seconds)"
     | postWin < 0 = Left "postWindowDuration must be non-negative (>= 0 seconds)"
     | preWin == 0 && postWin == 0 = Left "At least one of preWindowDuration or postWindowDuration must be positive (> 0)"
     | minCtx < 1 = Left "minContextEvents must be at least 1"
+    | maxPostEvts < 1 = Left "maxPostWindowEvents must be at least 1"
     | null rules = Left "detectionRules cannot be empty"
     | otherwise =
         case compileDetectionRules rules of
@@ -171,6 +182,7 @@ mkCaptureOptions preWin postWin minCtx rules
                         { preWindowDuration = preWin
                         , postWindowDuration = postWin
                         , minContextEvents = minCtx
+                        , maxPostWindowEvents = maxPostEvts
                         , detectionRules = rules
                         , compiledRules = compiled
                         }
@@ -206,6 +218,7 @@ defaultCaptureOptions =
             { preWindowDuration = 5
             , postWindowDuration = 5
             , minContextEvents = 10
+            , maxPostWindowEvents = defaultMaxPostWindowEvents
             , detectionRules = defaultRules
             , compiledRules = defaultCompiled
             }
@@ -244,12 +257,13 @@ spanShotToSeq shot =
     , Seq.fromList (postWindow shot)
     )
 
-spanShotFromSeq :: CollectEvent -> Seq CollectEvent -> Seq CollectEvent -> [DetectionRule] -> UTCTime -> SpanShot
-spanShotFromSeq err pre post rules time =
+spanShotFromSeq :: CollectEvent -> Seq CollectEvent -> Seq CollectEvent -> [DetectionRule] -> UTCTime -> Bool -> SpanShot
+spanShotFromSeq err pre post rules time wasTruncated =
     SpanShot
         { errorEvent = err
         , preWindow = toList pre
         , postWindow = toList post
         , detectedBy = rules
         , capturedAtUtc = time
+        , truncated = wasTruncated
         }

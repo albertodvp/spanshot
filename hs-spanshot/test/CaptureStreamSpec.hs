@@ -20,6 +20,7 @@ import Types (
     CollectEvent,
     DetectionRule (..),
     SpanShot (..),
+    defaultMaxPostWindowEvents,
     initialCaptureState,
     mkCaptureOptions,
  )
@@ -41,7 +42,7 @@ testDetectionRules = [RegexRule "ERROR"]
 
 -- | Helper to create test CaptureOptions with explicit values
 testCaptureOptions :: CaptureOptions
-testCaptureOptions = case mkCaptureOptions testPreWindowSeconds testPostWindowSeconds testMinContextEvents testDetectionRules of
+testCaptureOptions = case mkCaptureOptions testPreWindowSeconds testPostWindowSeconds testMinContextEvents defaultMaxPostWindowEvents testDetectionRules of
     Right opts -> opts
     Left err -> error $ "Invalid test options: " <> err
 
