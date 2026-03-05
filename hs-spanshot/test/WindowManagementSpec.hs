@@ -9,7 +9,7 @@ import Test.Hspec (Spec, describe, it, shouldBe)
 
 import Capture (addToPreWindow)
 import Fixtures (mockEvent)
-import Types (CaptureOptions, DetectionRule (..), mkCaptureOptions)
+import Types (CaptureOptions, DetectionRule (..), defaultMaxPostWindowEvents, mkCaptureOptions)
 
 -- | Explicit test constants for window management tests
 testPostWindowSeconds :: NominalDiffTime
@@ -23,7 +23,7 @@ preWinSec: pre-window duration in seconds
 minCtx: minimum context events to keep
 -}
 mkTestOpts :: NominalDiffTime -> Int -> CaptureOptions
-mkTestOpts preWinSec minCtx = case mkCaptureOptions preWinSec testPostWindowSeconds minCtx testDetectionRules of
+mkTestOpts preWinSec minCtx = case mkCaptureOptions preWinSec testPostWindowSeconds minCtx defaultMaxPostWindowEvents testDetectionRules of
     Right opts -> opts
     Left err -> error $ "Invalid test options: " <> err
 

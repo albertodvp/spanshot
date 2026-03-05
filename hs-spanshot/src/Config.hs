@@ -91,6 +91,7 @@ data CaptureConfig = CaptureConfig
     { ccPreWindowDuration :: !NominalDiffTime
     , ccPostWindowDuration :: !NominalDiffTime
     , ccMinContextEvents :: !Int
+    , ccMaxPostWindowEvents :: !Int
     , ccDetectionRules :: ![DetectionRule]
     }
     deriving (Show, Eq, Generic)
@@ -131,6 +132,7 @@ data PartialCaptureConfig = PartialCaptureConfig
     { pccPreWindowDuration :: !(Maybe NominalDiffTime)
     , pccPostWindowDuration :: !(Maybe NominalDiffTime)
     , pccMinContextEvents :: !(Maybe Int)
+    , pccMaxPostWindowEvents :: !(Maybe Int)
     , pccDetectionRules :: !(Maybe [DetectionRule])
     }
     deriving (Show, Eq, Generic)
@@ -165,6 +167,7 @@ mergeCaptureConfig base (Just partial) =
         { ccPreWindowDuration = fromMaybe (ccPreWindowDuration base) (pccPreWindowDuration partial)
         , ccPostWindowDuration = fromMaybe (ccPostWindowDuration base) (pccPostWindowDuration partial)
         , ccMinContextEvents = fromMaybe (ccMinContextEvents base) (pccMinContextEvents partial)
+        , ccMaxPostWindowEvents = fromMaybe (ccMaxPostWindowEvents base) (pccMaxPostWindowEvents partial)
         , ccDetectionRules = fromMaybe (ccDetectionRules base) (pccDetectionRules partial)
         }
 
@@ -182,6 +185,7 @@ toCaptureOptions cc =
         (ccPreWindowDuration cc)
         (ccPostWindowDuration cc)
         (ccMinContextEvents cc)
+        (ccMaxPostWindowEvents cc)
         (ccDetectionRules cc)
 
 -- | Convert CaptureOptions to CaptureConfig
@@ -191,6 +195,7 @@ fromCaptureOptions opts =
         { ccPreWindowDuration = preWindowDuration opts
         , ccPostWindowDuration = postWindowDuration opts
         , ccMinContextEvents = minContextEvents opts
+        , ccMaxPostWindowEvents = maxPostWindowEvents opts
         , ccDetectionRules = detectionRules opts
         }
 

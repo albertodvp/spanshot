@@ -28,7 +28,7 @@ import Config (
     mergeConfig,
     toCaptureOptions,
  )
-import Types (DetectionRule (RegexRule), defaultCaptureOptions)
+import Types (DetectionRule (RegexRule), defaultCaptureOptions, defaultMaxPostWindowEvents)
 
 configTests :: Spec
 configTests = do
@@ -40,6 +40,7 @@ configTests = do
                         , "  pre_window_duration: 10"
                         , "  post_window_duration: 3"
                         , "  min_context_events: 5"
+                        , "  max_post_window_events: 1000"
                         , "  detection_rules:"
                         , "    - regex_pattern: \"ERROR\""
                         , "    - regex_pattern: \"WARN\""
@@ -51,6 +52,7 @@ configTests = do
                     ccPreWindowDuration (capture config) `shouldBe` 10
                     ccPostWindowDuration (capture config) `shouldBe` 3
                     ccMinContextEvents (capture config) `shouldBe` 5
+                    ccMaxPostWindowEvents (capture config) `shouldBe` 1000
                     length (ccDetectionRules (capture config)) `shouldBe` 2
 
         it "round-trips defaultConfig through YAML" $ do
@@ -93,6 +95,7 @@ configTests = do
                         { ccPreWindowDuration = -1
                         , ccPostWindowDuration = 5
                         , ccMinContextEvents = 10
+                        , ccMaxPostWindowEvents = defaultMaxPostWindowEvents
                         , ccDetectionRules = [RegexRule "ERROR"]
                         }
             toCaptureOptions invalidConfig `shouldSatisfy` isLeft
@@ -103,6 +106,7 @@ configTests = do
                         { ccPreWindowDuration = 5
                         , ccPostWindowDuration = 5
                         , ccMinContextEvents = 10
+                        , ccMaxPostWindowEvents = defaultMaxPostWindowEvents
                         , ccDetectionRules = []
                         }
             toCaptureOptions invalidConfig `shouldSatisfy` isLeft
@@ -113,6 +117,7 @@ configTests = do
                         { ccPreWindowDuration = 15
                         , ccPostWindowDuration = 10
                         , ccMinContextEvents = 20
+                        , ccMaxPostWindowEvents = defaultMaxPostWindowEvents
                         , ccDetectionRules = [RegexRule "FATAL", RegexRule "CRITICAL"]
                         }
             let encoded = Yaml.encode cc
@@ -137,6 +142,7 @@ configTests = do
                                     { pccPreWindowDuration = Just 20
                                     , pccPostWindowDuration = Nothing
                                     , pccMinContextEvents = Nothing
+                                    , pccMaxPostWindowEvents = Nothing
                                     , pccDetectionRules = Nothing
                                     }
                         }
@@ -157,6 +163,7 @@ configTests = do
                                     { pccPreWindowDuration = Nothing
                                     , pccPostWindowDuration = Just 15
                                     , pccMinContextEvents = Nothing
+                                    , pccMaxPostWindowEvents = Nothing
                                     , pccDetectionRules = Nothing
                                     }
                         }
@@ -174,6 +181,7 @@ configTests = do
                                     { pccPreWindowDuration = Nothing
                                     , pccPostWindowDuration = Nothing
                                     , pccMinContextEvents = Just 50
+                                    , pccMaxPostWindowEvents = Nothing
                                     , pccDetectionRules = Nothing
                                     }
                         }
@@ -192,6 +200,7 @@ configTests = do
                                     { pccPreWindowDuration = Nothing
                                     , pccPostWindowDuration = Nothing
                                     , pccMinContextEvents = Nothing
+                                    , pccMaxPostWindowEvents = Nothing
                                     , pccDetectionRules = Just newRules
                                     }
                         }
@@ -208,6 +217,7 @@ configTests = do
                                     { pccPreWindowDuration = Just 30
                                     , pccPostWindowDuration = Just 25
                                     , pccMinContextEvents = Nothing
+                                    , pccMaxPostWindowEvents = Nothing
                                     , pccDetectionRules = Just [RegexRule "WARN"]
                                     }
                         }
@@ -267,6 +277,7 @@ configTests = do
                         { pccPreWindowDuration = Just 30
                         , pccPostWindowDuration = Just 20
                         , pccMinContextEvents = Just 15
+                        , pccMaxPostWindowEvents = Just 500
                         , pccDetectionRules = Just [RegexRule "WARN", RegexRule "ERROR"]
                         }
             let pc = PartialConfig{pcCapture = Just pcc}
@@ -282,6 +293,7 @@ configTests = do
                         { pccPreWindowDuration = Just 25
                         , pccPostWindowDuration = Nothing
                         , pccMinContextEvents = Nothing
+                        , pccMaxPostWindowEvents = Nothing
                         , pccDetectionRules = Just [RegexRule "CRITICAL"]
                         }
             let pc = PartialConfig{pcCapture = Just pcc}
@@ -305,6 +317,7 @@ configTests = do
                         { pccPreWindowDuration = Nothing
                         , pccPostWindowDuration = Nothing
                         , pccMinContextEvents = Nothing
+                        , pccMaxPostWindowEvents = Nothing
                         , pccDetectionRules = Just [RegexRule "EXCEPTION"]
                         }
             let encoded = Yaml.encode pcc

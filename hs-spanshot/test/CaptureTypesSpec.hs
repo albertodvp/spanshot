@@ -16,6 +16,7 @@ import Types (
     DetectionRule (RegexRule),
     SpanShot (..),
     defaultCaptureOptions,
+    defaultMaxPostWindowEvents,
     initialCaptureState,
     mkCaptureOptions,
     spanShotFromSeq,
@@ -38,39 +39,39 @@ captureTypesTests = do
             rules `shouldSatisfy` any (\(RegexRule p) -> p == "ERROR")
 
         it "rejects negative preWindowDuration" $ do
-            let result = mkCaptureOptions (-1) 5 10 [RegexRule "ERROR"]
+            let result = mkCaptureOptions (-1) 5 10 defaultMaxPostWindowEvents [RegexRule "ERROR"]
             result `shouldSatisfy` isLeft
 
         it "rejects negative postWindowDuration" $ do
-            let result = mkCaptureOptions 5 (-1) 10 [RegexRule "ERROR"]
+            let result = mkCaptureOptions 5 (-1) 10 defaultMaxPostWindowEvents [RegexRule "ERROR"]
             result `shouldSatisfy` isLeft
 
         it "rejects minContextEvents less than 1" $ do
-            let result = mkCaptureOptions 5 5 0 [RegexRule "ERROR"]
+            let result = mkCaptureOptions 5 5 0 defaultMaxPostWindowEvents [RegexRule "ERROR"]
             result `shouldSatisfy` isLeft
 
         it "rejects both windows being zero" $ do
-            let result = mkCaptureOptions 0 0 10 [RegexRule "ERROR"]
+            let result = mkCaptureOptions 0 0 10 defaultMaxPostWindowEvents [RegexRule "ERROR"]
             result `shouldSatisfy` isLeft
 
         it "accepts zero preWindowDuration with positive postWindowDuration" $ do
-            let result = mkCaptureOptions 0 5 10 [RegexRule "ERROR"]
+            let result = mkCaptureOptions 0 5 10 defaultMaxPostWindowEvents [RegexRule "ERROR"]
             result `shouldSatisfy` isRight
 
         it "accepts zero postWindowDuration with positive preWindowDuration" $ do
-            let result = mkCaptureOptions 5 0 10 [RegexRule "ERROR"]
+            let result = mkCaptureOptions 5 0 10 defaultMaxPostWindowEvents [RegexRule "ERROR"]
             result `shouldSatisfy` isRight
 
         it "rejects empty detection rules" $ do
-            let result = mkCaptureOptions 5 5 10 []
+            let result = mkCaptureOptions 5 5 10 defaultMaxPostWindowEvents []
             result `shouldSatisfy` isLeft
 
         it "rejects invalid regex patterns" $ do
-            let result = mkCaptureOptions 5 5 10 [RegexRule "[invalid"]
+            let result = mkCaptureOptions 5 5 10 defaultMaxPostWindowEvents [RegexRule "[invalid"]
             result `shouldSatisfy` isLeft
 
         it "accepts valid regex patterns" $ do
-            let result = mkCaptureOptions 5 5 10 [RegexRule "ERROR|FATAL", RegexRule "\\[ERROR\\]"]
+            let result = mkCaptureOptions 5 5 10 defaultMaxPostWindowEvents [RegexRule "ERROR|FATAL", RegexRule "\\[ERROR\\]"]
             result `shouldSatisfy` isRight
 
     describe "ActiveCapture" $ do
@@ -94,7 +95,7 @@ captureTypesTests = do
             let post = [mockEvent 6 "post1", mockEvent 7 "post2"]
             let rules = [RegexRule "ERROR"]
             let time = mockTime 10
-            let shot = SpanShot err pre post rules time
+            let shot = SpanShot err pre post rules time False
             let (errOut, preSeq, postSeq) = spanShotToSeq shot
             errOut `shouldBe` err
             toList preSeq `shouldBe` pre
@@ -106,7 +107,7 @@ captureTypesTests = do
             let postSeq = Seq.fromList [mockEvent 6 "post1"]
             let rules = [RegexRule "ERROR", RegexRule "FATAL"]
             let time = mockTime 10
-            let shot = spanShotFromSeq err preSeq postSeq rules time
+            let shot = spanShotFromSeq err preSeq postSeq rules time False
             errorEvent shot `shouldBe` err
             preWindow shot `shouldBe` toList preSeq
             postWindow shot `shouldBe` toList postSeq
@@ -119,16 +120,16 @@ captureTypesTests = do
             let post = [mockEvent 6 "post1", mockEvent 7 "post2"]
             let rules = [RegexRule "ERROR"]
             let time = mockTime 100
-            let original = SpanShot err pre post rules time
+            let original = SpanShot err pre post rules time False
             let (errOut, preSeq, postSeq) = spanShotToSeq original
-            let reconstructed = spanShotFromSeq errOut preSeq postSeq rules time
+            let reconstructed = spanShotFromSeq errOut preSeq postSeq rules time False
             reconstructed `shouldBe` original
 
         it "handles empty pre and post windows" $ do
             let err = mockEvent 5 "ERROR"
             let rules = [RegexRule "ERROR"]
             let time = mockTime 10
-            let shot = SpanShot err [] [] rules time
+            let shot = SpanShot err [] [] rules time False
             let (errOut, preSeq, postSeq) = spanShotToSeq shot
             errOut `shouldBe` err
             Seq.null preSeq `shouldBe` True
@@ -136,7 +137,7 @@ captureTypesTests = do
 
     describe "CompiledRule instances" $ do
         it "Show instance displays rule pattern without regex" $ do
-            case mkCaptureOptions 5 5 10 [RegexRule "ERROR"] of
+            case mkCaptureOptions 5 5 10 defaultMaxPostWindowEvents [RegexRule "ERROR"] of
                 Right opts -> do
                     let compiled = compiledRules opts
                     length compiled `shouldBe` 1
@@ -147,7 +148,7 @@ captureTypesTests = do
 
         it "Eq instance compares by original rule only" $ do
             -- Create two CaptureOptions with same rules - compiled regexes should be equal
-            case (mkCaptureOptions 5 5 10 [RegexRule "ERROR"], mkCaptureOptions 10 10 20 [RegexRule "ERROR"]) of
+            case (mkCaptureOptions 5 5 10 defaultMaxPostWindowEvents [RegexRule "ERROR"], mkCaptureOptions 10 10 20 defaultMaxPostWindowEvents [RegexRule "ERROR"]) of
                 (Right opts1, Right opts2) -> do
                     let c1 = head (compiledRules opts1)
                     let c2 = head (compiledRules opts2)
@@ -155,7 +156,7 @@ captureTypesTests = do
                 _ -> fail "Failed to create options"
 
         it "Eq instance distinguishes different patterns" $ do
-            case (mkCaptureOptions 5 5 10 [RegexRule "ERROR"], mkCaptureOptions 5 5 10 [RegexRule "FATAL"]) of
+            case (mkCaptureOptions 5 5 10 defaultMaxPostWindowEvents [RegexRule "ERROR"], mkCaptureOptions 5 5 10 defaultMaxPostWindowEvents [RegexRule "FATAL"]) of
                 (Right opts1, Right opts2) -> do
                     let c1 = head (compiledRules opts1)
                     let c2 = head (compiledRules opts2)

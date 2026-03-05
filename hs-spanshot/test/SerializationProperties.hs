@@ -43,6 +43,7 @@ instance Arbitrary SpanShot where
             <*> listOf arbitrary
             <*> listOf arbitrary
             <*> arbitraryUTCTime
+            <*> arbitrary
 
 jsonRoundTrip :: (Eq a, Aeson.ToJSON a, Aeson.FromJSON a) => a -> Bool
 jsonRoundTrip value = Aeson.decode (Aeson.encode value) == Just value

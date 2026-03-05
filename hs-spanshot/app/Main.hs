@@ -37,7 +37,7 @@ import System.Exit (exitFailure)
 import System.FilePath ((</>))
 import System.IO (hFlush, hPutStrLn, stderr, stdout)
 import System.IO.Error (isDoesNotExistError, isPermissionError)
-import Types (CollectEvent, DetectionRule (..), SpanShot, defaultCollectOptions, mkCaptureOptions)
+import Types (CollectEvent, DetectionRule (..), SpanShot, defaultCollectOptions, defaultMaxPostWindowEvents, mkCaptureOptions)
 
 newtype Instructions = Instructions Dispatch
     deriving (Show)
@@ -69,6 +69,7 @@ data ConfigCommand
     = ConfigShow
     | ConfigPath
     | ConfigInit ConfigInitSettings
+    | ConfigValidate
     deriving (Show)
 
 instance HasParser ConfigCommand where
@@ -77,6 +78,7 @@ instance HasParser ConfigCommand where
             [ command "show" "Show current configuration" $ pure ConfigShow
             , command "path" "Show configuration file path" $ pure ConfigPath
             , command "init" "Initialize a new config file" $ ConfigInit <$> settingsParser
+            , command "validate" "Validate configuration files without running" $ pure ConfigValidate
             ]
 
 data ConfigInitSettings = ConfigInitSettings
@@ -247,7 +249,7 @@ runCapture settings = do
     let rules = [RegexRule regexPat]
 
     -- Validate arguments and create CaptureOptions
-    case mkCaptureOptions preWin postWin 10 rules of
+    case mkCaptureOptions preWin postWin 10 defaultMaxPostWindowEvents rules of
         Left err -> do
             hPutStrLn stderr $ "Error: Invalid capture options: " ++ err
             exitFailure
@@ -317,6 +319,27 @@ runConfig ConfigPath = do
     case cpiProject paths of
         Nothing -> putStrLn "project: (not in a git project)"
         Just projInfo -> printPathInfo "project" projInfo
+runConfig ConfigValidate = do
+    (config, warnings) <- loadConfig
+    -- Print warnings (if any)
+    let hasWarnings = not (null warnings)
+    mapM_ printWarning warnings
+    -- Validate the config
+    case toCaptureOptions (capture config) of
+        Left err -> do
+            hPutStrLn stderr $ "Error: Invalid configuration: " ++ err
+            exitFailure
+        Right _ -> do
+            if hasWarnings
+                then do
+                    hPutStrLn stderr "Configuration has warnings but is valid."
+                    exitFailure
+                else putStrLn "Configuration is valid."
+  where
+    printWarning (ConfigParseWarning path err) =
+        hPutStrLn stderr $ "Error: Failed to parse config file " ++ path ++ ": " ++ err
+    printWarning (ConfigValidationWarning path err) =
+        hPutStrLn stderr $ "Error: Invalid configuration in " ++ path ++ ": " ++ err
 runConfig (ConfigInit settings) = do
     targetPath <-
         if initUser settings
