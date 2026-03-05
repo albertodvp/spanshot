@@ -30,7 +30,7 @@ import Types (
     CollectEvent (line, readAtUtc),
     CompiledRule (..),
     DetectionRule (RegexRule),
-    SpanShot (SpanShot, capturedAtUtc, detectedBy, errorEvent, postWindow, preWindow, truncated),
+    SpanShot (SpanShot, captureId, captureSource, capturedAtUtc, detectedBy, errorEvent, postWindow, preWindow, sessionId, truncated),
     initialCaptureState,
  )
 
@@ -256,6 +256,9 @@ processEvent opts state newEvent =
                                     , detectedBy = acDetectedBy cap
                                     , capturedAtUtc = eventTime
                                     , truncated = wasTruncated
+                                    , captureId = Nothing
+                                    , sessionId = Nothing
+                                    , captureSource = Nothing
                                     }
                             )
                         else
@@ -296,6 +299,9 @@ finalizeCapture cap currentTime =
         , detectedBy = acDetectedBy cap
         , capturedAtUtc = currentTime
         , truncated = False -- Stream ended naturally, not due to event limit
+        , captureId = Nothing
+        , sessionId = Nothing
+        , captureSource = Nothing
         }
 
 {- | Transform a stream of CollectEvents into a stream of SpanShots.
@@ -390,6 +396,9 @@ checkTimeout opts now state =
                                     , detectedBy = acDetectedBy cap
                                     , capturedAtUtc = now
                                     , truncated = False
+                                    , captureId = Nothing
+                                    , sessionId = Nothing
+                                    , captureSource = Nothing
                                     }
                             newState = state{csActiveCapture = Nothing}
                          in (newState, Just shot)

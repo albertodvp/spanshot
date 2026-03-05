@@ -11,7 +11,7 @@ import Test.Tasty (TestTree, testGroup)
 import Test.Tasty.QuickCheck (testProperty, withMaxSuccess)
 
 import Fixtures (arbitraryUTCTime)
-import Types (CollectEvent (CollectEvent), DetectionRule (RegexRule), SpanShot (SpanShot, postWindow, preWindow))
+import Types (CaptureSource (..), CollectEvent (CollectEvent), DetectionRule (RegexRule), SpanShot (SpanShot, postWindow, preWindow))
 
 printableChars :: [Char]
 printableChars = ['a' .. 'z'] ++ ['A' .. 'Z'] ++ ['0' .. '9'] ++ " .,!?-_"
@@ -35,6 +35,14 @@ instance Arbitrary CollectEvent where
             <*> arbitraryUTCTime
             <*> arbitraryNonEmptyText
 
+instance Arbitrary CaptureSource where
+    arbitrary =
+        elements
+            [ SessionCapture "test-session"
+            , WrapCapture "test-command"
+            , FileCapture "/test/path.log"
+            ]
+
 instance Arbitrary SpanShot where
     arbitrary =
         SpanShot
@@ -43,6 +51,9 @@ instance Arbitrary SpanShot where
             <*> listOf arbitrary
             <*> listOf arbitrary
             <*> arbitraryUTCTime
+            <*> arbitrary
+            <*> arbitrary
+            <*> arbitrary
             <*> arbitrary
 
 jsonRoundTrip :: (Eq a, Aeson.ToJSON a, Aeson.FromJSON a) => a -> Bool
