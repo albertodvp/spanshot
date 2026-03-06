@@ -83,6 +83,7 @@ test-suite hs-spanshot-test
         ConfigSpec
         DetectionSpec
         SerializationProperties
+        StorageSpec
         WindowManagementSpec
         Fixtures
     type:             exitcode-stdio-1.0
