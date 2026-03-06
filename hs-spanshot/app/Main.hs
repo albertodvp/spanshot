@@ -32,6 +32,7 @@ import OptEnvConf (
     withoutConfig,
  )
 import Paths_hs_spanshot (version)
+import Session qualified
 import Streaming.Prelude qualified as S
 import System.Directory (doesDirectoryExist, getCurrentDirectory)
 import System.Exit (exitFailure, exitWith)
@@ -53,6 +54,7 @@ data Dispatch
     | DispatchCapture CaptureSettings
     | DispatchRun RunSettings
     | DispatchWrap WrapSettings
+    | DispatchSession
     deriving (Show)
 
 instance HasParser Dispatch where
@@ -68,6 +70,8 @@ instance HasParser Dispatch where
                 DispatchRun <$> settingsParser
             , command "wrap" "Run a command with SpanShot monitoring, preserving exit code" $
                 DispatchWrap <$> settingsParser
+            , command "session" "Start an interactive PTY session with SpanShot monitoring" $
+                pure DispatchSession
             ]
 
 data ConfigCommand
@@ -265,6 +269,8 @@ main = do
             runRun settings `catch` handleIOError (runLogfile settings)
         DispatchWrap settings ->
             runWrapCommand settings
+        DispatchSession ->
+            runSessionCommand
 
 -- | Run the capture command: process a log file and output SpanShots as JSONL
 runCapture :: CaptureSettings -> IO ()
@@ -329,6 +335,12 @@ runWrapCommand settings = do
         (cmd : args) -> do
             result <- Wrap.runWrap cmd args
             exitWith (Wrap.wrapExitCode result)
+
+-- | Run the session command: start an interactive PTY session
+runSessionCommand :: IO ()
+runSessionCommand = do
+    result <- Session.runSession
+    exitWith (Session.sessionExitCode result)
 
 runCollect :: FilePath -> IO ()
 runCollect logfilePath = do
