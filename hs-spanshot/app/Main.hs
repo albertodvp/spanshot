@@ -25,6 +25,7 @@ import OptEnvConf (
     runSettingsParser,
     setting,
     short,
+    some,
     str,
     switch,
     value,
@@ -33,11 +34,12 @@ import OptEnvConf (
 import Paths_hs_spanshot (version)
 import Streaming.Prelude qualified as S
 import System.Directory (doesDirectoryExist, getCurrentDirectory)
-import System.Exit (exitFailure)
+import System.Exit (exitFailure, exitWith)
 import System.FilePath ((</>))
 import System.IO (hFlush, hPutStrLn, stderr, stdout)
 import System.IO.Error (isDoesNotExistError, isPermissionError)
 import Types (CollectEvent, DetectionRule (..), SpanShot, defaultCollectOptions, defaultMaxPostWindowEvents, mkCaptureOptions)
+import Wrap qualified
 
 newtype Instructions = Instructions Dispatch
     deriving (Show)
@@ -50,6 +52,7 @@ data Dispatch
     | DispatchConfig ConfigCommand
     | DispatchCapture CaptureSettings
     | DispatchRun RunSettings
+    | DispatchWrap WrapSettings
     deriving (Show)
 
 instance HasParser Dispatch where
@@ -63,6 +66,8 @@ instance HasParser Dispatch where
                 DispatchCapture <$> settingsParser
             , command "run" "Monitor a log file continuously, capturing errors with context as JSONL" $
                 DispatchRun <$> settingsParser
+            , command "wrap" "Run a command with SpanShot monitoring, preserving exit code" $
+                DispatchWrap <$> settingsParser
             ]
 
 data ConfigCommand
@@ -222,6 +227,27 @@ instance HasParser RunSettings where
                     ]
                 )
 
+-- | Settings for the 'wrap' command (User Story 2 - Wrap Mode)
+data WrapSettings = WrapSettings
+    { wrapCommand :: [String]
+    -- ^ Command and arguments to run (everything after --)
+    }
+    deriving (Show)
+
+instance HasParser WrapSettings where
+    settingsParser =
+        WrapSettings
+            <$> some
+                ( withoutConfig
+                    ( setting
+                        [ help "Command to run (after --)"
+                        , reader str
+                        , argument
+                        , metavar "COMMAND"
+                        ]
+                    )
+                )
+
 main :: IO ()
 main = do
     Instructions dispatch <-
@@ -237,6 +263,8 @@ main = do
             runCapture settings `catch` handleIOError (captureLogfile settings)
         DispatchRun settings ->
             runRun settings `catch` handleIOError (runLogfile settings)
+        DispatchWrap settings ->
+            runWrapCommand settings
 
 -- | Run the capture command: process a log file and output SpanShots as JSONL
 runCapture :: CaptureSettings -> IO ()
@@ -290,6 +318,17 @@ runRun settings = do
                 S.mapM_ printSpanShot spanshots
             when verbose $
                 hPutStrLn stderr "[spanshot] Done"
+
+-- | Run the wrap command: run a command with SpanShot monitoring
+runWrapCommand :: WrapSettings -> IO ()
+runWrapCommand settings = do
+    case wrapCommand settings of
+        [] -> do
+            hPutStrLn stderr "Error: No command specified. Usage: spanshot wrap -- COMMAND [ARGS...]"
+            exitFailure
+        (cmd : args) -> do
+            result <- Wrap.runWrap cmd args
+            exitWith (Wrap.wrapExitCode result)
 
 runCollect :: FilePath -> IO ()
 runCollect logfilePath = do

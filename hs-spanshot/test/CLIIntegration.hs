@@ -336,10 +336,11 @@ wrapCommandTests binary =
             assertBool "Help mentions wrap" $ "wrap" `isInfixOf` stdout || "Wrap" `isInfixOf` stdout
         , -- T014b: wrap with successful command returns exit code 0
           testCase "wrap preserves exit code 0 for successful command" $ do
+            -- Use sh -c since true/false are shell built-ins in Nix
             (exitCode, _stdout, _stderr) <-
                 readProcessWithExitCode
                     binary
-                    ["wrap", "--", "/bin/true"]
+                    ["wrap", "/bin/sh", "-c", "true"]
                     ""
             exitCode @?= ExitSuccess
         , -- T014c: wrap with failing command returns same exit code
@@ -347,7 +348,7 @@ wrapCommandTests binary =
             (exitCode, _stdout, _stderr) <-
                 readProcessWithExitCode
                     binary
-                    ["wrap", "--", "/bin/false"]
+                    ["wrap", "/bin/sh", "-c", "false"]
                     ""
             exitCode @?= ExitFailure 1
         , -- T014d: wrap preserves specific exit codes
@@ -355,7 +356,7 @@ wrapCommandTests binary =
             (exitCode, _stdout, _stderr) <-
                 readProcessWithExitCode
                     binary
-                    ["wrap", "--", "/bin/sh", "-c", "exit 42"]
+                    ["wrap", "/bin/sh", "-c", "exit 42"]
                     ""
             exitCode @?= ExitFailure 42
         , -- T014e: wrap forwards command output
@@ -363,7 +364,7 @@ wrapCommandTests binary =
             (exitCode, stdout, _stderr) <-
                 readProcessWithExitCode
                     binary
-                    ["wrap", "--", "/bin/echo", "hello world"]
+                    ["wrap", "/bin/sh", "-c", "echo 'hello world'"]
                     ""
             exitCode @?= ExitSuccess
             assertBool "Output contains 'hello world'" $ "hello world" `isInfixOf` stdout
