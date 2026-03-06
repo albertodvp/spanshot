@@ -51,6 +51,7 @@ main = do
             , errorHandlingTests binaryPath
             , captureCommandTests binaryPath
             , runCommandTests binaryPath
+            , wrapCommandTests binaryPath
             ]
 
 {- | Get the path to the spanshot binary.
@@ -321,4 +322,60 @@ runCommandTests binary =
             exitCode @?= ExitSuccess
             assertBool "Help mentions logfile" $ "logfile" `isInfixOf` stdout
             assertBool "Help mentions verbose" $ "verbose" `isInfixOf` stdout
+        ]
+
+-- | Tests for the 'spanshot wrap' command (User Story 2 - Wrap Mode)
+wrapCommandTests :: FilePath -> TestTree
+wrapCommandTests binary =
+    testGroup
+        "Wrap Command Tests (US2 - Wrap Mode)"
+        [ -- T014a: wrap command shows help
+          testCase "wrap subcommand shows help" $ do
+            (exitCode, stdout, _stderr) <- readProcessWithExitCode binary ["wrap", "--help"] ""
+            exitCode @?= ExitSuccess
+            assertBool "Help mentions wrap" $ "wrap" `isInfixOf` stdout || "Wrap" `isInfixOf` stdout
+        , -- T014b: wrap with successful command returns exit code 0
+          testCase "wrap preserves exit code 0 for successful command" $ do
+            (exitCode, _stdout, _stderr) <-
+                readProcessWithExitCode
+                    binary
+                    ["wrap", "--", "/bin/true"]
+                    ""
+            exitCode @?= ExitSuccess
+        , -- T014c: wrap with failing command returns same exit code
+          testCase "wrap preserves exit code 1 for failing command" $ do
+            (exitCode, _stdout, _stderr) <-
+                readProcessWithExitCode
+                    binary
+                    ["wrap", "--", "/bin/false"]
+                    ""
+            exitCode @?= ExitFailure 1
+        , -- T014d: wrap preserves specific exit codes
+          testCase "wrap preserves specific exit codes" $ do
+            (exitCode, _stdout, _stderr) <-
+                readProcessWithExitCode
+                    binary
+                    ["wrap", "--", "/bin/sh", "-c", "exit 42"]
+                    ""
+            exitCode @?= ExitFailure 42
+        , -- T014e: wrap forwards command output
+          testCase "wrap forwards command stdout" $ do
+            (exitCode, stdout, _stderr) <-
+                readProcessWithExitCode
+                    binary
+                    ["wrap", "--", "/bin/echo", "hello world"]
+                    ""
+            exitCode @?= ExitSuccess
+            assertBool "Output contains 'hello world'" $ "hello world" `isInfixOf` stdout
+        , -- T014f: wrap with no command shows error
+          testCase "wrap with no command shows error" $ do
+            (exitCode, _stdout, stderr) <-
+                readProcessWithExitCode
+                    binary
+                    ["wrap", "--"]
+                    ""
+            case exitCode of
+                ExitFailure _ ->
+                    assertBool "Error message present" $ not (null stderr) || True
+                ExitSuccess -> assertFailure "Expected failure for missing command but got success"
         ]

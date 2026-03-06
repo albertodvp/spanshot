@@ -11,6 +11,7 @@ import DetectionSpec (detectionTests)
 import SerializationProperties (serializationPropertyTests)
 import StorageSpec (storageTests)
 import WindowManagementSpec (windowManagementTests)
+import WrapSpec (wrapTests)
 
 main :: IO ()
 main = do
@@ -21,6 +22,7 @@ main = do
     detectionSpec <- testSpec "Detection Tests" detectionTests
     storageSpec <- testSpec "Storage Tests" storageTests
     windowManagementSpec <- testSpec "Window Management Tests" windowManagementTests
+    wrapSpec <- testSpec "Wrap Tests" wrapTests
 
     defaultMain $
         testGroup
@@ -32,5 +34,6 @@ main = do
             , detectionSpec
             , storageSpec
             , windowManagementSpec
+            , wrapSpec
             , serializationPropertyTests
             ]
