@@ -19,6 +19,7 @@ import Config (
     PartialCaptureConfig (..),
     PartialConfig (..),
     defaultConfig,
+    defaultMaxCaptures,
     findProjectRoot,
     fromCaptureOptions,
     getConfigPaths,
@@ -97,6 +98,7 @@ configTests = do
                         , ccMinContextEvents = 10
                         , ccMaxPostWindowEvents = defaultMaxPostWindowEvents
                         , ccDetectionRules = [RegexRule "ERROR"]
+                        , ccMaxCaptures = defaultMaxCaptures
                         }
             toCaptureOptions invalidConfig `shouldSatisfy` isLeft
 
@@ -108,6 +110,7 @@ configTests = do
                         , ccMinContextEvents = 10
                         , ccMaxPostWindowEvents = defaultMaxPostWindowEvents
                         , ccDetectionRules = []
+                        , ccMaxCaptures = defaultMaxCaptures
                         }
             toCaptureOptions invalidConfig `shouldSatisfy` isLeft
 
@@ -119,6 +122,7 @@ configTests = do
                         , ccMinContextEvents = 20
                         , ccMaxPostWindowEvents = defaultMaxPostWindowEvents
                         , ccDetectionRules = [RegexRule "FATAL", RegexRule "CRITICAL"]
+                        , ccMaxCaptures = defaultMaxCaptures
                         }
             let encoded = Yaml.encode cc
             let decoded = Yaml.decodeEither' encoded :: Either Yaml.ParseException CaptureConfig
@@ -144,6 +148,7 @@ configTests = do
                                     , pccMinContextEvents = Nothing
                                     , pccMaxPostWindowEvents = Nothing
                                     , pccDetectionRules = Nothing
+                                    , pccMaxCaptures = Nothing
                                     }
                         }
             let result = mergeConfig base override
@@ -165,6 +170,7 @@ configTests = do
                                     , pccMinContextEvents = Nothing
                                     , pccMaxPostWindowEvents = Nothing
                                     , pccDetectionRules = Nothing
+                                    , pccMaxCaptures = Nothing
                                     }
                         }
             let result = mergeConfig base override
@@ -183,6 +189,7 @@ configTests = do
                                     , pccMinContextEvents = Just 50
                                     , pccMaxPostWindowEvents = Nothing
                                     , pccDetectionRules = Nothing
+                                    , pccMaxCaptures = Nothing
                                     }
                         }
             let result = mergeConfig base override
@@ -202,6 +209,7 @@ configTests = do
                                     , pccMinContextEvents = Nothing
                                     , pccMaxPostWindowEvents = Nothing
                                     , pccDetectionRules = Just newRules
+                                    , pccMaxCaptures = Nothing
                                     }
                         }
             let result = mergeConfig base override
@@ -219,6 +227,7 @@ configTests = do
                                     , pccMinContextEvents = Nothing
                                     , pccMaxPostWindowEvents = Nothing
                                     , pccDetectionRules = Just [RegexRule "WARN"]
+                                    , pccMaxCaptures = Nothing
                                     }
                         }
             let result = mergeConfig base override
@@ -279,6 +288,7 @@ configTests = do
                         , pccMinContextEvents = Just 15
                         , pccMaxPostWindowEvents = Just 500
                         , pccDetectionRules = Just [RegexRule "WARN", RegexRule "ERROR"]
+                        , pccMaxCaptures = Just 50
                         }
             let pc = PartialConfig{pcCapture = Just pcc}
             let encoded = Yaml.encode pc
@@ -295,6 +305,7 @@ configTests = do
                         , pccMinContextEvents = Nothing
                         , pccMaxPostWindowEvents = Nothing
                         , pccDetectionRules = Just [RegexRule "CRITICAL"]
+                        , pccMaxCaptures = Nothing
                         }
             let pc = PartialConfig{pcCapture = Just pcc}
             let encoded = Yaml.encode pc
@@ -319,6 +330,7 @@ configTests = do
                         , pccMinContextEvents = Nothing
                         , pccMaxPostWindowEvents = Nothing
                         , pccDetectionRules = Just [RegexRule "EXCEPTION"]
+                        , pccMaxCaptures = Nothing
                         }
             let encoded = Yaml.encode pcc
             let decoded = Yaml.decodeEither' encoded :: Either Yaml.ParseException PartialCaptureConfig

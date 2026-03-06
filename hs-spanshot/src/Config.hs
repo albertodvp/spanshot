@@ -21,6 +21,7 @@ module Config (
     projectConfigFileName,
     gitDirName,
     userConfigFileName,
+    defaultMaxCaptures,
 
     -- * Default Configuration
     defaultConfig,
@@ -47,7 +48,8 @@ module Config (
 ) where
 
 import Control.Exception (IOException, try)
-import Data.Aeson (FromJSON, Options (fieldLabelModifier), ToJSON, camelTo2, defaultOptions, genericParseJSON, genericToJSON)
+import Data.Aeson (FromJSON (..), Options (fieldLabelModifier), ToJSON, camelTo2, defaultOptions, genericParseJSON, genericToJSON)
+import Data.Aeson qualified as Aeson
 import Data.ByteString qualified as BS
 import Data.Maybe (fromMaybe)
 import Data.Time (NominalDiffTime)
@@ -93,6 +95,8 @@ data CaptureConfig = CaptureConfig
     , ccMinContextEvents :: !Int
     , ccMaxPostWindowEvents :: !Int
     , ccDetectionRules :: ![DetectionRule]
+    , ccMaxCaptures :: !Int
+    -- ^ Maximum captures to store (LRU eviction when exceeded)
     }
     deriving (Show, Eq, Generic)
 
@@ -107,7 +111,14 @@ instance ToJSON CaptureConfig where
     toJSON = genericToJSON captureConfigOptions
 
 instance FromJSON CaptureConfig where
-    parseJSON = genericParseJSON captureConfigOptions
+    parseJSON = Aeson.withObject "CaptureConfig" $ \v ->
+        CaptureConfig
+            <$> v Aeson..: "pre_window_duration"
+            <*> v Aeson..: "post_window_duration"
+            <*> v Aeson..: "min_context_events"
+            <*> v Aeson..: "max_post_window_events"
+            <*> v Aeson..: "detection_rules"
+            <*> v Aeson..:? "max_captures" Aeson..!= defaultMaxCaptures
 
 {- | Partial configuration for merging (all fields optional)
 Used for project-level config that overrides user config field-by-field
@@ -134,6 +145,7 @@ data PartialCaptureConfig = PartialCaptureConfig
     , pccMinContextEvents :: !(Maybe Int)
     , pccMaxPostWindowEvents :: !(Maybe Int)
     , pccDetectionRules :: !(Maybe [DetectionRule])
+    , pccMaxCaptures :: !(Maybe Int)
     }
     deriving (Show, Eq, Generic)
 
@@ -169,6 +181,7 @@ mergeCaptureConfig base (Just partial) =
         , ccMinContextEvents = fromMaybe (ccMinContextEvents base) (pccMinContextEvents partial)
         , ccMaxPostWindowEvents = fromMaybe (ccMaxPostWindowEvents base) (pccMaxPostWindowEvents partial)
         , ccDetectionRules = fromMaybe (ccDetectionRules base) (pccDetectionRules partial)
+        , ccMaxCaptures = fromMaybe (ccMaxCaptures base) (pccMaxCaptures partial)
         }
 
 -- | Default configuration (matches defaultCaptureOptions)
@@ -188,6 +201,10 @@ toCaptureOptions cc =
         (ccMaxPostWindowEvents cc)
         (ccDetectionRules cc)
 
+-- | Default maximum captures to store (LRU eviction)
+defaultMaxCaptures :: Int
+defaultMaxCaptures = 100
+
 -- | Convert CaptureOptions to CaptureConfig
 fromCaptureOptions :: CaptureOptions -> CaptureConfig
 fromCaptureOptions opts =
@@ -197,6 +214,7 @@ fromCaptureOptions opts =
         , ccMinContextEvents = minContextEvents opts
         , ccMaxPostWindowEvents = maxPostWindowEvents opts
         , ccDetectionRules = detectionRules opts
+        , ccMaxCaptures = defaultMaxCaptures
         }
 
 -- | Get the user config file path (~/.config/spanshot/config.yaml)
