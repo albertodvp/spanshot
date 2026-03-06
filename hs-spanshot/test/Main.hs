@@ -9,6 +9,7 @@ import CollectionSpec (collectionTests)
 import ConfigSpec (configTests)
 import DetectionSpec (detectionTests)
 import SerializationProperties (serializationPropertyTests)
+import StorageSpec (storageTests)
 import WindowManagementSpec (windowManagementTests)
 
 main :: IO ()
@@ -18,6 +19,7 @@ main = do
     captureStreamSpec <- testSpec "Capture Stream Tests" captureStreamTests
     configSpec <- testSpec "Config Tests" configTests
     detectionSpec <- testSpec "Detection Tests" detectionTests
+    storageSpec <- testSpec "Storage Tests" storageTests
     windowManagementSpec <- testSpec "Window Management Tests" windowManagementTests
 
     defaultMain $
@@ -28,6 +30,7 @@ main = do
             , captureStreamSpec
             , configSpec
             , detectionSpec
+            , storageSpec
             , windowManagementSpec
             , serializationPropertyTests
             ]
