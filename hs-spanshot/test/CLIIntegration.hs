@@ -53,7 +53,7 @@ main = do
             , errorHandlingTests binaryPath
             , captureCommandTests binaryPath
             , runCommandTests binaryPath
-            , wrapCommandTests binaryPath
+            , execCommandTests binaryPath
             , statusShowCommandTests binaryPath
             ]
 
@@ -327,56 +327,55 @@ runCommandTests binary =
             assertBool "Help mentions verbose" $ "verbose" `isInfixOf` stdout
         ]
 
--- | Tests for the 'spanshot wrap' command (User Story 2 - Wrap Mode)
-wrapCommandTests :: FilePath -> TestTree
-wrapCommandTests binary =
+-- | Tests for the 'spanshot exec' command (run commands with monitoring)
+execCommandTests :: FilePath -> TestTree
+execCommandTests binary =
     testGroup
-        "Wrap Command Tests (US2 - Wrap Mode)"
-        [ -- T014a: wrap command shows help
-          testCase "wrap subcommand shows help" $ do
-            (exitCode, stdout, _stderr) <- readProcessWithExitCode binary ["wrap", "--help"] ""
+        "Exec Command Tests"
+        [ -- T014a: exec command shows help
+          testCase "exec subcommand shows help" $ do
+            (exitCode, stdout, _stderr) <- readProcessWithExitCode binary ["exec", "--help"] ""
             exitCode @?= ExitSuccess
-            assertBool "Help mentions wrap" $ "wrap" `isInfixOf` stdout || "Wrap" `isInfixOf` stdout
-        , -- T014b: wrap with successful command returns exit code 0
-          testCase "wrap preserves exit code 0 for successful command" $ do
-            -- Use sh -c since true/false are shell built-ins in Nix
+            assertBool "Help mentions exec" $ "exec" `isInfixOf` stdout || "Exec" `isInfixOf` stdout || "command" `isInfixOf` stdout
+        , -- T014b: exec with successful command returns exit code 0
+          testCase "exec preserves exit code 0 for successful command" $ do
             (exitCode, _stdout, _stderr) <-
                 readProcessWithExitCode
                     binary
-                    ["wrap", "/bin/sh", "-c", "true"]
+                    ["exec", "/bin/sh", "-c", "true"]
                     ""
             exitCode @?= ExitSuccess
-        , -- T014c: wrap with failing command returns same exit code
-          testCase "wrap preserves exit code 1 for failing command" $ do
+        , -- T014c: exec with failing command returns same exit code
+          testCase "exec preserves exit code 1 for failing command" $ do
             (exitCode, _stdout, _stderr) <-
                 readProcessWithExitCode
                     binary
-                    ["wrap", "/bin/sh", "-c", "false"]
+                    ["exec", "/bin/sh", "-c", "false"]
                     ""
             exitCode @?= ExitFailure 1
-        , -- T014d: wrap preserves specific exit codes
-          testCase "wrap preserves specific exit codes" $ do
+        , -- T014d: exec preserves specific exit codes
+          testCase "exec preserves specific exit codes" $ do
             (exitCode, _stdout, _stderr) <-
                 readProcessWithExitCode
                     binary
-                    ["wrap", "/bin/sh", "-c", "exit 42"]
+                    ["exec", "/bin/sh", "-c", "exit 42"]
                     ""
             exitCode @?= ExitFailure 42
-        , -- T014e: wrap forwards command output
-          testCase "wrap forwards command stdout" $ do
+        , -- T014e: exec forwards command output
+          testCase "exec forwards command stdout" $ do
             (exitCode, stdout, _stderr) <-
                 readProcessWithExitCode
                     binary
-                    ["wrap", "/bin/sh", "-c", "echo 'hello world'"]
+                    ["exec", "/bin/sh", "-c", "echo 'hello world'"]
                     ""
             exitCode @?= ExitSuccess
             assertBool "Output contains 'hello world'" $ "hello world" `isInfixOf` stdout
-        , -- T014f: wrap with no command shows error
-          testCase "wrap with no command shows error" $ do
+        , -- T014f: exec with no command shows error
+          testCase "exec with no command shows error" $ do
             (exitCode, _stdout, stderr) <-
                 readProcessWithExitCode
                     binary
-                    ["wrap", "--"]
+                    ["exec", "--"]
                     ""
             case exitCode of
                 ExitFailure _ ->

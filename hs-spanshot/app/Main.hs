@@ -34,7 +34,6 @@ import OptEnvConf (
     withoutConfig,
  )
 import Paths_hs_spanshot (version)
-import Session qualified
 import Storage qualified
 import Streaming.Prelude qualified as S
 import System.Directory (doesDirectoryExist, getCurrentDirectory)
@@ -56,8 +55,7 @@ data Dispatch
     | DispatchConfig ConfigCommand
     | DispatchCapture CaptureSettings
     | DispatchRun RunSettings
-    | DispatchWrap WrapSettings
-    | DispatchSession
+    | DispatchExec WrapSettings
     | DispatchStatus
     | DispatchShow ShowSettings
     deriving (Show)
@@ -73,10 +71,8 @@ instance HasParser Dispatch where
                 DispatchCapture <$> settingsParser
             , command "run" "Monitor a log file continuously, capturing errors with context as JSONL" $
                 DispatchRun <$> settingsParser
-            , command "wrap" "Run a command with SpanShot monitoring, preserving exit code" $
-                DispatchWrap <$> settingsParser
-            , command "session" "Start an interactive PTY session with SpanShot monitoring" $
-                pure DispatchSession
+            , command "exec" "Run a command with SpanShot monitoring, preserving exit code" $
+                DispatchExec <$> settingsParser
             , command "status" "Show recent captures" $
                 pure DispatchStatus
             , command "show" "Show a specific capture by index" $
@@ -305,10 +301,8 @@ main = do
             runCapture settings `catch` handleIOError (captureLogfile settings)
         DispatchRun settings ->
             runRun settings `catch` handleIOError (runLogfile settings)
-        DispatchWrap settings ->
-            runWrapCommand settings
-        DispatchSession ->
-            runSessionCommand
+        DispatchExec settings ->
+            runExecCommand settings
         DispatchStatus ->
             runStatusCommand
         DispatchShow settings ->
@@ -367,22 +361,16 @@ runRun settings = do
             when verbose $
                 hPutStrLn stderr "[spanshot] Done"
 
--- | Run the wrap command: run a command with SpanShot monitoring
-runWrapCommand :: WrapSettings -> IO ()
-runWrapCommand settings = do
+-- | Run the exec command: run a command with SpanShot monitoring
+runExecCommand :: WrapSettings -> IO ()
+runExecCommand settings = do
     case wrapCommand settings of
         [] -> do
-            hPutStrLn stderr "Error: No command specified. Usage: spanshot wrap -- COMMAND [ARGS...]"
+            hPutStrLn stderr "Error: No command specified. Usage: spanshot exec COMMAND [ARGS...]"
             exitFailure
         (cmd : args) -> do
             result <- Wrap.runWrap cmd args
             exitWith (Wrap.wrapExitCode result)
-
--- | Run the session command: start an interactive PTY session
-runSessionCommand :: IO ()
-runSessionCommand = do
-    result <- Session.runSession
-    exitWith (Session.sessionExitCode result)
 
 -- | Run the status command: show recent captures
 runStatusCommand :: IO ()
