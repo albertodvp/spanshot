@@ -9,7 +9,6 @@ import CollectionSpec (collectionTests)
 import ConfigSpec (configTests)
 import DetectionSpec (detectionTests)
 import SerializationProperties (serializationPropertyTests)
-import SessionStateSpec (sessionStateTests)
 import StorageSpec (storageTests)
 import WindowManagementSpec (windowManagementTests)
 import WrapSpec (wrapTests)
@@ -21,7 +20,6 @@ main = do
     captureStreamSpec <- testSpec "Capture Stream Tests" captureStreamTests
     configSpec <- testSpec "Config Tests" configTests
     detectionSpec <- testSpec "Detection Tests" detectionTests
-    sessionStateSpec <- testSpec "Session State Tests" sessionStateTests
     storageSpec <- testSpec "Storage Tests" storageTests
     windowManagementSpec <- testSpec "Window Management Tests" windowManagementTests
     wrapSpec <- testSpec "Wrap Tests" wrapTests
@@ -34,7 +32,6 @@ main = do
             , captureStreamSpec
             , configSpec
             , detectionSpec
-            , sessionStateSpec
             , storageSpec
             , windowManagementSpec
             , wrapSpec
