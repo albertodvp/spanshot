@@ -5,7 +5,6 @@ import Data.Aeson qualified as Aeson
 import Data.ByteString.Char8 qualified as BS
 import Data.ByteString.Lazy.Char8 qualified as BL
 
-import Control.Exception (IOException)
 import Control.Monad (when)
 import Data.Text (Text)
 import Data.Text qualified as T
@@ -36,7 +35,6 @@ import System.Directory (doesDirectoryExist, getCurrentDirectory)
 import System.Exit (exitFailure, exitWith)
 import System.FilePath ((</>))
 import System.IO (hFlush, hPutStrLn, stderr, stdout)
-import System.IO.Error (isDoesNotExistError, isPermissionError)
 import Types (CollectEvent (..), SpanShot (..))
 import Wrap qualified
 
@@ -362,18 +360,6 @@ coloredPrefix :: String -> String
 coloredPrefix "Error" = colorRed ++ "Error" ++ colorReset
 coloredPrefix "Warning" = colorYellow ++ "Warning" ++ colorReset
 coloredPrefix other = other
-
-handleIOError :: FilePath -> IOException -> IO ()
-handleIOError path e
-    | isDoesNotExistError e = do
-        hPutStrLn stderr $ "Error: File not found: " ++ path
-        exitFailure
-    | isPermissionError e = do
-        hPutStrLn stderr $ "Error: Permission denied: " ++ path
-        exitFailure
-    | otherwise = do
-        hPutStrLn stderr $ "Error reading file '" ++ path ++ "': " ++ show e
-        exitFailure
 
 -- | Print any JSON-serializable value as JSONL (one line, flushed to stdout)
 printJsonLn :: (Aeson.ToJSON a) => a -> IO ()
