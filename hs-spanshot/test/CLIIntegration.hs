@@ -31,9 +31,11 @@ import Data.ByteString.Lazy qualified as BL
 import Data.ByteString.Lazy.Char8 qualified as BLC
 import Data.List (isInfixOf)
 import Data.Maybe (fromMaybe)
+import System.Directory (createDirectoryIfMissing, getCurrentDirectory, setCurrentDirectory)
 import System.Environment (lookupEnv)
 import System.Exit (ExitCode (..))
 import System.IO (BufferMode (..), hGetLine, hSetBuffering)
+import System.IO.Temp (withSystemTempDirectory)
 import System.Process (CreateProcess (..), StdStream (..), createProcess, proc, readProcessWithExitCode, terminateProcess, waitForProcess)
 import System.Timeout (timeout)
 import Test.Tasty (TestTree, defaultMain, testGroup)
@@ -52,6 +54,7 @@ main = do
             , captureCommandTests binaryPath
             , runCommandTests binaryPath
             , wrapCommandTests binaryPath
+            , statusShowCommandTests binaryPath
             ]
 
 {- | Get the path to the spanshot binary.
@@ -380,3 +383,55 @@ wrapCommandTests binary =
                     assertBool "Error message present" $ not (null stderr) || True
                 ExitSuccess -> assertFailure "Expected failure for missing command but got success"
         ]
+
+-- | Tests for the 'spanshot status' and 'spanshot show' commands (User Story 3)
+statusShowCommandTests :: FilePath -> TestTree
+statusShowCommandTests binary =
+    testGroup
+        "Status/Show Command Tests (US3)"
+        [ -- T031a: status command shows help
+          testCase "status subcommand shows help" $ do
+            (exitCode, stdout, _stderr) <- readProcessWithExitCode binary ["status", "--help"] ""
+            exitCode @?= ExitSuccess
+            assertBool "Help mentions status" $ "status" `isInfixOf` stdout || "Status" `isInfixOf` stdout
+        , -- T031b: status command with no captures shows empty message
+          testCase "status with no captures shows appropriate message" $ withTestStorage $ \tmpDir -> do
+            origDir <- getCurrentDirectory
+            setCurrentDirectory tmpDir
+            (exitCode, stdout, _stderr) <- readProcessWithExitCode binary ["status"] ""
+            setCurrentDirectory origDir
+            exitCode @?= ExitSuccess
+            -- Should indicate no captures or show empty list
+            assertBool "Output indicates no captures" $
+                "No captures" `isInfixOf` stdout
+                    || "0 capture" `isInfixOf` stdout
+                    || null (filter (not . null) (lines stdout))
+        , -- T031c: show command shows help
+          testCase "show subcommand shows help" $ do
+            (exitCode, stdout, _stderr) <- readProcessWithExitCode binary ["show", "--help"] ""
+            exitCode @?= ExitSuccess
+            assertBool "Help mentions show" $ "show" `isInfixOf` stdout || "Show" `isInfixOf` stdout
+        , -- T031d: show with invalid index shows error
+          testCase "show with invalid index shows error" $ withTestStorage $ \tmpDir -> do
+            origDir <- getCurrentDirectory
+            setCurrentDirectory tmpDir
+            (exitCode, _stdout, stderr) <- readProcessWithExitCode binary ["show", "99"] ""
+            setCurrentDirectory origDir
+            case exitCode of
+                ExitFailure _ ->
+                    assertBool "Error mentions index" $ "index" `isInfixOf` stderr || "Index" `isInfixOf` stderr || "range" `isInfixOf` stderr
+                ExitSuccess -> assertFailure "Expected failure for invalid index but got success"
+        , -- T031e: show with non-numeric index shows error
+          testCase "show with non-numeric index shows error" $ do
+            (exitCode, _stdout, _stderr) <- readProcessWithExitCode binary ["show", "abc"] ""
+            case exitCode of
+                ExitFailure _ -> pure () -- Expected
+                ExitSuccess -> assertFailure "Expected failure for non-numeric index but got success"
+        ]
+  where
+    -- Helper to run test in a temp directory with .spanshot/captures/ set up
+    withTestStorage :: (FilePath -> IO a) -> IO a
+    withTestStorage action = withSystemTempDirectory "spanshot-cli-test" $ \tmpDir -> do
+        let capturesDir = tmpDir ++ "/.spanshot/captures"
+        createDirectoryIfMissing True capturesDir
+        action tmpDir
