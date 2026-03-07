@@ -64,7 +64,7 @@ All **without leaving your terminal**.
 
 **Key Insight:** Capture doesn't just find the error line—it captures a **time-window snapshot** (e.g., 5 seconds before/after) to give AI the full story of what led to the failure.
 
-**Current Status:** v0.2 complete - **Input Modes & Storage**. Session mode, wrap mode, and status/show commands are fully implemented.
+**Current Status:** v0.2 complete - **Input Modes & Storage**. Session mode, wrap mode, and status/show commands are fully implemented. v0.3 (Daemon + OTEL) in development.
 
 ## Daemon Mode Vision
 
@@ -76,6 +76,98 @@ spanshot start                    # Start daemon in current project
 # Errors are captured, analyzed, and insights delivered automatically
 spanshot stop                     # Stop daemon
 ```
+
+### Two Input Modes
+
+SpanShot supports two complementary input modes for different use cases:
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                            SPANSHOT MODES                                   │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│   ┌─────────────────────┐          ┌─────────────────────────────────────┐ │
+│   │   wrap/session      │          │   OTEL Mode                         │ │
+│   │   (non-OTEL apps)   │          │   (OTEL-instrumented apps)          │ │
+│   │                     │          │                                     │ │
+│   │   Terminal capture  │          │   Receives OTLP                     │ │
+│   │   PTY-based         │          │   Captures errors from spans/logs   │ │
+│   └──────────┬──────────┘          │   Optionally forwards upstream      │ │
+│              │                     └──────────────────┬──────────────────┘ │
+│              │                                        │                    │
+│              └────────────────┬───────────────────────┘                    │
+│                               │                                            │
+│                               ▼                                            │
+│                        ┌─────────────┐                                     │
+│                        │   Capture   │                                     │
+│                        │   Engine    │                                     │
+│                        └──────┬──────┘                                     │
+│                               │                                            │
+│                               ▼                                            │
+│                        ┌─────────────┐                                     │
+│                        │   Analyze   │  (AI agent)                         │
+│                        └──────┬──────┘                                     │
+│                               │                                            │
+│                               ▼                                            │
+│                        ┌─────────────┐                                     │
+│                        │   Deliver   │  (notifications)                    │
+│                        └─────────────┘                                     │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+| Mode | Best For | Input |
+|------|----------|-------|
+| **wrap/session** | Non-OTEL apps, quick debugging | Terminal stdout/stderr |
+| **OTEL** | Instrumented apps, production parity | OTLP traces, logs, metrics |
+
+**Key Insight:** For OTEL-instrumented apps, the local and production experience is identical—same daemon, same detection, same captures.
+
+### Unified Error Detection
+
+All input sources flow through a single, cohesive detection system:
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                     UNIFIED ERROR DETECTION SYSTEM                          │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│   Input Sources              Normalization           Detection Rules        │
+│   ─────────────              ─────────────           ───────────────        │
+│                                                      (all configurable,     │
+│   Terminal (PTY)  ─┐                                  sensible defaults)    │
+│   Log files       ─┤                                                        │
+│   OTEL traces     ─┼──► NormalizedEvent ──────────► ┌─ Regex patterns       │
+│   OTEL logs       ─┤                                ├─ Semantic matchers    │
+│   OTEL metrics    ─┘                                │  (span ERROR,         │
+│                                                     │   exceptions,         │
+│                                                     │   log severity)       │
+│                                                     ├─ Regex on log body    │
+│                                                     └─ Threshold/rate*      │
+│                              │                                              │
+│                              ▼                                              │
+│                    ┌─────────────────┐                                      │
+│                    │ Capture Engine  │  (single, source-agnostic)           │
+│                    └────────┬────────┘                                      │
+│                             │                                               │
+│                             ▼                                               │
+│                    ┌─────────────────┐                                      │
+│                    │ Unified Capture │  (with source-specific context)      │
+│                    └─────────────────┘                                      │
+│                                                                             │
+│   * For metrics (architecture ready, detection rules planned)               │
+│                                                                             │
+│   Design Principle: Sensible defaults work out of the box.                  │
+│                     ALL rules are configurable.                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+**Default Detection Rules (zero-config):**
+
+- Span status ERROR
+- Exception events on spans
+- Log severity ERROR/FATAL/CRITICAL
+- Regex patterns (configurable)
 
 ### How It Works
 
@@ -96,7 +188,7 @@ spanshot stop                     # Stop daemon
 │         │ • log files                                      ┌──────────┐    │
 │         │ • stdout/stderr (wrap mode)              stores  │ INSIGHT  │    │
 │         │ • terminal session (session mode)         ◀───── │ .spanshot│    │
-│         │                                                  └──────────┘    │
+│         │ • OTEL telemetry (OTLP receiver)                 └──────────┘    │
 │         │                                                          │        │
 │         │                                                          ▼        │
 │         │                                                  ┌──────────┐    │
@@ -169,6 +261,46 @@ How insights reach the developer (TBD - exploring options):
 
 **Design Principle:** Deliver insights **without breaking flow**. A notification should give enough context to decide "fix now" vs "fix later" without forcing a context switch.
 
+### Why OTEL? Structured Context
+
+With OTEL traces, SpanShot receives structured context far richer than log lines:
+
+```
+Trace: req-abc123
+│
+├─ Span: HTTP POST /api/orders (500ms)
+│  ├─ attributes: {user_id: 42, cart_size: 3}
+│  │
+│  ├─ Span: validate_cart (10ms) ✓
+│  │
+│  ├─ Span: reserve_inventory (200ms) ✓
+│  │
+│  ├─ Span: charge_payment (250ms) ✗ ERROR
+│  │  ├─ attributes: {payment_provider: "stripe", amount: 99.99}
+│  │  └─ exception: "PaymentDeclined: insufficient_funds"
+│  │
+│  └─ Span: send_confirmation (skipped)
+```
+
+**What SpanShot captures:**
+
+- The error span + its attributes
+- Parent context (what operation was this part of?)
+- Sibling spans (what succeeded before failure?)
+- Trace attributes (user_id, request_id for correlation)
+- Full exception details with stack traces
+
+This is **10x richer** than parsing `ERROR: PaymentDeclined` from a log line.
+
+### The "Span" in SpanShot
+
+The name gains deeper meaning with OTEL:
+
+- **Temporal span**: Time window around error (5 seconds before/after)
+- **Distributed span**: OTEL trace span (structural context)
+
+Both meanings are valid and complementary.
+
 ## Installation
 
 **Prerequisites:** Nix with flakes (recommended for consistent dev environment with pre-configured tooling) or GHC 9.12.2+ and Cabal 3.10+
@@ -225,20 +357,34 @@ spanshot show 1
 spanshot show 1 --json   # output as JSON
 ```
 
-### Future (v0.3 - Daemon)
+### Future (v0.3 - Daemon + OTEL)
 
 ```bash
-# Start daemon in project directory
-spanshot start
+# Start daemon with OTEL receiver
+spanshot start --otel :4318
 
-# Work normally - errors auto-captured and analyzed
-npm test          # error captured → AI analyzes → insight delivered
+# Non-OTEL apps: use wrap mode as before
+spanshot wrap -- npm test
+
+# OTEL-instrumented apps: point to SpanShot
+OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318 npm test
+
+# View captures (unified across all sources)
+spanshot status
+spanshot show 1
 
 # Stop daemon
 spanshot stop
+```
 
-# Review insights
-spanshot insights          # list AI-generated insights
+**Production with upstream forwarding (v0.3.x):**
+
+```bash
+# SpanShot as transparent proxy - captures errors AND forwards to your observability stack
+spanshot start --otel :4318 --upstream https://otlp.grafana.net:4317
+
+# Your app points to SpanShot instead of Grafana directly
+# SpanShot captures + analyzes errors, then forwards all telemetry unchanged
 ```
 
 ## Configuration
@@ -272,9 +418,30 @@ capture:
   pre_window_duration: 5    # seconds before error
   post_window_duration: 5   # seconds after error
   min_context_events: 10
-  detection_rules:
+
+detection:
+  # All rules have sensible defaults - configure only what you need to change
+  rules:
+    # Regex patterns (apply to terminal, logfile, and OTEL log body)
     - regex_pattern: "ERROR"
     - regex_pattern: "FATAL"
+    - regex_pattern: "OutOfMemoryError"
+
+    # Semantic rules for OTEL (enabled by default, shown for reference)
+    # - semantic: span_status_error      # enabled by default
+    # - semantic: exception_events       # enabled by default
+    # - semantic: log_severity_error     # enabled by default
+
+  # Fine-tune default behavior
+  regex_on_otel_logs: true   # apply regex patterns to OTEL log body (default: true)
+
+# OTEL receiver (v0.3+)
+otel:
+  listen: ":4318"            # OTLP/HTTP endpoint
+  # upstream:                # optional forwarding (v0.3.x)
+  #   endpoint: "https://otlp.grafana.net:4317"
+  #   headers:
+  #     Authorization: "Basic ${GRAFANA_OTLP_TOKEN}"
 ```
 
 ## Output Format
@@ -401,14 +568,22 @@ Run with `just test` or `cabal test`.
 SpanShot is designed as a modular pipeline with distinct phases:
 
 - **Collect** (`src/Collect.hs`): Stream log files, normalize to JSONL events
-- **Capture** (`src/Capture.hs`): Detect errors, capture temporal span windows *(in progress)*
+- **Capture** (`src/Capture.hs`): Detect errors, capture temporal span windows
+- **Session** (`src/Session.hs`): PTY-based terminal monitoring *(v0.2)*
+- **OTEL** *(v0.3)*: OTLP/HTTP receiver for traces, logs, metrics
 - **Analyze**: AI-powered root cause diagnosis *(planned)*
 - **Deliver**: Notification and alert delivery *(planned)*
 
+**Key Abstractions:**
+
+- **NormalizedEvent**: Common event format for all input sources
+- **DetectionRule**: Unified rule type with variants (regex, semantic, threshold)
+- **Capture**: Error + context snapshot, source-agnostic
+
 **Current Implementation:**
 
-- **Library** (`src/`): Collect (complete), Capture (in progress)
-- **Executable** (`app/`): CLI with `collect` command (+ `capture`/`run` coming soon)
+- **Library** (`src/`): Collect (complete), Capture (complete), Session (complete)
+- **Executable** (`app/`): CLI with wrap, session, status, show commands
 - **Tests** (`test/`): Unit tests and CLI integration tests with fixtures
 
 **Key Principle:** Phases 1-2 (Collect + Capture) are **AI-free** and use deterministic pattern matching. Only Phase 3 (Analyze) uses AI.
@@ -470,14 +645,32 @@ See the [Project Constitution](.specify/memory/constitution.md) for development 
 - [x] `spanshot show N --json` flag for JSON output
 - [x] Session ID linking (group related captures)
 
-### v0.3 - Daemon Mode
+### v0.3 - Daemon Mode + OTEL Integration
 
-**Autonomous Operation**
+**Daemon Infrastructure**
 
 - [ ] `spanshot start` / `spanshot stop` daemon commands
-- [ ] Background monitoring with capture-on-error
-- [ ] Session management and logging
-- [ ] Graceful shutdown and signal handling
+- [ ] Background process with PID management
+- [ ] Graceful shutdown and signal handling (SIGTERM, SIGINT)
+- [ ] Extended `status` command showing daemon state
+
+**OTEL Receiver**
+
+- [ ] OTLP/HTTP endpoint (JSON encoding, port 4318)
+- [ ] Receive and process traces, logs, metrics
+- [ ] Error capture from span status ERROR, exceptions, log severity ERROR+
+
+**Unified Detection System**
+
+- [ ] Unified `DetectionRule` abstraction (regex + semantic matchers)
+- [ ] Shared capture pipeline with `NormalizedEvent` format
+- [ ] All detection rules configurable with sensible defaults
+- [ ] Regex rules apply to OTEL log body (configurable)
+
+**v0.3.x - Upstream Forwarding**
+
+- [ ] Forward telemetry to upstream OTEL collector (Grafana, Datadog, etc.)
+- [ ] Header-based authentication with env var interpolation
 
 ### v0.4 - Analyze (AI Agent)
 
