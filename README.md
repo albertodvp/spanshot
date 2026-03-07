@@ -64,7 +64,7 @@ All **without leaving your terminal**.
 
 **Key Insight:** Capture doesn't just find the error line—it captures a **time-window snapshot** (e.g., 5 seconds before/after) to give AI the full story of what led to the failure.
 
-**Current Status:** Building **Collect + Capture** (v0.1) - AI-free monitoring with deterministic pattern matching.
+**Current Status:** v0.2 complete - **Input Modes & Storage**. Session mode, wrap mode, and status/show commands are fully implemented.
 
 ## Daemon Mode Vision
 
@@ -203,22 +203,29 @@ spanshot collect --logfile /var/log/app.log
 spanshot collect --logfile app.log | jq 'select(.line | contains("ERROR"))'
 ```
 
-### Coming Soon (v0.2 - Input Modes)
+### Input Modes (v0.2)
 
 ```bash
-# Wrap mode: run command and capture its output
+# Wrap mode: run command with monitoring (preserves exit code)
 spanshot wrap -- npm test
 spanshot wrap -- cargo build
 spanshot wrap -- docker-compose up
 
-# Session mode: monitor entire terminal session
+# Session mode: start an interactive PTY session with monitoring
 spanshot session
 npm test          # captured
 cargo build       # captured
 exit              # session ends, captures saved
+
+# View recent captures
+spanshot status
+
+# Show specific capture (1 = most recent)
+spanshot show 1
+spanshot show 1 --json   # output as JSON
 ```
 
-### Future (v0.3+ - Daemon)
+### Future (v0.3 - Daemon)
 
 ```bash
 # Start daemon in project directory
@@ -231,9 +238,7 @@ npm test          # error captured → AI analyzes → insight delivered
 spanshot stop
 
 # Review insights
-spanshot show              # list recent captures
 spanshot insights          # list AI-generated insights
-spanshot show 1 --json     # export for external tools
 ```
 
 ## Configuration
@@ -448,19 +453,22 @@ See the [Project Constitution](.specify/memory/constitution.md) for development 
 - [ ] CLI integration tests for capture
 - [ ] Documentation and examples
 
-### v0.2 - Input Modes & Storage
+### v0.2 - Input Modes & Storage (Complete)
 
 **Input Flexibility**
 
-- [ ] `spanshot wrap -- COMMAND` (capture stdout/stderr of any command)
-- [ ] `spanshot session` (PTY-based terminal session monitoring)
-- [ ] Execution context in captures (command, exit code, duration, PWD)
+- [x] `spanshot wrap -- COMMAND` (capture stdout/stderr of any command)
+- [x] `spanshot session` (PTY-based terminal session monitoring)
+- [x] Exit code passthrough in wrap mode
+- [ ] Execution context in captures (command, duration, PWD)
 
 **Capture Storage**
 
-- [ ] `.spanshot/captures/` directory structure
-- [ ] `spanshot show` command to list/view captures
-- [ ] Session linking (group related captures)
+- [x] `.spanshot/captures/` directory structure
+- [x] `spanshot status` command to list captures
+- [x] `spanshot show N` command to view specific capture
+- [x] `spanshot show N --json` flag for JSON output
+- [x] Session ID linking (group related captures)
 
 ### v0.3 - Daemon Mode
 
