@@ -11,7 +11,7 @@ module Wrap (
 ) where
 
 import Capture (captureFromStream)
-import Config (capture, loadConfig, toCaptureOptions)
+import Config (CaptureConfig (..), ConfigWarning (..), capture, loadConfig, toCaptureOptions)
 import Control.Concurrent (forkIO)
 import Control.Concurrent.MVar (newEmptyMVar, putMVar, takeMVar)
 import Data.ByteString qualified as BS
@@ -22,9 +22,9 @@ import Data.Time (getCurrentTime)
 import Storage qualified
 import Streaming.Prelude qualified as S
 import System.Exit (ExitCode (..))
-import System.IO (Handle, hClose, hFlush, hIsEOF, stderr, stdout)
+import System.IO (Handle, hClose, hFlush, hIsEOF, hPutStrLn, stderr, stdout)
 import System.Process (CreateProcess (..), StdStream (..), createProcess, proc, waitForProcess)
-import Types (CollectEvent (..), SpanShot (..), defaultCaptureOptions)
+import Types (CollectEvent (..), defaultCaptureOptions)
 
 -- | Result of a wrapped command execution
 data WrapResult = WrapResult
@@ -43,8 +43,20 @@ and saves SpanShots while forwarding output to the terminal.
 runWrap :: FilePath -> [String] -> IO WrapResult
 runWrap cmd args = do
     -- Load config for capture options
-    (config, _warnings) <- loadConfig
-    let captureOpts = either (const defaultCaptureOptions) id $ toCaptureOptions (capture config)
+    (config, warnings) <- loadConfig
+
+    -- Print any config warnings to stderr
+    mapM_ printConfigWarning warnings
+
+    -- Get capture options, with explicit error handling
+    let captureConf = capture config
+    captureOpts <- case toCaptureOptions captureConf of
+        Left err -> do
+            hPutStrLn stderr $ "Warning: Invalid capture config: " ++ err ++ ". Using defaults."
+            pure defaultCaptureOptions
+        Right opts -> pure opts
+
+    let maxCaptures = ccMaxCaptures captureConf
 
     -- Create process with piped stdout/stderr
     let procSpec =
@@ -103,6 +115,9 @@ runWrap cmd args = do
         )
         spanshots
 
+    -- Enforce LRU limit on captures
+    _ <- Storage.enforceLimit maxCaptures
+
     captureCount <- readIORef captureCountRef
 
     pure
@@ -145,3 +160,12 @@ readAndCollect hIn hOut sourceName orderIdRef eventsRef = do
                     -- Continue
                     loop
     loop
+
+-- | Print a config warning to stderr
+printConfigWarning :: ConfigWarning -> IO ()
+printConfigWarning (ConfigParseWarning path err) = do
+    hPutStrLn stderr $ "Warning: Failed to parse config " ++ path
+    mapM_ (hPutStrLn stderr . ("  " ++)) (lines err)
+printConfigWarning (ConfigValidationWarning path err) = do
+    hPutStrLn stderr $ "Warning: Invalid config in " ++ path
+    hPutStrLn stderr $ "  " ++ err

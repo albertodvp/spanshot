@@ -181,10 +181,9 @@ getCaptureByIndex idx
     | idx <= 0 = pure $ Left "Index must be a positive number"
     | otherwise = do
         captures <- listCaptures
-        if idx > length captures
-            then pure $ Left $ "Index " ++ show idx ++ " is out of range (only " ++ show (length captures) ++ " captures)"
-            else do
-                let cid = captures !! (idx - 1)
+        case drop (idx - 1) captures of
+            [] -> pure $ Left $ "Index " ++ show idx ++ " is out of range (only " ++ show (length captures) ++ " captures)"
+            (cid : _) -> do
                 result <- loadCapture cid
                 case result of
                     Left err -> pure $ Left err
