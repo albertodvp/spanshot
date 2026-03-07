@@ -10,6 +10,12 @@ module Storage (
     saveCapture,
     loadCapture,
     listCaptures,
+    listCapturesWithInfo,
+    listCapturesBySession,
+    getCaptureByIndex,
+
+    -- * Capture Info
+    CaptureInfo (..),
 
     -- * LRU Eviction
     enforceLimit,
@@ -37,7 +43,8 @@ import System.Directory (
  )
 import System.FilePath (dropExtension, takeExtension, (</>))
 
-import Types (SpanShot)
+import Data.Time (UTCTime)
+import Types (CollectEvent (..), SpanShot (..))
 
 -- | Get the captures directory path (.spanshot/captures/)
 getCapturesDir :: IO FilePath
@@ -127,3 +134,58 @@ deleteCapture captureId' = do
     if exists
         then removeFile filePath
         else pure ()
+
+-- | Information about a capture for display purposes
+data CaptureInfo = CaptureInfo
+    { ciCapturedAt :: !UTCTime
+    -- ^ When the capture was made
+    , ciSessionId :: !(Maybe Text)
+    -- ^ Session ID if captured in a session
+    , ciTriggerLine :: !Text
+    -- ^ First line of the error event
+    }
+    deriving (Show, Eq)
+
+-- | List captures with their info, most recent first
+listCapturesWithInfo :: IO [(Text, CaptureInfo)]
+listCapturesWithInfo = do
+    captureIds <- listCaptures
+    capturesWithInfo <- mapM loadCaptureInfo captureIds
+    pure [(cid, info) | (cid, Just info) <- capturesWithInfo]
+  where
+    loadCaptureInfo :: Text -> IO (Text, Maybe CaptureInfo)
+    loadCaptureInfo cid = do
+        result <- loadCapture cid
+        case result of
+            Left _ -> pure (cid, Nothing)
+            Right shot -> pure (cid, Just (extractInfo shot))
+
+    extractInfo :: SpanShot -> CaptureInfo
+    extractInfo shot =
+        CaptureInfo
+            { ciCapturedAt = capturedAtUtc shot
+            , ciSessionId = sessionId shot
+            , ciTriggerLine = line (errorEvent shot)
+            }
+
+-- | List captures filtered by session ID, most recent first
+listCapturesBySession :: Maybe Text -> IO [Text]
+listCapturesBySession Nothing = listCaptures
+listCapturesBySession (Just sid) = do
+    infos <- listCapturesWithInfo
+    pure [cid | (cid, info) <- infos, ciSessionId info == Just sid]
+
+-- | Get a capture by its 1-based index (1 = most recent)
+getCaptureByIndex :: Int -> IO (Either String (Text, SpanShot))
+getCaptureByIndex idx
+    | idx <= 0 = pure $ Left "Index must be a positive number"
+    | otherwise = do
+        captures <- listCaptures
+        if idx > length captures
+            then pure $ Left $ "Index " ++ show idx ++ " is out of range (only " ++ show (length captures) ++ " captures)"
+            else do
+                let cid = captures !! (idx - 1)
+                result <- loadCapture cid
+                case result of
+                    Left err -> pure $ Left err
+                    Right shot -> pure $ Right (cid, shot)

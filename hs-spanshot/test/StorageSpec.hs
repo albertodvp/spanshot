@@ -11,10 +11,14 @@ import System.IO.Temp (withSystemTempDirectory)
 import Test.Hspec (Spec, describe, it, shouldBe, shouldReturn, shouldSatisfy)
 
 import Storage (
+    CaptureInfo (..),
     enforceLimit,
+    getCaptureByIndex,
     getCaptureFilePath,
     getCapturesDir,
     listCaptures,
+    listCapturesBySession,
+    listCapturesWithInfo,
     loadCapture,
     saveCapture,
  )
@@ -22,6 +26,7 @@ import Types (
     CollectEvent (..),
     DetectionRule (..),
     SpanShot (..),
+    capturedAtUtc,
  )
 
 -- | Helper to create a mock UTCTime
@@ -170,3 +175,91 @@ storageTests = do
             case result of
                 Left err -> fail $ "Round-trip failed: " ++ err
                 Right loaded -> loaded `shouldBe` original
+
+    describe "listCapturesWithInfo" $ do
+        it "returns empty list when no captures exist" $ withTestStorage $ \_ -> do
+            infos <- listCapturesWithInfo
+            infos `shouldBe` []
+
+        it "returns capture info with timestamp" $ withTestStorage $ \_ -> do
+            let shot = mockSpanShot 100
+            captureId' <- saveCapture shot
+            infos <- listCapturesWithInfo
+            length infos `shouldBe` 1
+            case infos of
+                [(cid, info)] -> do
+                    cid `shouldBe` captureId'
+                    ciCapturedAt info `shouldBe` capturedAtUtc shot
+                _ -> fail "Expected exactly one capture"
+
+        it "returns captures with most recent first" $ withTestStorage $ \_ -> do
+            id1 <- saveCapture (mockSpanShot 100)
+            threadDelay 10000
+            _ <- saveCapture (mockSpanShot 200)
+            threadDelay 10000
+            id3 <- saveCapture (mockSpanShot 300)
+            infos <- listCapturesWithInfo
+            length infos `shouldBe` 3
+            -- Most recent should be first, oldest last
+            map fst infos `shouldSatisfy` (\xs -> take 1 xs == [id3])
+            map fst infos `shouldSatisfy` (\xs -> drop 2 xs == [id1])
+
+    describe "listCapturesBySession" $ do
+        it "returns all captures when session is Nothing" $ withTestStorage $ \_ -> do
+            _ <- saveCapture (mockSpanShot 100)
+            _ <- saveCapture (mockSpanShot 200)
+            captures <- listCapturesBySession Nothing
+            length captures `shouldBe` 2
+
+        it "returns only captures with matching session ID" $ withTestStorage $ \_ -> do
+            let shot1 = (mockSpanShot 100){sessionId = Just "session-1"}
+            let shot2 = (mockSpanShot 200){sessionId = Just "session-2"}
+            let shot3 = (mockSpanShot 300){sessionId = Just "session-1"}
+            _ <- saveCapture shot1
+            _ <- saveCapture shot2
+            _ <- saveCapture shot3
+            captures <- listCapturesBySession (Just "session-1")
+            length captures `shouldBe` 2
+
+        it "returns empty list when no captures match session" $ withTestStorage $ \_ -> do
+            let shot1 = (mockSpanShot 100){sessionId = Just "session-1"}
+            _ <- saveCapture shot1
+            captures <- listCapturesBySession (Just "other-session")
+            captures `shouldBe` []
+
+    describe "getCaptureByIndex" $ do
+        it "returns capture at 1-based index" $ withTestStorage $ \_ -> do
+            id1 <- saveCapture (mockSpanShot 100)
+            threadDelay 10000
+            _ <- saveCapture (mockSpanShot 200)
+            threadDelay 10000
+            id3 <- saveCapture (mockSpanShot 300)
+            -- Index 1 is most recent (id3)
+            result1 <- getCaptureByIndex 1
+            case result1 of
+                Left err -> fail err
+                Right (cid, _) -> cid `shouldBe` id3
+            -- Index 3 is oldest (id1)
+            result3 <- getCaptureByIndex 3
+            case result3 of
+                Left err -> fail err
+                Right (cid, _) -> cid `shouldBe` id1
+
+        it "returns error for index 0" $ withTestStorage $ \_ -> do
+            _ <- saveCapture (mockSpanShot 100)
+            result <- getCaptureByIndex 0
+            result `shouldSatisfy` isLeft
+
+        it "returns error for negative index" $ withTestStorage $ \_ -> do
+            _ <- saveCapture (mockSpanShot 100)
+            result <- getCaptureByIndex (-1)
+            result `shouldSatisfy` isLeft
+
+        it "returns error for index beyond list size" $ withTestStorage $ \_ -> do
+            _ <- saveCapture (mockSpanShot 100)
+            result <- getCaptureByIndex 5
+            result `shouldSatisfy` isLeft
+
+        it "returns error when no captures exist" $ withTestStorage $ \_ -> do
+            result <- getCaptureByIndex 1
+            result `shouldSatisfy` isLeft

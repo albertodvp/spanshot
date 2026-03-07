@@ -68,6 +68,7 @@ executable spanshot
         hs-spanshot,
         opt-env-conf ^>=0.13,
         streaming ^>=0.2,
+        text ^>=2.1,
         yaml ^>=0.11
 
     hs-source-dirs:   app

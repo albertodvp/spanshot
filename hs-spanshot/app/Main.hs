@@ -9,6 +9,8 @@ import Data.ByteString.Char8 qualified as BS
 import Data.ByteString.Lazy.Char8 qualified as BL
 
 import Control.Monad (when)
+import Data.Text (Text)
+import Data.Text qualified as T
 import Data.Yaml qualified as Yaml
 import OptEnvConf (
     HasParser (settingsParser),
@@ -33,13 +35,14 @@ import OptEnvConf (
  )
 import Paths_hs_spanshot (version)
 import Session qualified
+import Storage qualified
 import Streaming.Prelude qualified as S
 import System.Directory (doesDirectoryExist, getCurrentDirectory)
 import System.Exit (exitFailure, exitWith)
 import System.FilePath ((</>))
 import System.IO (hFlush, hPutStrLn, stderr, stdout)
 import System.IO.Error (isDoesNotExistError, isPermissionError)
-import Types (CollectEvent, DetectionRule (..), SpanShot, defaultCollectOptions, defaultMaxPostWindowEvents, mkCaptureOptions)
+import Types (CollectEvent (..), DetectionRule (..), SpanShot (..), defaultCollectOptions, defaultMaxPostWindowEvents, mkCaptureOptions)
 import Wrap qualified
 
 newtype Instructions = Instructions Dispatch
@@ -55,6 +58,8 @@ data Dispatch
     | DispatchRun RunSettings
     | DispatchWrap WrapSettings
     | DispatchSession
+    | DispatchStatus
+    | DispatchShow ShowSettings
     deriving (Show)
 
 instance HasParser Dispatch where
@@ -72,6 +77,10 @@ instance HasParser Dispatch where
                 DispatchWrap <$> settingsParser
             , command "session" "Start an interactive PTY session with SpanShot monitoring" $
                 pure DispatchSession
+            , command "status" "Show recent captures" $
+                pure DispatchStatus
+            , command "show" "Show a specific capture by index" $
+                DispatchShow <$> settingsParser
             ]
 
 data ConfigCommand
@@ -252,6 +261,35 @@ instance HasParser WrapSettings where
                     )
                 )
 
+-- | Settings for the 'show' command (User Story 3)
+data ShowSettings = ShowSettings
+    { showIndex :: Int
+    -- ^ 1-based index of capture to show
+    , showJson :: Bool
+    -- ^ Output as JSON instead of formatted text
+    }
+    deriving (Show)
+
+instance HasParser ShowSettings where
+    settingsParser =
+        ShowSettings
+            <$> withoutConfig
+                ( setting
+                    [ help "Index of the capture to show (1 = most recent)"
+                    , reader auto
+                    , argument
+                    , metavar "INDEX"
+                    ]
+                )
+            <*> withoutConfig
+                ( setting
+                    [ help "Output as JSON"
+                    , switch True
+                    , long "json"
+                    , value False
+                    ]
+                )
+
 main :: IO ()
 main = do
     Instructions dispatch <-
@@ -271,6 +309,10 @@ main = do
             runWrapCommand settings
         DispatchSession ->
             runSessionCommand
+        DispatchStatus ->
+            runStatusCommand
+        DispatchShow settings ->
+            runShowCommand settings
 
 -- | Run the capture command: process a log file and output SpanShots as JSONL
 runCapture :: CaptureSettings -> IO ()
@@ -341,6 +383,58 @@ runSessionCommand :: IO ()
 runSessionCommand = do
     result <- Session.runSession
     exitWith (Session.sessionExitCode result)
+
+-- | Run the status command: show recent captures
+runStatusCommand :: IO ()
+runStatusCommand = do
+    infos <- Storage.listCapturesWithInfo
+    if null infos
+        then putStrLn "No captures found."
+        else do
+            putStrLn $ "Found " ++ show (length infos) ++ " capture(s):\n"
+            mapM_ printCaptureInfo (zip [1 :: Int ..] infos)
+  where
+    printCaptureInfo (idx, (captureId, info)) = do
+        let timestamp = show (Storage.ciCapturedAt info)
+        let truncatedLine = take 60 (show (Storage.ciTriggerLine info))
+        putStrLn $ "  [" ++ show idx ++ "] " ++ timestamp
+        putStrLn $ "      " ++ truncatedLine
+        putStrLn $ "      ID: " ++ show captureId
+        putStrLn ""
+
+-- | Run the show command: display a specific capture
+runShowCommand :: ShowSettings -> IO ()
+runShowCommand settings = do
+    result <- Storage.getCaptureByIndex (showIndex settings)
+    case result of
+        Left err -> do
+            hPutStrLn stderr $ "Error: " ++ err
+            exitFailure
+        Right (captureId, shot) ->
+            if showJson settings
+                then printJsonLn shot
+                else printCaptureDetails captureId shot
+
+-- | Print capture details in human-readable format
+printCaptureDetails :: Text -> SpanShot -> IO ()
+printCaptureDetails cid shot = do
+    putStrLn $ "Capture ID: " ++ T.unpack cid
+    putStrLn $ "Captured at: " ++ show (capturedAtUtc shot)
+    putStrLn $ "Detected by: " ++ show (detectedBy shot)
+    putStrLn ""
+    putStrLn "=== Pre-window events ==="
+    mapM_ printEventLine (preWindow shot)
+    putStrLn ""
+    putStrLn "=== Error event ==="
+    printEventLine (errorEvent shot)
+    putStrLn ""
+    putStrLn "=== Post-window events ==="
+    mapM_ printEventLine (postWindow shot)
+  where
+    printEventLine event = do
+        let ts = show (readAtUtc event)
+        let content = T.unpack (line event)
+        putStrLn $ ts ++ " | " ++ content
 
 runCollect :: FilePath -> IO ()
 runCollect logfilePath = do
