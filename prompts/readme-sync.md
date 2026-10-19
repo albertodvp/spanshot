@@ -1,10 +1,16 @@
 # README Sync Instructions
 
-Compare README.md against the actual codebase and update any outdated sections.
+Compare docs/legacy-cli.md against the public CLI codebase and update any outdated sections there.
+
+README.md is the product overview and explicitly distinguishes the private revamp
+from this earlier public implementation. Preserve that distinction, the development
+status, and the branding. Do not infer the revamp's capabilities or release timing
+from this codebase, or replace the overview with legacy CLI documentation.
 
 ## Files to Read
 
-- `README.md` - current documentation
+- `README.md` - product overview and development status (preserve)
+- `docs/legacy-cli.md` - public CLI documentation to synchronize
 - `hs-spanshot/app/Main.hs` - CLI commands and dispatch types
 - `hs-spanshot/src/Types.hs` - data types (CollectEvent, SpanShot, CaptureOptions)
 - `hs-spanshot/src/Config.hs` - configuration types
